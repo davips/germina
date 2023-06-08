@@ -7,6 +7,7 @@ from hdict.dataset.pandas_handling import explode_df
 from shelchemy import sopen
 
 d = hdict(dataset="scikit-learn/adult-census-income")
+d = hdict.fromfile("~/research/dataset/abalone-3class.arff")
 with sopen(remote_cache_uri) as remote, sopen(local_cache_uri) as local:
     # caches = cache(remote) >> cache(local)
     caches = cache(local)

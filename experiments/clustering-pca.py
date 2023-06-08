@@ -93,7 +93,9 @@ explained = DataFrame(pca.components_, columns=list(df.columns))
 print(explained[explained >= 0.02].transpose().to_string())
 pca = PCA(n_components=df.shape[1], random_state=0)
 p = pca.fit_transform(df)
-for i in range(1, 6): #df.shape[1]):
+for i in range(1, df.shape[1]):
     r = pwsortedness(p, p[:, :i])
     somean, sostd = np.mean(r), np.std(r)
-    print(i, somean, sostd)
+    rs = sortedness(p, p[:, :i])
+    smean, sstd = np.mean(rs), np.std(rs)
+    print(i, somean, sostd, "   ", smean, sstd)
