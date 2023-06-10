@@ -811,7 +811,7 @@ ax = fig.add_subplot(111, projection="3d")
 ax.scatter(p[:, 0], p[:, 1], p[:, 2], c=colors, cmap="coolwarm")
 
 # plt.show()
-
+from mdscuda import MDS
 mds = MDS(n_dims=3)  # defines sklearn-style class
 
 
