@@ -2,7 +2,9 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 from numpy import mean, std, quantile
+from sklearn.ensemble import RandomForestClassifier as RFc
 from sklearn.manifold import TSNE
+from sklearn.model_selection import KFold, cross_val_predict
 from sortedness.local import sortedness
 
 from germina.config import local_cache_uri
@@ -46,14 +48,18 @@ for target in targets:
             labels = np.where(labels == 2, 30, labels)
             scale = 200
     mn, mx = min(labels), max(labels)
-    for ndims in [2, 3][:]:
+    cv = KFold(n_splits=20, random_state=0, shuffle=True)
+    for ndims in [2, 3]:
         with sopen(local_cache_uri) as local:  # , sopen(remote_cache_uri) as remote:
             d >>= (
-                    apply(TSNE, n_components=ndims, random_state=0, method='exact', n_jobs=-1).tsne >> apply(TSNE.fit_transform, _.tsne, X=_.p).r
-                    >> apply(sortedness, _.df, _.r).q
+                    apply(RFc, n_estimators=1000, random_state=0, n_jobs=-1).rfc
+                    >> apply(cross_val_predict, _.rfc, X=_.raw_df, y=labels, cv=cv, n_jobs=-1).preds
+                    >> apply(TSNE, n_components=ndims, random_state=0, method='exact', n_jobs=-1).tsne >> apply(TSNE.fit_transform, _.tsne, X=_.data100_df).proj
+                    >> apply(sortedness, _.std_df, _.proj).q
                     >> cache(local)
             )
-        r, q = d.r, d.q
+            d.evaluate()
+        r, q = d.proj, d.q
         print(f"{target} {ndims}d".ljust(25), mean(q), std(q), sep="\t")
         t0 = -1
         t1 = 0.1
@@ -65,6 +71,8 @@ for target in targets:
             plt.title(f"{target} ({ndims})")
             ax = fig.add_subplot(111)
             ax.scatter(r[:, 0], r[:, 1], vmin=mn, vmax=mx, c=colors, cmap=cm, s=sizes)
+            miss = d.preds != labels
+            ax.scatter(r[miss, 0], r[miss, 1], c="gray", s=500)
             if "-" in target:
                 mask = colors == 3
                 colors = colors[mask]
@@ -72,10 +80,10 @@ for target in targets:
                 # mask = mask.reshape(-1, 1) # & [True, True]
                 r = r[mask, :]
             ax.scatter(r[:, 0], r[:, 1], vmin=mn, vmax=mx, c=colors, cmap=cm, s=sizes)
-        elif ndims == 3:
-            fig = plt.figure()
-            plt.title(f"{target} ({ndims})")
-            ax = fig.add_subplot(111, projection="3d")
-            ax.scatter(r[:, 0], r[:, 1], r[:, 2], vmin=mn, vmax=mx, c=colors, cmap=cm, s=sizes)
+        # elif ndims == 3:
+        #     fig = plt.figure()
+        #     plt.title(f"{target} ({ndims})")
+        #     ax = fig.add_subplot(111, projection="3d")
+        #     ax.scatter(r[:, 0], r[:, 1], r[:, 2], vmin=mn, vmax=mx, c=colors, cmap=cm, s=sizes)
 
 plt.show()

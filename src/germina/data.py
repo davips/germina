@@ -21,10 +21,10 @@ def clean(targets, path, filenames, cache_uris):
     d = hdict(delta=m, random_state=0, sqform=True, n_dims=484)
     with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
         d >>= (
-                apply(MDS)("mds") >> apply(MDS.fit, _.mds)("p")
+                apply(MDS)("mds") >> apply(MDS.fit, _.mds).betadiv
                 >> cache(remote) >> cache(local)
         )
-        df_betadiv = DataFrame(d.p)
+        df_betadiv = DataFrame(d.betadiv)
     biomeattrs = [f"m{c}" for c in range(d.n_dims)]
     df_betadiv.columns = biomeattrs
     data = [_.fromfile(path + filename).df[cols] if cols else _.fromfile(path + filename).df for filename, cols in filenames[1:]]
@@ -46,8 +46,8 @@ def clean(targets, path, filenames, cache_uris):
         df = df[s.ne(s.max()) | s.eq(0)]
         print("After removing worst rows:", df.shape)
 
-        # Backup targets.
-        bkp = {tgt: df[tgt] for tgt in ["risco_class", "ibq_reg_t1", "ibq_reg_t2"] + biomeattrs}
+        # Backup targets (and microbiome as temporary a workaround).
+        bkp = {tgt: df[tgt] for tgt in targets + biomeattrs if "-" not in tgt}
 
         # Remove columns.
         s = df.isna().sum(axis=0)
@@ -81,23 +81,19 @@ def clean(targets, path, filenames, cache_uris):
         if c in targets:
             del df[c]
     print("final shape after targets removal", df.shape)
-
-    # Standardize.
-    st = StandardScaler()
-    s: ndarray = st.fit_transform(df)
-    pca = PCA(n_components=df.shape[1])
-    s = pca.fit_transform(s)
-    df = DataFrame(s, columns=list(df.columns))
     print()
+    d["raw_df"] = df
 
     # Reduce dimensionality before applying t-SNE.
-    d["df"] = df
+    todf = lambda X, cols: DataFrame(X, columns=cols)
     d["n_dims"] = 100
+    cols = list(df.columns)
     with sopen(local_cache_uri) as local:  # , sopen(remote_cache_uri) as remote:
-        d >>= (
-                apply(cdist, XA=_.df, XB=_.df, metric="sqeuclidean").delta
-                >> apply(MDS).mds >> apply(MDS.fit, _.mds)("p")
-                >> cache(local)
-        )
+        d >>= apply(StandardScaler.fit_transform, StandardScaler(), _.raw_df).std >> apply(todf, _.std, cols).std_df
+        d >>= apply(cdist, XA=_.std_df, XB=_.std_df, metric="sqeuclidean").delta
+        d >>= apply(PCA, n_components=min(*df.shape)).pca_model >> apply(PCA.fit_transform, _.pca_model, _.std_df).pca >> apply(todf, _.pca, None).pca_df
+        d >>= apply(MDS).mds >> apply(MDS.fit, _.mds).data100 >> apply(todf, _.data100, None).data100_df
+        d >>= cache(local)
         d.evaluate()
+
     return d
