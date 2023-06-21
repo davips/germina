@@ -1,5 +1,3 @@
-#  todo: k-fold CV with wilcoxon
-# todo: mk-fold CV to show optimal k for 1kd dataset
 from pprint import pprint
 
 import matplotlib.pyplot as plt
@@ -68,7 +66,7 @@ rows = map(int, "1	2	5	6	7	8	10	11	12	13	14	15	16	17	18	19	20	21	22	23	24	25	26	
                 "258	259	260	261	262	263	264	265	266	267	268	269	270	271	272	273	274	275	276	277	278	279	280	281	282	283	284	285	286	287	288	289	290	291	292	293	294	295	296	297	298	299	300	301	302	303	304	305	306	307	308	309	310	311	312	313	314	315	316	317	318	319	320	321	322	323	324	325	326	327	328	329	330	331	332	333	334	335	336	337	338	339	340	341	342	343	344	345	346	347	348	349	350	351	352	353	354	355	356	357	358	359	360	361	362	363	364	365	366	367	368	369	370	371	372	373	374	375	376	377	378	379	" \
                 "380	381	383	384	385	386	387	388	389	390	391	392	393	394	395	396	397	398	399	400	401	402	403	404	405	406	407	408	409	410	411	412	413	414	415	416	417	419	420	421	422	423	424	425	426	427	428	429	430	431	432	433	434	435	436	437	438	439	440	441	442	443	444	445	446	447	448	449	450	451	452	453	454	455	456	457	458	459	460	461	462	463	464	465	466	467	468	469	471	472	473	474	475	476	477	478	479	480	481	482	483	484	485	486	487	488	489	490	491	492	493	494	495	496	497	499	500	501	502	503	504	505	" \
                 "506	507	509	510	511	512	513	514	515	516	517	518	519	520	522	523	524	525	526	527	528	529	530	531	532	534	535	536	537	538	539	540	541	542	543	544	545	546	547	548	549	550	551	552	553	554	555	556	557	558	559	560".split("\t"))
-path = "/home/davi/git/germina/data/"
+path = "/data/"
 data = {
     "socio": _.fromfile(path + "grover230303---2023-04-06.csv"),
     "eeg": _.fromfile(path + "eeg/all.csv"),
@@ -84,35 +82,20 @@ df = df.loc[rows]
 print("df:", df.shape)
 
 colors = df.pop("elegib14_t0")
-diss = cdist(df, df)
-p = smacof(diss, metric=False, n_components=4, n_jobs=18, random_state=0, normalized_stress=True)[0]
+pca = PCA(n_components=4)
+p = pca.fit_transform(df)
 fig = plt.figure()
 ax = fig.add_subplot(111, projection="3d")
 ax.scatter(p[:, 0], p[:, 1], p[:, 2], c=colors, cmap="coolwarm")
 plt.show()
 
-# pi = smacof(diss, metric=False, n_components=df.shape[1], n_jobs=18, random_state=0, normalized_stress=True)[0]
-p = smacof(diss, metric=False, n_components=df.shape[1], n_jobs=18, random_state=0, normalized_stress=True)[0]
-for i in range(1, 7):
-# for i in range(df.shape[1], 1, -1):
-    pi = smacof(diss, metric=False, n_components=i, n_jobs=18, random_state=0, normalized_stress=True)[0]
-    r = pwsortedness(p, pi)
+explained = DataFrame(pca.components_, columns=list(df.columns))
+print(explained[explained >= 0.02].transpose().to_string())
+pca = PCA(n_components=df.shape[1], random_state=0)
+p = pca.fit_transform(df)
+for i in range(1, df.shape[1]):
+    r = pwsortedness(p, p[:, :i])
     somean, sostd = np.mean(r), np.std(r)
-    print(i, somean, sostd)
-
-"""
-45 1.0 0.0
-44 0.9042379509601457 0.010218610441191352
-43 0.8591723437433892 0.010660688230965363
-42 0.8243956255127103 0.012533453154469833
-41 0.7941385139240295 0.013609047224353417
-40 0.7703064547957196 0.01443702412215105
-39 0.7470007021456679 0.015569247845319174
-38 0.7266228417047121 0.017319041928640838
-37 0.7075962902897805 0.017918138342842976
-36 0.6882305957090978 0.020146397323101053
-35 0.6695468671255573 0.021126998834447106
-34 0.6531967093727749 0.022461456120735298
-33 0.6345430662866494 0.023327469781069313
-32 0.6134979193495332 0.02370669783135557
-"""
+    rs = sortedness(p, p[:, :i])
+    smean, sstd = np.mean(rs), np.std(rs)
+    print(i, somean, sostd, "   ", smean, sstd)

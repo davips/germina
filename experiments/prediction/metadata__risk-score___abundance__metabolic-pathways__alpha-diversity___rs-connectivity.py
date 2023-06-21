@@ -1,6 +1,10 @@
-from pandas import Series
+from pprint import pprint
+
+from matplotlib import pyplot as plt
+from pandas import Series, DataFrame
 from sklearn.dummy import DummyClassifier
-from sklearn.model_selection import KFold, cross_val_score
+from sklearn.metrics import confusion_matrix
+from sklearn.model_selection import KFold, cross_val_score, cross_val_predict
 import numpy as np
 import pandas as pd
 from numpy import quantile, mean, std
@@ -12,16 +16,49 @@ from germina.data import clean
 from hdict import _, apply, cache
 from shelchemy import sopen
 
+"""
+'ebia_tot_t2', 'ebia_2c_t2', 'bayley_1_t2', 'bayley_2_t2',
+       'bayley_3_t2', 'bayley_6_t2', 'bayley_16_t2', 'bayley_7_t2',
+       'bayley_17_t2', 'bayley_18_t2', 'bayley_8_t2', 'bayley_11_t2',
+       'bayley_19_t2', 'bayley_12_t2', 'bayley_20_t2', 'bayley_21_t2',
+       'bayley_13_t2', 'bayley_22_t2', 'bayley_23_t2', 'bayley_24_t2',
+       'risco_total_t0'
+"""
 files = [
-    ("data_microbiome___2023-05-10___beta_diversity_distance_matrix_T1.csv", None),
-    # ("data_eeg___2023-03-15___VEP-N1---covariates-et-al---Average-et-al.csv", None),
-    ("metadata___2023-05-08-fup5afixed.csv", ["id_estudo", "ibq_reg_t1", "ibq_reg_t2"]),
-    # ("metadata___2023-05-08-fup5afixed.csv", None),
-    ("nathalia170523_variaveis_risco___2023-06-08.csv", None)
+    ("data_microbiome___2023-06-18___alpha_diversity_n525.csv", None),
+    ("data_microbiome___2023-06-20___vias_metabolicas_3_meses_n525.csv", None),
+    ("data_microbiome___2023-06-18___especies_3_meses_n525.csv", None),
+    ("data_eeg___2023-06-20___T1_RS_average_dwPLI_withEEGCovariates.csv", None),
+    ("data_eeg___2023-06-20___T2_RS_average_dwPLI_withEEGCovariates.csv", None),
+    ("metadata___2023-06-18.csv", ["id_estudo", "ibq_reg_t1", "ibq_reg_t2"]),  # "risco_class": colocar de volta depois de conferido por Pedro
+    # ("metadata___2023-06-18.csv", None)
 ]
-targets = ["risco_class", "ibq_reg_t1", "ibq_reg_t2", "ibq_reg_t2-ibq_reg_t1"]
-# targets = ["risco_class"]
-d = clean(targets, "data/", files, [local_cache_uri])
+targets = ["ibq_reg_t1", "ibq_reg_t2", "ibq_reg_t2-ibq_reg_t1"]
+d = clean(targets, "data/", files, [local_cache_uri], mds_on_first=False)
+
+# daf: DataFrame = d.df["idade_crianca_meses_t1"]
+# th = 3.6
+# lo, hi = daf[daf <= th], daf[daf > th]
+# print(lo.count(), hi.count())
+# # mn, mx = quantile(out, [1 / 3, 2 / 3])
+#
+#
+# outcome: DataFrame = d.df["ibq_reg_t2"]
+# print(list(outcome.sort_values()))
+#
+# tho = outcome.median()
+# a, b = daf[outcome <= tho], daf[outcome > tho]
+#
+# # plt.hist([a, b], bins=12)
+#
+#
+# outcome2: DataFrame = d.df["bayley_3_t2"]
+# outcome2.hist(bins=22)
+# plt.show()
+
+
+pprint([col[:80] for col in d.raw_df.columns])
+
 cm = "coolwarm"
 for target in targets:
     if "-" in target:
@@ -30,7 +67,8 @@ for target in targets:
     else:
         labels = d.targets[target]
         if target.startswith("ibq_reg_t"):
-            qmn, qmx = quantile(labels, [1 / 4, 3 / 4])
+            # qmn, qmx = quantile(labels, [1 / 4, 3 / 4])
+            qmn, qmx = quantile(labels, [1 / 2, 1 / 2])
             menores = labels[labels <= qmn].index
             maiores = labels[labels >= qmx].index
             pd.options.mode.chained_assignment = None
@@ -40,7 +78,7 @@ for target in targets:
 
     X = d.raw_df
     y = labels  # np.where(labels == 2, 1, labels)
-    cv = KFold(n_splits=10, random_state=0, shuffle=True)
+    cv = KFold(n_splits=5, random_state=0, shuffle=True)
     with sopen(local_cache_uri) as local:
         d >>= (
                 apply(RFc, n_estimators=1000, random_state=0, n_jobs=-1).rfc
@@ -51,6 +89,7 @@ for target in targets:
                 >> apply(cross_val_score, _.rfr, X=_.raw_df, y=labels, cv=cv, scoring="r2", n_jobs=-1).scoresr
                 >> cache(local)
         )
+        print(confusion_matrix(y, cross_val_predict(d.rfc, X, y)))
         print(
             f"{target.ljust(20)}\t"
             f"baseline:\t{mean(d.baseline):.2f} ± {std(d.baseline):.2f}\t\t"

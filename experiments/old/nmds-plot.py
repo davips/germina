@@ -37,7 +37,7 @@ drop = set("elegib14_t0,bisq_3_mins_t1,bisq_4_mins_t1,g__Bacteroides,g__Bifidoba
            "bisq_9_mins_t1,bayley_8_t2,k__Bacteria.p__Firmicutes.c__Clostridia.o__Clostridiales.f__Lachnospiraceae.g__Blautia.s__Ruminococcus_gnavus,k__Bacteria.p__Actinobacteria.c__Actinobacteria.o__Bifidobacteriales.f__Bifidobacteriaceae.g__Bifidobacterium.s__Bifidobacterium_longum,"
            "g__Blautia,bayley_13_t2,bayley_3_t2,bayley_24_t1,bayley_22_t2,bayley_1_t1,bayley_13_t1,bayley_8_t1,".split(","))
 cols = cols.difference(drop)
-path = "/home/davi/git/germina/data/"
+path = "/data/"
 data = {
     "socio": _.fromfile(path + "grover230303---2023-04-06.csv"),
     "eeg": _.fromfile(path + "eeg/all.csv"),
