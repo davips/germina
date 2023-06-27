@@ -19,6 +19,9 @@ numpy = "^1.24.3"
 seaborn = "^0.12.2"
 sortedness = "^0.230501.10"
 mdscuda = "^0.1.3"
+xgboost = "^1.7.6"
+catboost = "^1.2"
+lightgbm = "^3.3.5"
 
 [tool.poetry.extras]    #[tool.poetry.group.extras.dependencies]
 full = []

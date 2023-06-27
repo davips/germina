@@ -1,10 +1,25 @@
+from time import sleep
+
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.naive_bayes import BernoulliNB
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import LinearSVC
+from xgboost import XGBClassifier as XGBc
+from catboost import CatBoostClassifier as CATc
+from lightgbm import LGBMClassifier as LGBMc
+from sklearn.linear_model import LogisticRegression as LRc
+from sklearn.ensemble import ExtraTreesClassifier as ETc
+from sklearn.linear_model import SGDClassifier as SGDc
 import pandas as pd
 from scipy.stats import gmean
 from sklearn import clone
 from sklearn.inspection import permutation_importance
 
 from germina.ordinalclassifier import OrdinalClassifier
-from mdscuda import MDS
 from numpy import log, ndarray
 from pandas import DataFrame
 from scipy.spatial.distance import cdist
@@ -29,7 +44,6 @@ from sklearn.ensemble import RandomForestClassifier as RFc
 from sklearn.ensemble import RandomForestRegressor as RFr
 
 from germina.config import local_cache_uri, remote_cache_uri
-from germina.data import clean
 from germina.nan import remove_worst_nan_rows, backup_cols, hasNaN, remove_worst_nan_cols, remove_cols, bina, loga, remove_nan_rows_cols, remove_nan_cols_rows
 from hdict import _, apply, cache, hdict
 from shelchemy import sopen
@@ -38,15 +52,28 @@ path = "data/"
 areas = ["microbiome_alpha", "microbiome_pathways", "microbiome_species", "eeg1", "eeg2"]
 metavars = [
     "id_estudo",
-    "risco_class",
-    "epds_tot_t1",  # EPDS Total Score
-    "c12f_t1",  # Depressão durante a gestação ou no pós-parto
-    "educationLevelAhmedNum_t1",
-    "elegib14_t0",  # sexo
-    "elegib2_t0",  # idade mãe
-    "a08_t1",  # Etnia da criança
-    "renda_familiar_total_t0",
+    # "risco_class",
+    # "epds_tot_t1",  # EPDS Total Score
+    # "chaos_tot_t1",
+    # "renda_familiar_total_t0",
+    # "delivery_mode",
+    # "EBF_3m",
+    # "infant_ethinicity",
+    #
+    # "idade_crianca_meses_t1",
+    # "idade_crianca_meses_t2",
 
+    # "c12f_t1",  # Depressão durante a gestação ou no pós-parto
+    # "educationLevelAhmedNum_t1",
+    # "elegib14_t0",  # sexo
+    # "elegib2_t0",  # idade mãe
+    # "a08_t1",  # Etnia da criança
+    # "renda_t2",
+    # "renda_total_t2",
+    # "maternal_ethinicity",
+    # "antibiotic",
+    # "risco_total_t0",
+    # "risco_class_cod",
     #
 
     # "b04_t1",  # Etnia da mãe
@@ -55,6 +82,7 @@ metavars = [
     # "a10_t1",  # ordem desta criança entre os irmãos
     # "b20_t1",  # Quantas pessoas adultas (maiores de 18 anos de idade), incluindo você, residem no seu domicílio?
     # "b21_t1",  # Quantas crianças e adolescentes (menores de 18 anos de idade), residem no seu domicílio?
+    # "d04_t1",  # Tipo de parto 1	Normal 2	Parto normal com fórceps ou extrator a vácuo sem 3	Parto cesáreo
 
     # "c12a_t1",  # Você teve diabetes gestacional?
     # "c12b_t1",  # Você teve pré-eclâmpsia ou eclâmpsia?
@@ -174,7 +202,6 @@ metavars = [
     # # "c12g_t1",  # Ansiedade
     # # "c13_t1",  # Durante a gestação, você fez uso de quais medicações e com que frequência.
     # # "d03_t1",  # Onde o seu bebê nasceu? 1	Hospital 2	Na minha casa 3	Outro
-    # # "d04_t1",  # Tipo de parto 1	Normal 2	Parto normal com fórceps ou extrator a vácuo sem 3	Parto cesáreo
     # # "d06_t1",  # Teve complicações no parto?
     # # "d08_t1",  # Qual o comprimento do seu bebê no nascimento? (solicitar documento de alta hospitalar para registrar o dado correto)"
     # # "d09_t1",  # Seu bebê teve alta junto de você?
@@ -292,17 +319,15 @@ metavars = [
     # # "bisq_8_t1",#  Como o seu bebê adormece?    1	Sendo alimentado    2	Sendo embalado  3	No colo 4	Sozinho na sua cama 5	Na cama perto dos pais
     # # "bisq_10_t1",#  Você considera o sono do seu(sua) filho(a) um problema?
 ]
-targets = [
-    "ibq_reg_t1",
-    "ibq_reg_t2"
-]
+targets = ["Beta_t1", "r_20hz_post_pre_waveleting_t1", "Number_Segs_Post_Seg_Rej_t1",
+           "Beta_t2", "r_20hz_post_pre_waveleting_t2", "Number_Segs_Post_Seg_Rej_t2"]
 
-with sopen(local_cache_uri) as local: #, sopen(remote_cache_uri) as remote:
-    d = hdict(random_state=0, return_name=False, index="id_estudo", keep=["id_estudo", "ibq_reg_t1", "ibq_reg_t2"])
+with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
+    d = hdict(random_state=0, return_name=False, index="id_estudo", keep=["id_estudo"] + targets)
 
     # metadata ##################################################################################################################
     d >>= apply(file2df, path + "metadata___2023-06-18.csv").metadata
-    d >>= apply(DataFrame.__getitem__, _.metadata, metavars + targets).df
+    d >>= apply(DataFrame.__getitem__, _.metadata, metavars).df
     d >>= apply(remove_nan_rows_cols, rows_at_a_time=4).df
     print("Format problematic attributes.")
     d >>= apply(bina, attribute="antibiotic", positive_category="yes").df
@@ -312,72 +337,118 @@ with sopen(local_cache_uri) as local: #, sopen(remote_cache_uri) as remote:
     # microbiome #################################################################################################################
     d >>= apply(file2df, path + "data_microbiome___2023-06-18___alpha_diversity_n525.csv").microbiome_alpha
     d >>= apply(join, other=_.microbiome_alpha).df
-    d >>= apply(file2df, path + "data_microbiome___2023-06-20___vias_metabolicas_3_meses_n525.csv").microbiome_pathways
-    d >>= apply(join, other=_.microbiome_pathways).df
-    d >>= apply(file2df, path + "data_microbiome___2023-06-18___especies_3_meses_n525.csv").microbiome_species
-    d >>= apply(join, other=_.microbiome_species).df
-    d >>= apply(remove_nan_rows_cols).df
+    # d >>= apply(file2df, path + "data_microbiome___2023-06-20___vias_metabolicas_3_meses_n525.csv").microbiome_pathways
+    # d >>= apply(join, other=_.microbiome_pathways).df
+    # d >>= apply(file2df, path + "data_microbiome___2023-06-18___especies_3_meses_n525.csv").microbiome_species
+    # d >>= apply(join, other=_.microbiome_species).df
+    # d >>= apply(remove_nan_rows_cols).df
 
     # eeg ########################################################################################################################
     d >>= apply(file2df, path + "data_eeg___2023-06-20___T1_RS_average_dwPLI_withEEGCovariates.csv").eeg1
+    d >>= apply(DataFrame.__getitem__, _.eeg1, ["id_estudo"] + targets[:3]).eeg1
     d >>= apply(join, other=_.eeg1).df
     d >>= apply(file2df, path + "data_eeg___2023-06-20___T2_RS_average_dwPLI_withEEGCovariates.csv").eeg2
+    d >>= apply(DataFrame.__getitem__, _.eeg2, ["id_estudo"] + targets[3:]).eeg2
     d >>= apply(join, other=_.eeg2).df
     d >>= apply(remove_nan_rows_cols, rows_at_a_time=2).df  # EEG minattrs e maxattrs:   rows_at_a_time=2→(452, 15)    rows_at_a_time=3→(293, 28)
 
     # d >>= cache(remote) >> cache(local)
     d >>= cache(local)
+    # print(11111111, d.df.columns)
 
-    # Dataset ####################################################################################################################
+    # Visualize ####################################################################################################################
     # d.df.to_csv(f"/tmp/{'-'.join(areas + ['metadata'])}.csv")
     # d.df: DataFrame
     # for target in targets:
     #     d.df[target].hist(bins=3)
     # plt.show()
+    # TODO criar trigger para fazer log quando chama um field (seja cacheado ou não)
+    #   _ pode ser arg ou kwarg padrão para apontar para o hdict: lambda x,_,z: _.r+x
+    #
+    d >>= apply(lambda df: print("df:", df.shape)).log
+    d >>= apply(lambda df, log: print("df:", list(df.columns))).log
 
     # Train #######################################################################################################################
-    cv = KFold(n_splits=5, random_state=0, shuffle=True)
-    cuts, trees = [5, 6], 100
+    d >>= apply(KFold, n_splits=8, random_state=0, shuffle=True).cv
     for target in targets:
         print("=======================================================")
         print(target)
         print("=======================================================")
+
+        # Prepare dataset.
         d >>= apply(getattr, _.df, target).t
-        d >>= apply(np.digitize, _.t, cuts).t
+        if target == "r_20hz_post_pre_waveleting_t2":
+            cuts = [0.4, 0.7]
+        elif target.startswith("Beta_t"):
+            cuts = [0.005, 0.010]
+        d >>= apply(getattr, _.df, target).t
+        d >>= apply(lambda x, cuts: np.digitize(x, cuts), _.t, cuts).t
         d >>= apply(lambda df, t: df[t != 1], _.df, _.t).df
         d >>= apply(remove_cols, _.df, targets, []).X
-        d >>= apply(DataFrame.__getitem__, _.df, targets).Y
-        d >>= apply(getattr, _.Y, target).y
-        d >>= apply(np.digitize, _.y, cuts).y
+        d >>= apply(getattr, _.df, target).y
+        d >>= apply(lambda x, cuts: np.digitize(x, cuts), _.y, cuts).y
         d >>= apply(lambda y: y // 2, _.y).y
+        d >>= apply(lambda X, y, log: (print("X:", X.shape), print("y:", y.shape))).log
+        d.log
+        sleep(2)
 
-        # pprint([col[:80] for col in d.X.columns])
-        # pprint([col[:80] for col in d.Y.columns])
+        clas_names = []
+        d["n_jobs"] = -1
+        d["n_estimators"] = 10000
+        clas = {
+            DummyClassifier: {},
+            RFc: {},
+            XGBc: {},
+            # CATc: {"subsample": 0.1},
+            LGBMc: {},
+            ETc: {},
+            SGDc: {},
+        }
+        for cla, kwargs in clas.items():
+            clas_names.append(cla.__name__)
+            print(clas_names[-1])
+            d >>= apply(cla, **kwargs)(clas_names[-1])
 
-        d >>= apply(RFc, n_estimators=trees, random_state=0, n_jobs=-1).rfc
-        # d >>= apply(OrdinalClassifier, RFc(n_estimators=trees, random_state=0, n_jobs=-1), n_jobs=-1).ord
-        d >>= apply(DummyClassifier).baseline
-
-        scos = ["accuracy", "balanced_accuracy", "roc_auc"]
+        ['accuracy', 'adjusted_mutual_info_score', 'adjusted_rand_score', 'average_precision',
+         'balanced_accuracy', 'completeness_score', 'explained_variance',
+         'f1', 'f1_macro', 'f1_micro', 'f1_samples', 'f1_weighted', 'fowlkes_mallows_score',
+         'homogeneity_score', 'jaccard', 'jaccard_macro', 'jaccard_micro', 'jaccard_samples', 'jaccard_weighted',
+         'matthews_corrcoef', 'max_error', 'mutual_info_score',
+         'neg_brier_score', 'neg_log_loss', 'neg_mean_absolute_error', 'neg_mean_absolute_percentage_error', 'neg_mean_gamma_deviance', 'neg_mean_poisson_deviance', 'neg_mean_squared_error', 'neg_mean_squared_log_error', 'neg_median_absolute_error', 'neg_negative_likelihood_ratio', 'neg_root_mean_squared_error',
+         'normalized_mutual_info_score', 'positive_likelihood_ratio',
+         'precision', 'precision_macro', 'precision_micro', 'precision_samples', 'precision_weighted',
+         'r2', 'rand_score',
+         'recall', 'recall_macro', 'recall_micro', 'recall_samples', 'recall_weighted',
+         'roc_auc', 'roc_auc_ovo', 'roc_auc_ovo_weighted', 'roc_auc_ovr', 'roc_auc_ovr_weighted', 'top_k_accuracy', 'v_measure_score']
+        scos = ["precision", "recall", "balanced_accuracy", "roc_auc"]
         for m in scos:
             print(m)
-            for classifier_field in ["rfc", "baseline"]:
+            print("----------------------------------------------------")
+            for classifier_field in clas_names:
                 field_name = f"{m}_{classifier_field}"
-                d >>= apply(cross_val_score, field(classifier_field), _.X, _.y, cv=cv, scoring=m, n_jobs=-1)(field_name)
+                field_name_cvp = f"{field_name}_cvp"
+                d >>= apply(cross_val_score, field(classifier_field), _.X, _.y, cv=_.cv, scoring=m)(field_name)
+                d >>= apply(cross_val_predict, field(classifier_field), _.X, _.y, cv=_.cv)(field_name_cvp)
                 d >>= cache(local)
-                print(mean(d[field_name]), std(d[field_name]), "\n", confusion_matrix(d.y, cross_val_predict(d[classifier_field], d.X, d.y, n_jobs=-1)))
+                print(f"{classifier_field:24} {mean(d[field_name]):.6f} {std(d[field_name]):.6f} \n{confusion_matrix(d.y, d[field_name_cvp])}")
             print("----------------------------------------------------")
 
-            for classifier_field in ["rfc", "baseline"]:
-                model = f"{target}_{classifier_field}_model"
-                d >>= apply(lambda c, *args, **kwargs: clone(c).fit(*args, **kwargs), field(classifier_field), _.X, _.y)(model)
-                importances_field_name = f"{target}_{classifier_field}_importances"
-                d >>= apply(permutation_importance, field(model), _.X, _.y, n_repeats=30, scoring=scos, n_jobs=-1)(importances_field_name)
-                d >>= cache(local)
-                for metric in d[importances_field_name]:
-                    print(f"{metric}")
-                    r = d[importances_field_name][metric]
-                    for i in r.importances_mean.argsort()[::-1]:
-                        if r.importances_mean[i] - 2 * r.importances_std[i] > 0:
-                            print(f"    {d.X.columns[i]:<8} {r.importances_mean[i]:.3f} +/- {r.importances_std[i]:.3f}")
+        for classifier_field in clas_names:
+            model = f"{target}_{classifier_field}_model"
+            d >>= apply(lambda c, *args, **kwargs: clone(c).fit(*args, **kwargs), field(classifier_field), _.X, _.y)(model)
+            importances_field_name = f"{target}_{classifier_field}_importances"
+            d >>= apply(permutation_importance, field(model), _.X, _.y, n_repeats=20, scoring=scos, n_jobs=-1)(importances_field_name)
+            d >>= cache(local)
+            fst = True
+            for metric in d[importances_field_name]:
+                r = d[importances_field_name][metric]
+                for i in r.importances_mean.argsort()[::-1]:
+                    if r.importances_mean[i] - r.importances_std[i] > 0:
+                        if fst:
+                            print("Importances +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+                            fst = False
+                        print(f"  {metric}   {d.X.columns[i][-25:]:<8} {r.importances_mean[i]:.6f} +/- {r.importances_std[i]:.6f}")
+            if not fst:
+                print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         print()
+    d.log
