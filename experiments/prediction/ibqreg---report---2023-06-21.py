@@ -444,4 +444,5 @@ with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
             if not fst:
                 print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         print()
+    d >>= cache(local) >> cache(remote)
     d.log

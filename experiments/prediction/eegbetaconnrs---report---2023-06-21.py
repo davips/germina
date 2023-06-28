@@ -352,8 +352,7 @@ with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
     d >>= apply(join, other=_.eeg2).df
     d >>= apply(remove_nan_rows_cols, rows_at_a_time=2).df  # EEG minattrs e maxattrs:   rows_at_a_time=2→(452, 15)    rows_at_a_time=3→(293, 28)
 
-    # d >>= cache(remote) >> cache(local)
-    d >>= cache(local)
+    d >>= cache(local) >> cache(remote)
     # print(11111111, d.df.columns)
 
     # Visualize ####################################################################################################################
@@ -377,10 +376,11 @@ with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
 
         # Prepare dataset.
         d >>= apply(getattr, _.df, target).t
-        if target == "r_20hz_post_pre_waveleting_t2":
+        if target.startswith("r_20hz_post_pre_waveleting_t"):
             cuts = [0.4, 0.7]
         elif target.startswith("Beta_t"):
             cuts = [0.005, 0.010]
+
         d >>= apply(getattr, _.df, target).t
         d >>= apply(lambda x, cuts: np.digitize(x, cuts), _.t, cuts).t
         d >>= apply(lambda df, t: df[t != 1], _.df, _.t).df
@@ -389,6 +389,10 @@ with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
         d >>= apply(lambda x, cuts: np.digitize(x, cuts), _.y, cuts).y
         d >>= apply(lambda y: y // 2, _.y).y
         d >>= apply(lambda X, y, log: (print("X:", X.shape), print("y:", y.shape))).log
+
+
+        d >>= cache(local) >> cache(remote)
+        print("cccccccccccccc", list(d.df.columns))
         d.log
         sleep(2)
 
@@ -429,7 +433,7 @@ with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
                 field_name_cvp = f"{field_name}_cvp"
                 d >>= apply(cross_val_score, field(classifier_field), _.X, _.y, cv=_.cv, scoring=m)(field_name)
                 d >>= apply(cross_val_predict, field(classifier_field), _.X, _.y, cv=_.cv)(field_name_cvp)
-                d >>= cache(local)
+                d >>= cache(local) >> cache(remote)
                 print(f"{classifier_field:24} {mean(d[field_name]):.6f} {std(d[field_name]):.6f} \n{confusion_matrix(d.y, d[field_name_cvp])}")
             print("----------------------------------------------------")
 
@@ -438,7 +442,7 @@ with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
             d >>= apply(lambda c, *args, **kwargs: clone(c).fit(*args, **kwargs), field(classifier_field), _.X, _.y)(model)
             importances_field_name = f"{target}_{classifier_field}_importances"
             d >>= apply(permutation_importance, field(model), _.X, _.y, n_repeats=20, scoring=scos, n_jobs=-1)(importances_field_name)
-            d >>= cache(local)
+            d >>= cache(local) >> cache(remote)
             fst = True
             for metric in d[importances_field_name]:
                 r = d[importances_field_name][metric]
