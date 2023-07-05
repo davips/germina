@@ -1,6 +1,8 @@
 from germina.runner import run
+from hdict import hdict
 
 """
+        "risco_class",
         "epds_tot_t1",  # EPDS Total Score
         "chaos_tot_t1",
         "renda_familiar_total_t0",
@@ -26,9 +28,22 @@ from germina.runner import run
         "b04_t1",  # Etnia da mãe
         "b13_t1",  # Etnia do pai
 """
-run(t1=True, t2=False, microbiome=True, microbiome_extra=False, eeg=True, metavars=["risco_class"], targets_meta=["ibq_reg_t1", "ibq_reg_t2"])
-# targets_eeg2=["Beta_t2", "r_20hz_post_pre_waveleting_t2", "Number_Segs_Post_Seg_Rej_t2"]
+d = hdict(n_permutations=200, n_splits=5, n_estimators=1000, random_state=0, index="id_estudo")
 
+run(d, t1=True, microbiome=True, targets_meta=["ibq_reg_t1", "ibq_reg_t2"])
+run(d, t1=True, microbiome=True, metavars=["risco_class"], targets_meta=["ibq_reg_t1", "ibq_reg_t2"])
+
+run(d, t1=True, eeg=True, targets_meta=["ibq_reg_t1", "ibq_reg_t2"])
+run(d, t1=True, eeg=True, metavars=["risco_class"], targets_meta=["ibq_reg_t1", "ibq_reg_t2"])
+
+run(d, t1=True, microbiome=True, eeg=True,
+    targets_eeg1=["Beta_t1", "r_20hz_post_pre_waveleting_t1", "Number_Segs_Post_Seg_Rej_t1"],
+    targets_eeg2=["Beta_t2", "r_20hz_post_pre_waveleting_t2", "Number_Segs_Post_Seg_Rej_t2"])
+run(d, t1=True, microbiome=True, microbiome_extra=True, eeg=True,
+    targets_eeg1=["Beta_t1", "r_20hz_post_pre_waveleting_t1", "Number_Segs_Post_Seg_Rej_t1"],
+    targets_eeg2=["Beta_t2", "r_20hz_post_pre_waveleting_t2", "Number_Segs_Post_Seg_Rej_t2"])
+
+"""
 # "elegib6_t0",  # mais adultos com renda?
 # "a10_t1",  # ordem desta criança entre os irmãos
 # "b20_t1",  # Quantas pessoas adultas (maiores de 18 anos de idade), incluindo você, residem no seu domicílio?
@@ -269,3 +284,4 @@ run(t1=True, t2=False, microbiome=True, microbiome_extra=False, eeg=True, metava
 # # "bisq_7_t1",#  Quanto tempo você leva para fazer seu(sua) filho(a) adormece à noite?
 # # "bisq_8_t1",#  Como o seu bebê adormece?    1	Sendo alimentado    2	Sendo embalado  3	No colo 4	Sozinho na sua cama 5	Na cama perto dos pais
 # # "bisq_10_t1",#  Você considera o sono do seu(sua) filho(a) um problema?
+"""
