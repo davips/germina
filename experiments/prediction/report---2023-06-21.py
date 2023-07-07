@@ -28,7 +28,7 @@ from hdict import hdict
         "b04_t1",  # Etnia da mãe
         "b13_t1",  # Etnia do pai
 """
-d = hdict(n_permutations=200, n_splits=5, n_estimators=1000, random_state=0, index="id_estudo")
+d = hdict(n_permutations=10000, n_splits=5, n_estimators=1000, random_state=0, index="id_estudo")
 
 run(d, t1=True, microbiome=True, targets_meta=["ibq_reg_t1", "ibq_reg_t2"])
 run(d, t1=True, microbiome=True, metavars=["risco_class"], targets_meta=["ibq_reg_t1", "ibq_reg_t2"])
