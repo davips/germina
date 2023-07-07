@@ -107,16 +107,16 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                         d["df"] = _.microbiome_alpha2
                     else:
                         d = d >> apply(join, other=_.microbiome_alpha2).df
-                if microbiome_extra:
-                    d = d >> apply(join, other=_.microbiome_pathways2).df
-                    d = d >> apply(join, other=_.microbiome_species2).df
-            if eeg:
-                if t1:
+                    if microbiome_extra:
+                        d = d >> apply(join, other=_.microbiome_pathways2).df
+                        d = d >> apply(join, other=_.microbiome_species2).df
+            if eeg or targets_eeg1 or targets_eeg2:
+                if t1 or targets_eeg1:
                     if "df" not in d:
                         d["df"] = _.eeg1
                     else:
                         d = d >> apply(join, other=_.eeg1).df
-                if t2:
+                if t2 or targets_eeg2:
                     if "df" not in d:
                         d["df"] = _.eeg2
                     else:
