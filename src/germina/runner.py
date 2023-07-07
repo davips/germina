@@ -52,6 +52,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
     print(name)
     oldout = sys.stdout
     with open(name, 'w') as sys.stdout:
+        newout = sys.stdout
         # sys.stdout = oldout
 
         print(f"Scenario: {t1=}, {t2=}, {microbiome=}, {microbiome_extra=}, {eeg=},\n"
@@ -292,4 +293,8 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                         #     print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                         print()
                 print()
+        sys.stdout = oldout
+        d.show()
+        sys.stdout = newout
+
     sys.stdout = oldout
