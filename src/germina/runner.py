@@ -188,7 +188,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                 d = d >> apply(lambda x, cuts: np.digitize(x, cuts), _.y).y
                 d = d >> apply(lambda y: y // 2, _.y).y
 
-                d = d >> cache(local) >> cache(remote) >> cache(local)
+                d = d >> cache(remote) >> cache(local)
                 print("X:", d.X.shape)
                 print("y:", d.y.shape)
 
@@ -229,7 +229,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                         pval_fi = f"pval_{scores_fi}"
                         # d = d >> apply(cross_val_score, field(classifier_field), _.X, _.y, cv=_.cv, scoring=m)(scores_fi)
                         d = d >> apply(permutation_test_score, field(classifier_field), _.X, _.y, cv=_.cv, scoring=m)(scores_fi, permscores_fi, pval_fi)
-                        d = d >> cache(local) >> cache(remote) >> cache(local)
+                        d = d >> cache(remote) >> cache(local)
                         me = mean(d[scores_fi])
                         if classifier_field == "DummyClassifier":
                             ref = me
@@ -242,7 +242,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                     print(classifier_field)
                     field_name_z = f"{classifier_field}_z"
                     d = d >> apply(cross_val_predict, field(classifier_field), _.X, _.y, cv=_.cv)(field_name_z)
-                    d = d >> cache(local) >> cache(remote) >> cache(local)
+                    d = d >> cache(remote) >> cache(local)
                     z = d[field_name_z]
                     zs[classifier_field[:10]] = z
                     hs[classifier_field[:10]] = (z == d.y).astype(int)
@@ -278,7 +278,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                     d = d >> apply(lambda c, *args, **kwargs: clone(c).fit(*args, **kwargs), field(classifier_field), _.X, _.y)(model)
                     importances_field_name = f"{target}_{classifier_field}_importances"
                     d = d >> apply(permutation_importance, field(model), _.X, _.y, n_repeats=20, scoring=scos, n_jobs=-1)(importances_field_name)
-                    d = d >> cache(local) >> cache(remote) >> cache(local)
+                    d = d >> cache(remote) >> cache(local)
                     fst = True
                     for metric in d[importances_field_name]:
                         r = d[importances_field_name][metric]
