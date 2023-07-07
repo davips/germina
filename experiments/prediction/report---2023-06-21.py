@@ -29,12 +29,12 @@ from hdict import hdict
         "b13_t1",  # Etnia do pai
 """
 d = hdict(n_permutations=200, n_splits=5, n_estimators=1000, random_state=0, index="id_estudo")
-#
-# run(d, t1=True, microbiome=True, targets_meta=["ibq_reg_t1", "ibq_reg_t2"])
-# run(d, t1=True, microbiome=True, metavars=["risco_class"], targets_meta=["ibq_reg_t1", "ibq_reg_t2"])
-#
-# run(d, t1=True, eeg=True, targets_meta=["ibq_reg_t1", "ibq_reg_t2"])
-# run(d, t1=True, eeg=True, metavars=["risco_class"], targets_meta=["ibq_reg_t1", "ibq_reg_t2"])
+
+run(d, t1=True, microbiome=True, targets_meta=["ibq_reg_t1", "ibq_reg_t2"])
+run(d, t1=True, microbiome=True, metavars=["risco_class"], targets_meta=["ibq_reg_t1", "ibq_reg_t2"])
+
+run(d, t1=True, eeg=True, targets_meta=["ibq_reg_t1", "ibq_reg_t2"])
+run(d, t1=True, eeg=True, metavars=["risco_class"], targets_meta=["ibq_reg_t1", "ibq_reg_t2"])
 
 run(d, t1=True, microbiome=True, eeg=True,
     targets_eeg1=["Beta_t1", "r_20hz_post_pre_waveleting_t1", "Number_Segs_Post_Seg_Rej_t1"],
