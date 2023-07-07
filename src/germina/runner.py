@@ -63,6 +63,9 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
         pprint(dict(d))
         print()
         d = d >> dict(join="inner", shuffle=True, n_jobs=-1, return_name=False)
+        sys.stdout = oldout
+        d.show()
+        sys.stdout = newout
 
         if metavars is None:
             metavars = []
@@ -293,8 +296,5 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                         #     print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                         print()
                 print()
-        sys.stdout = oldout
-        d.show()
-        sys.stdout = newout
 
     sys.stdout = oldout
