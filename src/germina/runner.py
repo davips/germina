@@ -234,7 +234,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                         me = mean(d[scores_fi])
                         if classifier_field == "DummyClassifier":
                             ref = me
-                        print(f"{classifier_field:24} {me:.6f} {std(d[scores_fi]):.6f}{'    <----' if me > ref else ''} p-value={pval_fi}")
+                        print(f"{classifier_field:24} {me:.6f} {std(d[scores_fi]):.6f}{'    <----' if me > ref else ''} p-value={d[pval_fi]}")
                     print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
 
                 # ConfusionMatrix; prediction and hit agreement.
