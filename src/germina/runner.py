@@ -221,6 +221,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                  'recall', 'recall_macro', 'recall_micro', 'recall_samples', 'recall_weighted',
                  'roc_auc', 'roc_auc_ovo', 'roc_auc_ovo_weighted', 'roc_auc_ovr', 'roc_auc_ovr_weighted', 'top_k_accuracy', 'v_measure_score']
                 scos = ["precision", "recall", "balanced_accuracy", "roc_auc"]
+                scos = ["roc_auc"]
                 for m in scos:
                     print(m)
                     print("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv")
