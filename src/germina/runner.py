@@ -12,7 +12,8 @@ from sklearn.ensemble import ExtraTreesClassifier as ETc
 from sklearn.ensemble import RandomForestClassifier as RFc
 from sklearn.inspection import permutation_importance
 from sklearn.linear_model import SGDClassifier as SGDc
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, balanced_accuracy_score
+from sklearn.metrics._scorer import balanced_accuracy_scorer
 from sklearn.model_selection import KFold, cross_val_predict, StratifiedKFold, permutation_test_score
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from xgboost import XGBClassifier as XGBc
@@ -106,17 +107,21 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                     if microbiome_extra:
                         d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T1_n525.csv").microbiome_pathways1
                         d = d >> apply(file2df, path + "data_microbiome___2023-06-18___especies_3_meses_n525.csv").microbiome_species1
+                        d = d >> apply(file2df, path + "data_microbiome___2023-07-04___T1_vias_relab_superpathways.csv").microbiome_super1
                 if t2:
                     d = d >> apply(file2df, path + "data_microbiome___2023-07-03___alpha_diversity_T2_n441.csv").microbiome_alpha2
                     if microbiome_extra:
                         d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T2_n441.csv").microbiome_species1
                         d = d >> apply(file2df, path + "data_microbiome___2023-06-18___especies_6_meses_n525.csv").microbiome_species2
+                        d = d >> apply(file2df, path + "data_microbiome___2023-07-04___T2_vias_relab_superpathways.csv").microbiome_super2
 
             if eeg:  ########################################################################################################################
                 if (t1 and not targets_eeg2) or targets_eeg1:
                     d = d >> apply(file2df, path + "data_eeg___2023-06-20___T1_RS_average_dwPLI_withEEGCovariates.csv").eeg1
+                    d = d >> apply(file2df, path + "data_eeg___2023-07-19___BRAINRISE_RS_T1_Power.csv").eegpow1
                 if t2 or targets_eeg2:
                     d = d >> apply(file2df, path + "data_eeg___2023-06-20___T2_RS_average_dwPLI_withEEGCovariates.csv").eeg2
+                    d = d >> apply(file2df, path + "data_eeg___2023-07-19___BRAINRISE_RS_T2_Power.csv").eegpow2
                 if targets_eeg1:
                     d = d >> apply(DataFrame.__getitem__, _.eeg1, ["id_estudo"] + targets_eeg1).eeg1
                 if targets_eeg2:
@@ -129,6 +134,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                     if microbiome_extra:
                         d = d >> apply(join, other=_.microbiome_pathways1).df
                         d = d >> apply(join, other=_.microbiome_species1).df
+                        d = d >> apply(join, other=_.microbiome_super1).df
                 if t2:
                     if "df" not in d:
                         d["df"] = _.microbiome_alpha2
@@ -137,17 +143,22 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                     if microbiome_extra:
                         d = d >> apply(join, other=_.microbiome_pathways2).df
                         d = d >> apply(join, other=_.microbiome_species2).df
+                        d = d >> apply(join, other=_.microbiome_super2).df
             if eeg or targets_eeg1 or targets_eeg2:
                 if (t1 and not targets_eeg2) or targets_eeg1:
                     if "df" not in d:
                         d["df"] = _.eeg1
                     else:
                         d = d >> apply(join, other=_.eeg1).df
+                    if "eegpow1" in d and not (targets_eeg1 or targets_eeg2):
+                        d = d >> apply(join, other=_.eegpow1).df
                 if t2 or targets_eeg2:
                     if "df" not in d:
                         d["df"] = _.eeg2
                     else:
                         d = d >> apply(join, other=_.eeg2).df
+                    if "eegpow2" in d and not (targets_eeg1 or targets_eeg2):
+                        d = d >> apply(join, other=_.eegpow2).df
             # d = d >> apply(remove_nan_rows_cols, cols_at_a_time=0, keep=["id_estudo"] + targets).df
             if rem:
                 d = d >> cache(remote)
@@ -254,7 +265,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                  'recall', 'recall_macro', 'recall_micro', 'recall_samples', 'recall_weighted',
                  'roc_auc', 'roc_auc_ovo', 'roc_auc_ovo_weighted', 'roc_auc_ovr', 'roc_auc_ovr_weighted', 'top_k_accuracy', 'v_measure_score']
                 scos = ["precision", "recall", "balanced_accuracy", "roc_auc"]
-                scos = ["roc_auc"]
+                scos = ["roc_auc", "balanced_accuracy"]
                 for m in scos:
                     print(m)
                     print("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv")
@@ -300,8 +311,19 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                 # Accuracy
                 for classifier_field in clas_names:
                     field_name_z = f"{classifier_field}_z"
-                    print(f"{classifier_field:24} {np.count_nonzero(d[field_name_z] == d.y) / d.y.shape[0]:.6f} ")
-                print(f"ensemble5 {np.count_nonzero(d.ensemble_z == d.y) / d.y.shape[0]:.6f} ")
+                    fieldbalacc=f"{classifier_field}_balacc"
+                    d = d >> apply(balanced_accuracy_score, _.y, field(field_name_z), adjusted=True)(fieldbalacc)
+                    if rem:
+                        d = d >> cache(remote)
+                    if loc:
+                        d = d >> cache(local)
+                    print(f"{classifier_field:24} {d[fieldbalacc]:.6f} ")
+                d = d >> apply(balanced_accuracy_score, _.y, _.ensemble_z, adjusted=True).ensemble_balacc
+                if rem:
+                    d = d >> cache(remote)
+                if loc:
+                    d = d >> cache(local)
+                print(f"ensemble5 {d.ensemble_balacc:.6f} ")
 
                 print("Prediction:")
                 Z = array(list(zs.values()))
