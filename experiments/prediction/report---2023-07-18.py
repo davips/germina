@@ -3,8 +3,8 @@ from hdict import hdict
 
 from sys import argv
 
-loc = False  # bool(int(argv[1]))
-rem = False  # bool(int(argv[2]))
+loc = bool(int(argv[1]))
+rem = bool(int(argv[2]))
 nperm = int(argv[3])
 nest = int(argv[4])
 print("local cache:", loc)

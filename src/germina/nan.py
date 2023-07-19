@@ -126,3 +126,11 @@ def isworking(df):
     4	Não tem direito a licença maternidade e está trabalhando
     """
     return df
+
+
+def only_abundant(df, threshold=10):
+    """
+    >>> df = DataFrame([[1,2,0],[1,0,0],[1,2,3],[1,0,0]])
+    >>> only_abundant(df, 1).to_numpy()
+    """
+    return df.loc[:, np.count_nonzero(df, axis=0) > threshold]

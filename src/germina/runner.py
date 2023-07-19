@@ -20,7 +20,7 @@ from xgboost import XGBClassifier as XGBc
 
 from germina.config import remote_cache_uri, local_cache_uri
 from germina.dataset import join, ensemble_predict
-from germina.nan import remove_cols, bina, loga, remove_nan_rows_cols
+from germina.nan import remove_cols, bina, loga, remove_nan_rows_cols, only_abundant
 from hdict import _, apply, cache
 from hdict import field
 from hdict import hdict
@@ -32,6 +32,7 @@ from shelchemy import sopen
 def calculate_vif(df: DataFrame, thresh=5.0):
     """https://stats.stackexchange.com/a/253620/36979"""
     X = df.assign(const=1)  # faster than add_constant from statsmodels
+    # X = np.array(X, dtype=float)
     variables = list(range(X.shape[1]))
     dropped = True
     while dropped:
@@ -106,19 +107,23 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                     d = d >> apply(file2df, path + "data_microbiome___2023-06-18___alpha_diversity_n525.csv").microbiome_alpha1
                     if microbiome_extra:
                         d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T1_n525.csv").microbiome_pathways1
+                        d = d >> apply(only_abundant, _.microbiome_pathways1).microbiome_pathways1
                         d = d >> apply(file2df, path + "data_microbiome___2023-06-18___especies_3_meses_n525.csv").microbiome_species1
+                        d = d >> apply(only_abundant, _.microbiome_species1).microbiome_species1
                         d = d >> apply(file2df, path + "data_microbiome___2023-07-04___T1_vias_relab_superpathways.csv").microbiome_super1
                 if t2:
                     d = d >> apply(file2df, path + "data_microbiome___2023-07-03___alpha_diversity_T2_n441.csv").microbiome_alpha2
                     if microbiome_extra:
-                        d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T2_n441.csv").microbiome_species1
+                        d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T2_n441.csv").microbiome_pathways2
+                        d = d >> apply(only_abundant, _.microbiome_pathways2).microbiome_pathways2
                         d = d >> apply(file2df, path + "data_microbiome___2023-06-18___especies_6_meses_n525.csv").microbiome_species2
+                        d = d >> apply(only_abundant, _.microbiome_species2).microbiome_species2
                         d = d >> apply(file2df, path + "data_microbiome___2023-07-04___T2_vias_relab_superpathways.csv").microbiome_super2
 
             if eeg:  ########################################################################################################################
                 if (t1 and not targets_eeg2) or targets_eeg1:
                     d = d >> apply(file2df, path + "data_eeg___2023-06-20___T1_RS_average_dwPLI_withEEGCovariates.csv").eeg1
-                    d = d >> apply(file2df, path + "data_eeg___2023-07-19___BRAINRISE_RS_T1_Power.csv").eegpow1
+                    d = d >> apply(file2df, path + "data_eeg___2023-07-19___BRAINRISE_RS_3m_power.csv").eegpow1
                 if t2 or targets_eeg2:
                     d = d >> apply(file2df, path + "data_eeg___2023-06-20___T2_RS_average_dwPLI_withEEGCovariates.csv").eeg2
                     d = d >> apply(file2df, path + "data_eeg___2023-07-19___BRAINRISE_RS_T2_Power.csv").eegpow2
@@ -181,6 +186,8 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                 if loc:
                     d = d >> cache(local)
                 print("Metadata----------------------------------------------------------------------\n", d.df, "______________________________________________________\n")
+            # d.df.to_csv(f"/tmp/all.csv")
+            # exit()
 
             d = d >> apply(calculate_vif).df
             if rem:
@@ -205,7 +212,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
 
             # Visualize ####################################################################################################################
             print("Vars:", d.df.columns)
-            # d.df.to_csv(f"/tmp/{'-'.join(areas + ['metadata'])}.csv")
+            # d.df.to_csv(f"/tmp/all.csv")
             # d.df: DataFrame
             # for target in targets:
             #     d.df[target].hist(bins=3)
@@ -311,7 +318,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                 # Accuracy
                 for classifier_field in clas_names:
                     field_name_z = f"{classifier_field}_z"
-                    fieldbalacc=f"{classifier_field}_balacc"
+                    fieldbalacc = f"{classifier_field}_balacc"
                     d = d >> apply(balanced_accuracy_score, _.y, field(field_name_z), adjusted=True)(fieldbalacc)
                     if rem:
                         d = d >> cache(remote)
