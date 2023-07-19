@@ -28,6 +28,15 @@ from hdict.dataset.pandas_handling import file2df
 from hosh import Hosh
 from shelchemy import sopen
 
+
+def ch(d, loc, rem, local, remote):
+    if rem:
+        d = d >> cache(remote)
+    if loc:
+        d = d >> cache(local)
+    d.evaluate()
+
+
 def drop_by_vif(df: DataFrame, thresh=5.0):
     """https://stats.stackexchange.com/a/253620/36979"""
     X = df.assign(const=1)  # faster than add_constant from statsmodels
@@ -108,25 +117,16 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                         d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T1_n525.csv").microbiome_pathways1
                         d = d >> apply(only_abundant, _.microbiome_pathways1).microbiome_pathways1
                         d = d >> apply(drop_by_vif, _.microbiome_pathways1).microbiome_pathways1
-                        if rem:
-                            d = d >> cache(remote)
-                        if loc:
-                            d = d >> cache(local)
+                        ch(d, loc, rem, local, remote)
 
                         d = d >> apply(file2df, path + "data_microbiome___2023-06-18___especies_3_meses_n525.csv").microbiome_species1
                         d = d >> apply(only_abundant, _.microbiome_species1).microbiome_species1
                         d = d >> apply(drop_by_vif, _.microbiome_species1).microbiome_species1
-                        if rem:
-                            d = d >> cache(remote)
-                        if loc:
-                            d = d >> cache(local)
+                        ch(d, loc, rem, local, remote)
 
                         d = d >> apply(file2df, path + "data_microbiome___2023-07-04___T1_vias_relab_superpathways.csv").microbiome_super1
                         d = d >> apply(drop_by_vif, _.microbiome_super1).microbiome_super1
-                        if rem:
-                            d = d >> cache(remote)
-                        if loc:
-                            d = d >> cache(local)
+                        ch(d, loc, rem, local, remote)
                 if t2:
                     d = d >> apply(file2df, path + "data_microbiome___2023-07-03___alpha_diversity_T2_n441.csv").microbiome_alpha2
                     d = d >> apply(drop_by_vif, _.microbiome_alpha2).microbiome_alpha2
@@ -134,51 +134,39 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                         d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T2_n441.csv").microbiome_pathways2
                         d = d >> apply(only_abundant, _.microbiome_pathways2).microbiome_pathways2
                         d = d >> apply(drop_by_vif, _.microbiome_pathways2).microbiome_pathways2
-                        if rem:
-                            d = d >> cache(remote)
-                        if loc:
-                            d = d >> cache(local)
+                        ch(d)
 
                         d = d >> apply(file2df, path + "data_microbiome___2023-06-29___especies_6_meses_n441.csv").microbiome_species2
                         d = d >> apply(only_abundant, _.microbiome_species2).microbiome_species2
                         d = d >> apply(drop_by_vif, _.microbiome_species2).microbiome_species2
-                        if rem:
-                            d = d >> cache(remote)
-                        if loc:
-                            d = d >> cache(local)
+                        ch(d, loc, rem, local, remote)
 
                         d = d >> apply(file2df, path + "data_microbiome___2023-07-04___T2_vias_relab_superpathways.csv").microbiome_super2
                         d = d >> apply(drop_by_vif, _.microbiome_super2).microbiome_super2
-                        if rem:
-                            d = d >> cache(remote)
-                        if loc:
-                            d = d >> cache(local)
+                        ch(d, loc, rem, local, remote)
 
             if eeg:  ########################################################################################################################
                 if (t1 and not targets_eeg2) or targets_eeg1:
                     d = d >> apply(file2df, path + "data_eeg___2023-06-20___T1_RS_average_dwPLI_withEEGCovariates.csv").eeg1
                     d = d >> apply(drop_by_vif, _.eeg1).eeg1
+                    ch(d, loc, rem, local, remote)
                     d = d >> apply(file2df, path + "data_eeg___2023-07-19___BRAINRISE_RS_3m_power.csv").eegpow1
                     d = d >> apply(drop_by_vif, _.eegpow1).eegpow1
-                if rem:
-                    d = d >> cache(remote)
-                if loc:
-                    d = d >> cache(local)
+                    ch(d, loc, rem, local, remote)
                 if t2 or targets_eeg2:
                     d = d >> apply(file2df, path + "data_eeg___2023-06-20___T2_RS_average_dwPLI_withEEGCovariates.csv").eeg2
                     d = d >> apply(remove_nan_rows_cols, _.eeg2, keep=[]).eeg2
                     d = d >> apply(drop_by_vif, _.eeg2).eeg2
+                    ch(d, loc, rem, local, remote)
                     d = d >> apply(file2df, path + "data_eeg___2023-07-19___BRAINRISE_RS_T2_Power.csv").eegpow2
                     d = d >> apply(remove_nan_rows_cols, _.eegpow2, keep=[]).eegpow2
                     d = d >> apply(drop_by_vif, _.eegpow2).eegpow2
-                if rem:
-                    d = d >> cache(remote)
-                if loc:
-                    d = d >> cache(local)
+                    ch(d, loc, rem, local, remote)
                 if targets_eeg1:
                     d = d >> apply(DataFrame.__getitem__, _.eeg1, ["id_estudo"] + targets_eeg1).eeg1
                 if targets_eeg2:
                     d = d >> apply(DataFrame.__getitem__, _.eeg2, ["id_estudo"] + targets_eeg2).eeg2
+                ch(d, loc, rem, local, remote)
 
             # join #######################################################################################################################
             if microbiome:
@@ -188,6 +176,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                         d = d >> apply(join, other=_.microbiome_pathways1).df
                         d = d >> apply(join, other=_.microbiome_species1).df
                         d = d >> apply(join, other=_.microbiome_super1).df
+                        ch(d, loc, rem, local, remote)
                 if t2:
                     if "df" not in d:
                         d["df"] = _.microbiome_alpha2
@@ -197,10 +186,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                         d = d >> apply(join, other=_.microbiome_pathways2).df
                         d = d >> apply(join, other=_.microbiome_species2).df
                         d = d >> apply(join, other=_.microbiome_super2).df
-            if rem:
-                d = d >> cache(remote)
-            if loc:
-                d = d >> cache(local)
+                        ch(d, loc, rem, local, remote)
             if eeg or targets_eeg1 or targets_eeg2:
                 if (t1 and not targets_eeg2) or targets_eeg1:
                     if "df" not in d:
@@ -217,10 +203,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                     if "eegpow2" in d and not (targets_eeg1 or targets_eeg2):
                         d = d >> apply(join, other=_.eegpow2).df
             # d = d >> apply(remove_nan_rows_cols, cols_at_a_time=0, keep=["id_estudo"] + targets).df
-            if rem:
-                d = d >> cache(remote)
-            if loc:
-                d = d >> cache(local)
+            ch(d, loc, rem, local, remote)
             print("Joined------------------------------------------------------------------------\n", d.df, "______________________________________________________\n")
 
             # Join metadata #############################################################################################################
@@ -233,29 +216,20 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                 d = d >> apply(loga, _.metadata, attribute="renda_familiar_total_t0").metadata
                 d = d >> apply(join, other=_.metadata).df
                 d = d >> apply(remove_nan_rows_cols, keep=["id_estudo"] + targets).df
-                if rem:
-                    d = d >> cache(remote)
-                if loc:
-                    d = d >> cache(local)
+                ch(d, loc, rem, local, remote)
                 print("Metadata----------------------------------------------------------------------\n", d.df, "______________________________________________________\n")
 
             ##############################   VIF    ######################################
             # d = d >> apply(remove_cols, cols=dropped, keep=[]).df
             d = d >> apply(drop_by_vif).df
-            if rem:
-                d = d >> cache(remote)
-            if loc:
-                d = d >> cache(local)
+            ch(d, loc, rem, local, remote)
 
             # Join targets ##############################################################################################################
             if targets_meta:
                 d = d >> apply(file2df, path + "metadata___2023-06-18.csv").targets
                 d = d >> apply(DataFrame.__getitem__, _.targets, targets + ["id_estudo"]).targets
                 d = d >> apply(join, other=_.targets).df
-                if rem:
-                    d = d >> cache(remote)
-                if loc:
-                    d = d >> cache(local)
+                ch(d, loc, rem, local, remote)
             print("Dataset-----------------------------------------------------------------------\n", d.df, "______________________________________________________\n")
 
             # Remove NaNs ##################################################################################################################
@@ -289,10 +263,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                 d = d >> apply(lambda t: t[t != 1]).t
                 d = d >> apply(lambda t: t // 2).y
 
-                if rem:
-                    d = d >> cache(remote)
-                if loc:
-                    d = d >> cache(local)
+                ch(d, loc, rem, local, remote)
                 print("X:", d.X.shape)
                 print("y:", d.y.shape)
 
@@ -334,10 +305,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                         pval_fi = f"pval_{scores_fi}"
                         # d = d >> apply(cross_val_score, field(classifier_field), _.X, _.y, cv=_.cv, scoring=m)(scores_fi)
                         d = d >> apply(permutation_test_score, field(classifier_field), _.X, _.y, cv=_.cv, scoring=m)(scores_fi, permscores_fi, pval_fi)
-                        if rem:
-                            d = d >> cache(remote)
-                        if loc:
-                            d = d >> cache(local)
+                        ch(d, loc, rem, local, remote)
                         me = mean(d[scores_fi])
                         if classifier_field == "DummyClassifier":
                             ref = me
@@ -353,35 +321,23 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                     if not classifier_field.startswith("Dummy"):
                         members_z.append(field(field_name_z))
                     d = d >> apply(cross_val_predict, field(classifier_field), _.X, _.y, cv=_.cv)(field_name_z)
-                    if rem:
-                        d = d >> cache(remote)
-                    if loc:
-                        d = d >> cache(local)
+                    ch(d, loc, rem, local, remote)
                     z = d[field_name_z]
                     zs[classifier_field[:10]] = z
                     hs[classifier_field[:10]] = (z == d.y).astype(int)
                     print(f"{confusion_matrix(d.y, z)}")
                 d = d >> apply(ensemble_predict, *members_z).ensemble_z
-                if rem:
-                    d = d >> cache(remote)
-                if loc:
-                    d = d >> cache(local)
+                ch(d, loc, rem, local, remote)
 
                 # Accuracy
                 for classifier_field in clas_names:
                     field_name_z = f"{classifier_field}_z"
                     fieldbalacc = f"{classifier_field}_balacc"
                     d = d >> apply(balanced_accuracy_score, _.y, field(field_name_z), adjusted=True)(fieldbalacc)
-                    if rem:
-                        d = d >> cache(remote)
-                    if loc:
-                        d = d >> cache(local)
+                    ch(d, loc, rem, local, remote)
                     print(f"{classifier_field:24} {d[fieldbalacc]:.6f} ")
                 d = d >> apply(balanced_accuracy_score, _.y, _.ensemble_z, adjusted=True).ensemble_balacc
-                if rem:
-                    d = d >> cache(remote)
-                if loc:
-                    d = d >> cache(local)
+                ch(d, loc, rem, local, remote)
                 print(f"ensemble5 {d.ensemble_balacc:.6f} ")
 
                 print("Prediction:")
@@ -415,10 +371,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                     d = d >> apply(lambda c, *args, **kwargs: clone(c).fit(*args, **kwargs), field(classifier_field), _.X, _.y)(model)
                     importances_field_name = f"{target}_{classifier_field}_importances"
                     d = d >> apply(permutation_importance, field(model), _.X, _.y, n_repeats=20, scoring=scos, n_jobs=-1)(importances_field_name)
-                    if rem:
-                        d = d >> cache(remote)
-                    if loc:
-                        d = d >> cache(local)
+                    ch(d, loc, rem, local, remote)
                     fst = True
                     for metric in d[importances_field_name]:
                         r = d[importances_field_name][metric]
