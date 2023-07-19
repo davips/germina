@@ -128,7 +128,7 @@ def isworking(df):
     return df
 
 
-def only_abundant(df, threshold=10):
+def only_abundant(df: DataFrame, threshold=10):
     """
     >>> df = DataFrame([[1,2,0],[1,0,0],[1,2,3],[1,0,0]])
     >>> only_abundant(df, 1).to_numpy()
