@@ -108,13 +108,25 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                         d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T1_n525.csv").microbiome_pathways1
                         d = d >> apply(only_abundant, _.microbiome_pathways1).microbiome_pathways1
                         d = d >> apply(drop_by_vif, _.microbiome_pathways1).microbiome_pathways1
+                        if rem:
+                            d = d >> cache(remote)
+                        if loc:
+                            d = d >> cache(local)
 
                         d = d >> apply(file2df, path + "data_microbiome___2023-06-18___especies_3_meses_n525.csv").microbiome_species1
                         d = d >> apply(only_abundant, _.microbiome_species1).microbiome_species1
                         d = d >> apply(drop_by_vif, _.microbiome_species1).microbiome_species1
+                        if rem:
+                            d = d >> cache(remote)
+                        if loc:
+                            d = d >> cache(local)
 
                         d = d >> apply(file2df, path + "data_microbiome___2023-07-04___T1_vias_relab_superpathways.csv").microbiome_super1
                         d = d >> apply(drop_by_vif, _.microbiome_super1).microbiome_super1
+                        if rem:
+                            d = d >> cache(remote)
+                        if loc:
+                            d = d >> cache(local)
                 if t2:
                     d = d >> apply(file2df, path + "data_microbiome___2023-07-03___alpha_diversity_T2_n441.csv").microbiome_alpha2
                     d = d >> apply(drop_by_vif, _.microbiome_alpha2).microbiome_alpha2
@@ -122,13 +134,25 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                         d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T2_n441.csv").microbiome_pathways2
                         d = d >> apply(only_abundant, _.microbiome_pathways2).microbiome_pathways2
                         d = d >> apply(drop_by_vif, _.microbiome_pathways2).microbiome_pathways2
+                        if rem:
+                            d = d >> cache(remote)
+                        if loc:
+                            d = d >> cache(local)
 
                         d = d >> apply(file2df, path + "data_microbiome___2023-06-29___especies_6_meses_n441.csv").microbiome_species2
                         d = d >> apply(only_abundant, _.microbiome_species2).microbiome_species2
                         d = d >> apply(drop_by_vif, _.microbiome_species2).microbiome_species2
+                        if rem:
+                            d = d >> cache(remote)
+                        if loc:
+                            d = d >> cache(local)
 
                         d = d >> apply(file2df, path + "data_microbiome___2023-07-04___T2_vias_relab_superpathways.csv").microbiome_super2
                         d = d >> apply(drop_by_vif, _.microbiome_super2).microbiome_super2
+                        if rem:
+                            d = d >> cache(remote)
+                        if loc:
+                            d = d >> cache(local)
 
             if eeg:  ########################################################################################################################
                 if (t1 and not targets_eeg2) or targets_eeg1:
@@ -136,11 +160,21 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                     d = d >> apply(drop_by_vif, _.eeg1).eeg1
                     d = d >> apply(file2df, path + "data_eeg___2023-07-19___BRAINRISE_RS_3m_power.csv").eegpow1
                     d = d >> apply(drop_by_vif, _.eegpow1).eegpow1
+                if rem:
+                    d = d >> cache(remote)
+                if loc:
+                    d = d >> cache(local)
                 if t2 or targets_eeg2:
                     d = d >> apply(file2df, path + "data_eeg___2023-06-20___T2_RS_average_dwPLI_withEEGCovariates.csv").eeg2
+                    d = d >> apply(remove_nan_rows_cols, _.eeg2, keep=[]).eeg2
                     d = d >> apply(drop_by_vif, _.eeg2).eeg2
                     d = d >> apply(file2df, path + "data_eeg___2023-07-19___BRAINRISE_RS_T2_Power.csv").eegpow2
+                    d = d >> apply(remove_nan_rows_cols, _.eegpow2, keep=[]).eegpow2
                     d = d >> apply(drop_by_vif, _.eegpow2).eegpow2
+                if rem:
+                    d = d >> cache(remote)
+                if loc:
+                    d = d >> cache(local)
                 if targets_eeg1:
                     d = d >> apply(DataFrame.__getitem__, _.eeg1, ["id_estudo"] + targets_eeg1).eeg1
                 if targets_eeg2:
@@ -163,6 +197,10 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                         d = d >> apply(join, other=_.microbiome_pathways2).df
                         d = d >> apply(join, other=_.microbiome_species2).df
                         d = d >> apply(join, other=_.microbiome_super2).df
+            if rem:
+                d = d >> cache(remote)
+            if loc:
+                d = d >> cache(local)
             if eeg or targets_eeg1 or targets_eeg2:
                 if (t1 and not targets_eeg2) or targets_eeg1:
                     if "df" not in d:
@@ -200,8 +238,6 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                 if loc:
                     d = d >> cache(local)
                 print("Metadata----------------------------------------------------------------------\n", d.df, "______________________________________________________\n")
-            # d.df.to_csv(f"/tmp/all.csv")
-            # exit()
 
             ##############################   VIF    ######################################
             # d = d >> apply(remove_cols, cols=dropped, keep=[]).df
