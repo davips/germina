@@ -113,7 +113,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                         d = d >> apply(file2df, path + "data_microbiome___2023-06-18___especies_6_meses_n525.csv").microbiome_species2
 
             if eeg:  ########################################################################################################################
-                if t1 or targets_eeg1:
+                if (t1 and not targets_eeg2) or targets_eeg1:
                     d = d >> apply(file2df, path + "data_eeg___2023-06-20___T1_RS_average_dwPLI_withEEGCovariates.csv").eeg1
                 if t2 or targets_eeg2:
                     d = d >> apply(file2df, path + "data_eeg___2023-06-20___T2_RS_average_dwPLI_withEEGCovariates.csv").eeg2
@@ -138,7 +138,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                         d = d >> apply(join, other=_.microbiome_pathways2).df
                         d = d >> apply(join, other=_.microbiome_species2).df
             if eeg or targets_eeg1 or targets_eeg2:
-                if t1 or targets_eeg1:
+                if (t1 and not targets_eeg2) or targets_eeg1:
                     if "df" not in d:
                         d["df"] = _.eeg1
                     else:
@@ -228,7 +228,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
 
                 clas_names = []
                 clas = {
-                    DummyClassifier: {},
+                    # DummyClassifier: {},
                     RFc: {},
                     XGBc: {},
                     # CATc: {"subsample": 0.1},
