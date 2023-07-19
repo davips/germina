@@ -25,6 +25,7 @@ lightgbm = "^3.3.5"
 shelchemy = "^1.230706.1"
 safeserializer = "^0.230202.1"
 lz4 = "^4.3.2"
+statsmodels = "^0.14.0"
 
 [tool.poetry.extras]    #[tool.poetry.group.extras.dependencies]
 full = []

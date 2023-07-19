@@ -3,7 +3,7 @@ from pprint import pprint
 
 import numpy as np
 from lightgbm import LGBMClassifier as LGBMc
-from numpy import array
+from numpy import array, quantile
 from numpy import mean, std
 from pandas import DataFrame
 from sklearn import clone
@@ -13,28 +13,53 @@ from sklearn.ensemble import RandomForestClassifier as RFc
 from sklearn.inspection import permutation_importance
 from sklearn.linear_model import SGDClassifier as SGDc
 from sklearn.metrics import confusion_matrix
-from sklearn.model_selection import KFold, cross_val_score, cross_val_predict, StratifiedKFold, permutation_test_score
+from sklearn.model_selection import KFold, cross_val_predict, StratifiedKFold, permutation_test_score
+from statsmodels.stats.outliers_influence import variance_inflation_factor
 from xgboost import XGBClassifier as XGBc
 
-from germina.config import local_cache_uri, remote_cache_uri
-from germina.dataset import join
+from germina.config import remote_cache_uri, local_cache_uri
+from germina.dataset import join, ensemble_predict
 from germina.nan import remove_cols, bina, loga, remove_nan_rows_cols
-from hdict import _, apply, cache, hdict
+from hdict import _, apply, cache
 from hdict import field
+from hdict import hdict
 from hdict.dataset.pandas_handling import file2df
+from hosh import Hosh
 from shelchemy import sopen
 
 
-def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, eeg=False, metavars=None, targets_meta=None, targets_eeg1=None, targets_eeg2=None, stratifiedcv=True, path="data/"):
+def calculate_vif(df: DataFrame, thresh=5.0):
+    """https://stats.stackexchange.com/a/253620/36979"""
+    X = df.assign(const=1)  # faster than add_constant from statsmodels
+    variables = list(range(X.shape[1]))
+    dropped = True
+    while dropped:
+        dropped = False
+        vif = [variance_inflation_factor(X.iloc[:, variables].values, ix)
+               for ix in range(X.iloc[:, variables].shape[1])]
+        vif = vif[:-1]  # don't let the constant be removed in the loop.
+        maxloc = vif.index(max(vif))
+        if max(vif) > thresh:
+            print('dropping \'' + X.iloc[:, variables].columns[maxloc] +
+                  '\' at index: ' + str(maxloc))
+            del variables[maxloc]
+            dropped = True
+
+    print('Remaining variables:')
+    print(X.columns[variables[:-1]])
+    return X.iloc[:, variables[:-1]]
+
+
+def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, eeg=False, metavars=None, targets_meta=None, targets_eeg1=None, targets_eeg2=None, stratifiedcv=True, path="data/", loc=True, rem=True):
     lst = []
     if t1:
         lst.append("t1")
     if t2:
         lst.append("t2")
     if microbiome:
-        lst.append("microbiome")
+        lst.append("bio")
     if microbiome_extra:
-        lst.append("microbiome_extra")
+        lst.append("bio+")
     if eeg:
         lst.append("eeg")
     if metavars:
@@ -46,14 +71,15 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
     if targets_eeg2:
         lst.append(f"{targets_eeg2=}")
     if stratifiedcv:
-        lst.append("stratifiedcv")
-    name = "out/" + "§".join(lst).replace("_", "_").replace("§", "---") + ".txt"
-    name = name.replace("=", "").replace("[", "«").replace("]", "»").replace(", ", ",").replace("'", "")
+        lst.append("stratcv")
+    name = "out/" + "§".join(lst).replace("_", "_").replace("§", "-") + ".txt"
+    name = name.replace("=", "").replace("[", "«").replace("]", "»").replace(", ", ",").replace("'", "").replace("waveleting", "wv")
+    name = name[:50] + Hosh(name.encode()).id
     print(name)
     oldout = sys.stdout
     with open(name, 'w') as sys.stdout:
         newout = sys.stdout
-        # sys.stdout = oldout
+        sys.stdout = oldout
 
         print(f"Scenario: {t1=}, {t2=}, {microbiome=}, {microbiome_extra=}, {eeg=},\n"
               f"{metavars=},\n"
@@ -81,7 +107,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                         d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T1_n525.csv").microbiome_pathways1
                         d = d >> apply(file2df, path + "data_microbiome___2023-06-18___especies_3_meses_n525.csv").microbiome_species1
                 if t2:
-                    d = d >> apply(file2df, path + "data_microbiome___2023-06-18___alpha_diversity_n525.csv").microbiome_alpha2
+                    d = d >> apply(file2df, path + "data_microbiome___2023-07-03___alpha_diversity_T2_n441.csv").microbiome_alpha2
                     if microbiome_extra:
                         d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T2_n441.csv").microbiome_species1
                         d = d >> apply(file2df, path + "data_microbiome___2023-06-18___especies_6_meses_n525.csv").microbiome_species2
@@ -123,27 +149,43 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                     else:
                         d = d >> apply(join, other=_.eeg2).df
             # d = d >> apply(remove_nan_rows_cols, cols_at_a_time=0, keep=["id_estudo"] + targets).df
-            d = d >> cache(remote) >> cache(local)
+            if rem:
+                d = d >> cache(remote)
+            if loc:
+                d = d >> cache(local)
             print("Joined------------------------------------------------------------------------\n", d.df, "______________________________________________________\n")
 
             # Join metadata #############################################################################################################
             if metavars:
-                d = d >> apply(file2df, path + "metadata___2023-06-18.csv").metadata
+                d = d >> apply(file2df, path + "metadata___2023-07-17.csv").metadata
                 d = d >> apply(DataFrame.__getitem__, _.metadata, metavars + ["id_estudo"]).metadata
                 print("Format problematic attributes.")
                 d = d >> apply(bina, _.metadata, attribute="antibiotic", positive_category="yes").metadata
                 d = d >> apply(bina, _.metadata, attribute="EBF_3m", positive_category="EBF").metadata
                 d = d >> apply(loga, _.metadata, attribute="renda_familiar_total_t0").metadata
                 d = d >> apply(join, other=_.metadata).df
-                d = d >> cache(remote) >> cache(local)
+                d = d >> apply(remove_nan_rows_cols, keep=["id_estudo"] + targets).df
+                if rem:
+                    d = d >> cache(remote)
+                if loc:
+                    d = d >> cache(local)
                 print("Metadata----------------------------------------------------------------------\n", d.df, "______________________________________________________\n")
+
+            d = d >> apply(calculate_vif).df
+            if rem:
+                d = d >> cache(remote)
+            if loc:
+                d = d >> cache(local)
 
             # Join targets ##############################################################################################################
             if targets_meta:
                 d = d >> apply(file2df, path + "metadata___2023-06-18.csv").targets
                 d = d >> apply(DataFrame.__getitem__, _.targets, targets + ["id_estudo"]).targets
                 d = d >> apply(join, other=_.targets).df
-                d = d >> cache(remote) >> cache(local)
+                if rem:
+                    d = d >> cache(remote)
+                if loc:
+                    d = d >> cache(local)
             print("Dataset-----------------------------------------------------------------------\n", d.df, "______________________________________________________\n")
 
             # Remove NaNs ##################################################################################################################
@@ -171,25 +213,16 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
 
                 # Prepare dataset.
                 d = d >> apply(getattr, _.df, target).t
-                if target.startswith("r_20hz_post_pre_waveleting_t"):
-                    d["cuts"] = [0.4, 0.7]
-                elif target.startswith("Beta_t"):
-                    d["cuts"] = [0.005, 0.010]
-                elif target.startswith("Number_Segs_Post_Seg_Rej_t"):
-                    d["cuts"] = [40, 45]
-                elif target.startswith("ibq_reg"):
-                    d["cuts"] = [5, 6]
+                d = d >> apply(lambda x: np.digitize(x, quantile(x, [1 / 5, 4 / 5])), _.t).t
+                d = d >> apply(lambda df, t: df[t != 1], _.df, _.t).dfcut
+                d = d >> apply(remove_cols, _.dfcut, targets, keep=[]).X
+                d = d >> apply(lambda t: t[t != 1]).t
+                d = d >> apply(lambda t: t // 2).y
 
-                d = d >> apply(getattr, _.df, target).t
-                # print("t: ", list(d.df[target]))
-                d = d >> apply(lambda x, cuts: np.digitize(x, cuts), _.t).t
-                d = d >> apply(lambda df, t: df[t != 1], _.df, _.t).df
-                d = d >> apply(remove_cols, _.df, targets, keep=[]).X
-                d = d >> apply(getattr, _.df, target).y
-                d = d >> apply(lambda x, cuts: np.digitize(x, cuts), _.y).y
-                d = d >> apply(lambda y: y // 2, _.y).y
-
-                d = d >> cache(remote) >> cache(local)
+                if rem:
+                    d = d >> cache(remote)
+                if loc:
+                    d = d >> cache(local)
                 print("X:", d.X.shape)
                 print("y:", d.y.shape)
 
@@ -231,24 +264,45 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                         pval_fi = f"pval_{scores_fi}"
                         # d = d >> apply(cross_val_score, field(classifier_field), _.X, _.y, cv=_.cv, scoring=m)(scores_fi)
                         d = d >> apply(permutation_test_score, field(classifier_field), _.X, _.y, cv=_.cv, scoring=m)(scores_fi, permscores_fi, pval_fi)
-                        d = d >> cache(remote) >> cache(local)
+                        if rem:
+                            d = d >> cache(remote)
+                        if loc:
+                            d = d >> cache(local)
                         me = mean(d[scores_fi])
                         if classifier_field == "DummyClassifier":
                             ref = me
-                        print(f"{classifier_field:24} {me:.6f} {std(d[scores_fi]):.6f}{'    <----' if me > ref else ''} p-value={d[pval_fi]}")
+                        print(f"{classifier_field:24} {me:.6f} {std(d[scores_fi]):.6f}   p-value={d[pval_fi]}")
                     print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
 
                 # ConfusionMatrix; prediction and hit agreement.
                 zs, hs = {}, {}
+                members_z = []
                 for classifier_field in clas_names:
                     print(classifier_field)
                     field_name_z = f"{classifier_field}_z"
+                    if not classifier_field.startswith("Dummy"):
+                        members_z.append(field(field_name_z))
                     d = d >> apply(cross_val_predict, field(classifier_field), _.X, _.y, cv=_.cv)(field_name_z)
-                    d = d >> cache(remote) >> cache(local)
+                    if rem:
+                        d = d >> cache(remote)
+                    if loc:
+                        d = d >> cache(local)
                     z = d[field_name_z]
                     zs[classifier_field[:10]] = z
                     hs[classifier_field[:10]] = (z == d.y).astype(int)
                     print(f"{confusion_matrix(d.y, z)}")
+                d = d >> apply(ensemble_predict, *members_z).ensemble_z
+                if rem:
+                    d = d >> cache(remote)
+                if loc:
+                    d = d >> cache(local)
+
+                # Accuracy
+                for classifier_field in clas_names:
+                    field_name_z = f"{classifier_field}_z"
+                    print(f"{classifier_field:24} {np.count_nonzero(d[field_name_z] == d.y) / d.y.shape[0]:.6f} ")
+                print(f"ensemble5 {np.count_nonzero(d.ensemble_z == d.y) / d.y.shape[0]:.6f} ")
+
                 print("Prediction:")
                 Z = array(list(zs.values()))
                 zs["   AND    "] = np.logical_and.reduce(Z, axis=0).astype(int)
@@ -259,7 +313,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                 for k, z in zs.items():
                     if "AND" in k:
                         print()
-                    print(k, sum(z), ",".join(map(str, z)))
+                    # print(k, sum(z), ",".join(map(str, z)))
                 print()
                 print("Hit:")
                 H = array(list(hs.values()))
@@ -271,7 +325,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                 for k, h in hs.items():
                     if "AND" in k:
                         print()
-                    print(k, sum(h), "\t", ",".join(map(str, h)))
+                    # print(k, sum(h), "\t", ",".join(map(str, h)))
                 print()
 
                 # Importances
@@ -280,7 +334,10 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                     d = d >> apply(lambda c, *args, **kwargs: clone(c).fit(*args, **kwargs), field(classifier_field), _.X, _.y)(model)
                     importances_field_name = f"{target}_{classifier_field}_importances"
                     d = d >> apply(permutation_importance, field(model), _.X, _.y, n_repeats=20, scoring=scos, n_jobs=-1)(importances_field_name)
-                    d = d >> cache(remote) >> cache(local)
+                    if rem:
+                        d = d >> cache(remote)
+                    if loc:
+                        d = d >> cache(local)
                     fst = True
                     for metric in d[importances_field_name]:
                         r = d[importances_field_name][metric]
