@@ -397,7 +397,58 @@ dropped = list({
                    'PWY-7209': 33,
                    'REDCITCYC': 73,
                    'PWY-6590': 17,
-               }.keys())
+               }.keys()) + [
+    'GALACTARDEG-PWY_t2',
+    'ARGSYN-PWY_t2',
+    'GLUCARGALACTSUPER-PWY_t2',
+    'FUC-RHAMCAT-PWY_t2',
+    'GLYOXYLATE-BYPASS_t2',
+    'FAO-PWY_t2',
+    'ARGSYNBSUB-PWY_t2',
+    'GLYCOLYSIS_t2',
+    'COMPLETE-ARO-PWY_t2',
+    'AST-PWY_t2',
+    'ANAGLYCOLYSIS-PWY_t2',
+    'BIOTIN-BIOSYNTHESIS-PWY_t2',
+    'FUCCAT-PWY_t2',
+    'ARG+POLYAMINE-SYN_t2',
+    'GLUCARDEG-PWY_t2',
+    'DAPLYSINESYN-PWY_t2',
+    'ARO-PWY_t2',
+    'COA-PWY-1_t2',
+    'GLYCOLYSIS-E-D_t2',
+    'GLUCONEO-PWY_t2',
+    'FERMENTATION-PWY_t2',
+    'DARABCATK12-PWY_t2',
+    'GLUTORN-PWY_t2',
+    'CALVIN-PWY_t2',
+    'BRANCHED-CHAIN-AA-SYN-PWY_t2',
+    'ASPASN-PWY_t2',
+    'ANAEROFRUCAT-PWY_t2',
+    'COLANSYN-PWY_t2',
+    'FASYN-ELONG-PWY_t2',
+    'GALACTITOLCAT-PWY_t2',
+    'ECASYN-PWY_t2',
+    'GLCMANNANAUT-PWY_t2',
+    'GLUCUROCAT-PWY_t2',
+    'ARGININE-SYN4-PWY_t2',
+    'GLYCOGENSYNTH-PWY_t2',
+    'DENOVOPURINE2-PWY_t2',
+    '1CMET2-PWY_t2',
+    'GALACT-GLUCUROCAT-PWY_t2',
+    'GLYCOL-GLYOXDEG-PWY_t2',
+    'TCA',
+    'GLUCARDEG-PWY',
+    'PROTOCATECHUATE-ORTHO-CLEAVAGE-PWY',
+    'GLUCOSE1PMETAB-PWY_t2',
+    'COBALSYN-PWY_t2',
+    'PWY-I9',
+    'THISYNARA-PWY',
+    'FASYN-INITIAL-PWY_t2',
+    'PWY-6876',
+    'CITRULBIO-PWY_t2',
+    'FOLSYN-PWY_t2'
+]
 
 
 def calculate_vif(df: DataFrame, thresh=5.0):
@@ -413,8 +464,7 @@ def calculate_vif(df: DataFrame, thresh=5.0):
         vif = vif[:-1]  # don't let the constant be removed in the loop.
         maxloc = vif.index(max(vif))
         if max(vif) > thresh:
-            print('dropping \'' + X.iloc[:, variables].columns[maxloc] +
-                  '\' at index: ' + str(maxloc))
+            print(f"'{X.iloc[:, variables].columns[maxloc]}', ")
             del variables[maxloc]
             dropped = True
 
@@ -560,6 +610,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
             # d.df.to_csv(f"/tmp/all.csv")
             # exit()
 
+            ##############################   VIF    ######################################
             d = d >> apply(remove_cols, cols=dropped, keep=[]).df
             d = d >> apply(calculate_vif).df
             if rem:

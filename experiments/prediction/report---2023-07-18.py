@@ -15,9 +15,23 @@ print()
 """
         "elegib14_t0",  # sexo
 """
-# "idade_crianca_meses_t2", "bisq_sleep_prob_t2"] # mata 62 rows
+# "idade_crianca_meses_t1", "idade_crianca_meses_t2", "bisq_sleep_prob_t2"] # bisq_sleep_prob_t2/idade_crianca_meses_t2 mata 62 rows
 d = hdict(n_permutations=nperm, n_splits=5, n_estimators=nest, random_state=0, index="id_estudo")
-matts = ["b13_t1", "maternal_ethinicity", "renda_familiar_total_t0", "a08_t1", "elegib2_t0", "c12f_t1", "idade_crianca_meses_t1", "infant_ethinicity", "EBF_3m", "delivery_mode", "chaos_tot_t1", "epds_2c_t1", "epds_tot_t1", "bisq_3_mins_t1", "bisq_4_mins_t1", "bisq_9_mins_t1", "bisq_sleep_prob_t1", "ebia_tot_t1", "ahmed_c14_2c_t1", "educationLevelAhmedNum_t1", "b04_t1", "a10_t1", "bmi_pregest_t1"]
+matts = [
+    "b13_t1",  # father ethnicity
+    "maternal_ethinicity", "b04_t1",  # mother ethnicity
+    "renda_familiar_total_t0",
+    "infant_ethinicity", "a08_t1",  # infant ethnicity
+    "elegib2_t0",  # mother age
+    "c12f_t1",  # depression during or posparto
+    "EBF_3m", "delivery_mode", "chaos_tot_t1",  # Confusion, hubbub, and order scale
+    "epds_2c_t1", "epds_tot_t1",
+    "bisq_3_mins_t1", "bisq_4_mins_t1", "bisq_9_mins_t1", "bisq_sleep_prob_t1",
+    "ebia_tot_t1",  # Food insecurity
+    "ahmed_c14_2c_t1", "educationLevelAhmedNum_t1",
+    "a10_t1",  # ordem desta criança entre os irmãos
+    "bmi_pregest_t1"
+]
 
 mtgts = ["ibq_reg_t1", "ibq_soot_t1", "ibq_dura_t1", "bayley_3_t1"]
 run(d, t1=True, microbiome=True, microbiome_extra=True, eeg=True, metavars=matts, targets_meta=mtgts, loc=loc, rem=rem)
