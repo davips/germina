@@ -37,26 +37,31 @@ def ch(d, loc, rem, local, remote):
     d.evaluate()
 
 
+def drop_many_by_vif(d, outfield, loc, rem, local, remote):
+    while True:
+        d = d >> apply(drop_by_vif, field(outfield))("dropped", outfield)
+        ch(d, loc, rem, local, remote)
+        if not d.dropped:
+            break
+
+
 def drop_by_vif(df: DataFrame, thresh=5.0):
     """https://stats.stackexchange.com/a/253620/36979"""
     X = df.assign(const=1)  # faster than add_constant from statsmodels
     # X = np.array(X, dtype=float)
     variables = list(range(X.shape[1]))
-    dropped = True
-    while dropped:
-        dropped = False
-        vif = [variance_inflation_factor(X.iloc[:, variables].values, ix)
-               for ix in range(X.iloc[:, variables].shape[1])]
-        vif = vif[:-1]  # don't let the constant be removed in the loop.
-        maxloc = vif.index(max(vif))
-        if max(vif) > thresh:
-            print(f"'{X.iloc[:, variables].columns[maxloc]}', ")
-            del variables[maxloc]
-            dropped = True
-
-    print('Remaining variables:')
-    print(X.columns[variables[:-1]].to_list())
-    return X.iloc[:, variables[:-1]]
+    dropped = False
+    vif = [variance_inflation_factor(X.iloc[:, variables].values, ix)
+           for ix in range(X.iloc[:, variables].shape[1])]
+    vif = vif[:-1]  # don't let the constant be removed in the loop.
+    maxloc = vif.index(max(vif))
+    if max(vif) > thresh:
+        print(f"'{X.iloc[:, variables].columns[maxloc]}', ")
+        del variables[maxloc]
+        dropped = True
+    # print('Remaining variables:')
+    # print(X.columns[variables[:-1]].to_list())
+    return dropped, X.iloc[:, variables[:-1]]
 
 
 def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, eeg=False, metavars=None, targets_meta=None, targets_eeg1=None, targets_eeg2=None, stratifiedcv=True, path="data/", loc=True, rem=True):
@@ -112,56 +117,46 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
             if microbiome:  #################################################################################################################
                 if t1:
                     d = d >> apply(file2df, path + "data_microbiome___2023-06-18___alpha_diversity_n525.csv").microbiome_alpha1
-                    d = d >> apply(drop_by_vif, _.microbiome_alpha1).microbiome_alpha1
+                    drop_many_by_vif(d, "microbiome_alpha1", loc, rem, local, remote)
                     if microbiome_extra:
                         d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T1_n525.csv").microbiome_pathways1
                         d = d >> apply(only_abundant, _.microbiome_pathways1).microbiome_pathways1
-                        d = d >> apply(drop_by_vif, _.microbiome_pathways1).microbiome_pathways1
-                        ch(d, loc, rem, local, remote)
+                        drop_many_by_vif(d, "microbiome_pathways1", loc, rem, local, remote)
 
                         d = d >> apply(file2df, path + "data_microbiome___2023-06-18___especies_3_meses_n525.csv").microbiome_species1
                         d = d >> apply(only_abundant, _.microbiome_species1).microbiome_species1
-                        d = d >> apply(drop_by_vif, _.microbiome_species1).microbiome_species1
-                        ch(d, loc, rem, local, remote)
+                        drop_many_by_vif(d, "microbiome_species1", loc, rem, local, remote)
 
                         d = d >> apply(file2df, path + "data_microbiome___2023-07-04___T1_vias_relab_superpathways.csv").microbiome_super1
-                        d = d >> apply(drop_by_vif, _.microbiome_super1).microbiome_super1
-                        ch(d, loc, rem, local, remote)
+                        drop_many_by_vif(d, "microbiome_super1", loc, rem, local, remote)
                 if t2:
                     d = d >> apply(file2df, path + "data_microbiome___2023-07-03___alpha_diversity_T2_n441.csv").microbiome_alpha2
-                    d = d >> apply(drop_by_vif, _.microbiome_alpha2).microbiome_alpha2
+                    drop_many_by_vif(d, "microbiome_alpha2", loc, rem, local, remote)
                     if microbiome_extra:
                         d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T2_n441.csv").microbiome_pathways2
                         d = d >> apply(only_abundant, _.microbiome_pathways2).microbiome_pathways2
-                        d = d >> apply(drop_by_vif, _.microbiome_pathways2).microbiome_pathways2
-                        ch(d, loc, rem, local, remote)
+                        drop_many_by_vif(d, "microbiome_pathways2", loc, rem, local, remote)
 
                         d = d >> apply(file2df, path + "data_microbiome___2023-06-29___especies_6_meses_n441.csv").microbiome_species2
                         d = d >> apply(only_abundant, _.microbiome_species2).microbiome_species2
-                        d = d >> apply(drop_by_vif, _.microbiome_species2).microbiome_species2
-                        ch(d, loc, rem, local, remote)
+                        drop_many_by_vif(d, "microbiome_species2", loc, rem, local, remote)
 
                         d = d >> apply(file2df, path + "data_microbiome___2023-07-04___T2_vias_relab_superpathways.csv").microbiome_super2
-                        d = d >> apply(drop_by_vif, _.microbiome_super2).microbiome_super2
-                        ch(d, loc, rem, local, remote)
+                        drop_many_by_vif(d, "microbiome_super2", loc, rem, local, remote)
 
             if eeg:  ########################################################################################################################
                 if (t1 and not targets_eeg2) or targets_eeg1:
                     d = d >> apply(file2df, path + "data_eeg___2023-06-20___T1_RS_average_dwPLI_withEEGCovariates.csv").eeg1
-                    d = d >> apply(drop_by_vif, _.eeg1).eeg1
-                    ch(d, loc, rem, local, remote)
+                    drop_many_by_vif(d, "eeg1", loc, rem, local, remote)
                     d = d >> apply(file2df, path + "data_eeg___2023-07-19___BRAINRISE_RS_3m_power.csv").eegpow1
-                    d = d >> apply(drop_by_vif, _.eegpow1).eegpow1
-                    ch(d, loc, rem, local, remote)
+                    drop_many_by_vif(d, "eegpow1", loc, rem, local, remote)
                 if t2 or targets_eeg2:
                     d = d >> apply(file2df, path + "data_eeg___2023-06-20___T2_RS_average_dwPLI_withEEGCovariates.csv").eeg2
                     d = d >> apply(remove_nan_rows_cols, _.eeg2, keep=[]).eeg2
-                    d = d >> apply(drop_by_vif, _.eeg2).eeg2
-                    ch(d, loc, rem, local, remote)
+                    drop_many_by_vif(d, "eeg2", loc, rem, local, remote)
                     d = d >> apply(file2df, path + "data_eeg___2023-07-19___BRAINRISE_RS_T2_Power.csv").eegpow2
                     d = d >> apply(remove_nan_rows_cols, _.eegpow2, keep=[]).eegpow2
-                    d = d >> apply(drop_by_vif, _.eegpow2).eegpow2
-                    ch(d, loc, rem, local, remote)
+                    drop_many_by_vif(d, "eegpow2", loc, rem, local, remote)
                 if targets_eeg1:
                     d = d >> apply(DataFrame.__getitem__, _.eeg1, ["id_estudo"] + targets_eeg1).eeg1
                 if targets_eeg2:
@@ -221,7 +216,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
 
             ##############################   VIF    ######################################
             # d = d >> apply(remove_cols, cols=dropped, keep=[]).df
-            d = d >> apply(drop_by_vif).df
+            drop_many_by_vif(d, "df", loc, rem, local, remote)
             ch(d, loc, rem, local, remote)
 
             # Join targets ##############################################################################################################
