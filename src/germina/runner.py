@@ -55,7 +55,7 @@ def drop_by_vif(df: DataFrame, dropped=None, thresh=5.0):
     """https://stats.stackexchange.com/a/253620/36979"""
     dropped = [] if dropped is None else dropped.copy()
     X = df.assign(const=1)  # faster than add_constant from statsmodels
-    X = remove_cols(X, dropped, [])
+    X = remove_cols(X, dropped, [], debug=False)
     variables = list(range(X.shape[1]))
     vif = [variance_inflation_factor(X.iloc[:, variables].values, ix)
            for ix in range(X.iloc[:, variables].shape[1])]
