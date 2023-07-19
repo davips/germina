@@ -38,32 +38,33 @@ def ch(d, loc, rem, local, remote):
     return d
 
 
-def drop_many_by_vif(d, outfield, loc, rem, local, remote):
+def drop_many_by_vif(d, dffield, loc, rem, local, remote):
+    lstfield = f"{dffield}_dropped"
+    d[lstfield] = old = []
     while True:
-        d = d >> apply(drop_by_vif, field(outfield))("dropped", outfield)
+        d = d >> apply(drop_by_vif, df=field(dffield), dropped=field(lstfield))(lstfield)
         d = ch(d, loc, rem, local, remote)
-        if not d.dropped:
+        if d[lstfield] == old:
             break
-    return d
+        old = d[lstfield]
+    d = d >> apply(remove_cols, field(dffield), field(lstfield), keep=[], debug=False)(dffield)
+    return ch(d, loc, rem, local, remote)
 
 
-def drop_by_vif(df: DataFrame, thresh=5.0):
+def drop_by_vif(df: DataFrame, dropped=None, thresh=5.0):
     """https://stats.stackexchange.com/a/253620/36979"""
+    dropped = [] if dropped is None else dropped.copy()
     X = df.assign(const=1)  # faster than add_constant from statsmodels
-    # X = np.array(X, dtype=float)
+    X = remove_cols(X, dropped, [])
     variables = list(range(X.shape[1]))
-    dropped = False
     vif = [variance_inflation_factor(X.iloc[:, variables].values, ix)
            for ix in range(X.iloc[:, variables].shape[1])]
-    vif = vif[:-1]  # don't let the constant be removed in the loop.
+    vif = vif[:-1]
     maxloc = vif.index(max(vif))
     if max(vif) > thresh:
-        print(f"'{X.iloc[:, variables].columns[maxloc]}', ")
-        del variables[maxloc]
-        dropped = True
-    # print('Remaining variables:')
-    # print(X.columns[variables[:-1]].to_list())
-    return dropped, X.iloc[:, variables[:-1]]
+        dropped.append(X.iloc[:, variables].columns[maxloc])
+        print(f"Dropped: {dropped[::-1]}")
+    return dropped
 
 
 def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, eeg=False, metavars=None, targets_meta=None, targets_eeg1=None, targets_eeg2=None, stratifiedcv=True, path="data/", loc=True, rem=True):
