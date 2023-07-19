@@ -20,7 +20,7 @@ from xgboost import XGBClassifier as XGBc
 
 from germina.config import remote_cache_uri, local_cache_uri
 from germina.dataset import join, ensemble_predict
-from germina.nan import remove_cols, bina, loga, remove_nan_rows_cols, only_abundant
+from germina.nan import remove_cols, bina, loga, remove_nan_rows_cols, only_abundant, hasNaN
 from hdict import _, apply, cache
 from hdict import field
 from hdict import hdict
@@ -39,6 +39,8 @@ def ch(d, loc, rem, local, remote):
 
 
 def drop_many_by_vif(d, dffield, loc, rem, local, remote):
+    if hasNaN(d[dffield]) > 1:
+        d = d >> apply(remove_nan_rows_cols, field(dffield), keep=[])(dffield)
     lstfield = f"{dffield}_dropped"
     d[lstfield] = old = []
     while True:
