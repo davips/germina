@@ -1,14 +1,17 @@
 from germina.runner import run
 from hdict import hdict
+
 from sys import argv
 
-loc = bool(int(argv[1]))
-rem = bool(int(argv[2]))
-nperm = bool(int(argv[3]))
-nest = bool(int(argv[4]))
+loc = False  # bool(int(argv[1]))
+rem = False  # bool(int(argv[2]))
+nperm = int(argv[3])
+nest = int(argv[4])
 print("local cache:", loc)
 print("remote cache:", rem)
-
+print("n perms", nperm)
+print("n estimators", nest)
+print()
 """
         "elegib14_t0",  # sexo
 """
