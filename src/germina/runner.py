@@ -134,7 +134,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                         d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T2_n441.csv").microbiome_pathways2
                         d = d >> apply(only_abundant, _.microbiome_pathways2).microbiome_pathways2
                         d = d >> apply(drop_by_vif, _.microbiome_pathways2).microbiome_pathways2
-                        ch(d)
+                        ch(d, loc, rem, local, remote)
 
                         d = d >> apply(file2df, path + "data_microbiome___2023-06-29___especies_6_meses_n441.csv").microbiome_species2
                         d = d >> apply(only_abundant, _.microbiome_species2).microbiome_species2
