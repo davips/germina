@@ -583,7 +583,7 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
             print("Dataset without NaNs ------------------------------------------------------------\n", d.df, "______________________________________________________\n")
 
             # Visualize ####################################################################################################################
-            print("Vars:", d.df.columns)
+            print("Vars:", d.df.columns.to_list())
             # d.df.to_csv(f"/tmp/all.csv")
             # d.df: DataFrame
             # for target in targets:
