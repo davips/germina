@@ -22,10 +22,10 @@ sortedness = "^1.230712.2"
 xgboost = "^1.7.6"
 catboost = "^1.2"
 lightgbm = "^3.3.5"
-shelchemy = "^1.230706.2"
 safeserializer = "^0.230202.1"
 lz4 = "^4.3.2"
 statsmodels = "^0.14.0"
+shelchemy = "^1.230706.3"
 
 [tool.poetry.extras]    #[tool.poetry.group.extras.dependencies]
 full = []
