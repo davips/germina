@@ -29,7 +29,11 @@ from hosh import Hosh
 from shelchemy import sopen
 
 
-def ch(d, loc, rem, local, remote):
+def ch(d, loc, rem, local, remote, sync):
+    if sync:
+        tmp = local
+        local = remote
+        remote = tmp
     if rem:
         d = d >> cache(remote)
     if loc:
@@ -38,20 +42,20 @@ def ch(d, loc, rem, local, remote):
     return d
 
 
-def drop_many_by_vif(d, dffield, loc, rem, local, remote):
+def drop_many_by_vif(d, dffield, loc, rem, local, remote, sync):
     if hasNaN(d[dffield], debug=False) > 1:
         d = d >> apply(remove_nan_rows_cols, field(dffield), keep=[])(dffield)
     lstfield = f"{dffield}_dropped"
     d[lstfield] = old = []
     while True:
         d = d >> apply(drop_by_vif, df=field(dffield), dropped=field(lstfield))(lstfield)
-        d = ch(d, loc, rem, local, remote)
+        d = ch(d, loc, rem, local, remote, sync)
         # print(d.ids[lstfield], d[lstfield])
         if d[lstfield] == old:
             break
         old = d[lstfield]
     d = d >> apply(remove_cols, field(dffield), field(lstfield), keep=[], debug=False)(dffield)
-    return ch(d, loc, rem, local, remote)
+    return ch(d, loc, rem, local, remote, sync)
 
 
 def drop_by_vif(df: DataFrame, dropped=None, thresh=5.0):
@@ -73,7 +77,7 @@ def drop_by_vif(df: DataFrame, dropped=None, thresh=5.0):
 def run(d: hdict, t1=False, t2=False,
         eeg=False, eegpow=False,
         malpha=False, mpathways=False, mspecies=False, msuper=False,
-        metavars=None, targets_meta=None, targets_eeg1=None, targets_eeg2=None, stratifiedcv=True, path="data/", loc=True, rem=True, verbose=False):
+        metavars=None, targets_meta=None, targets_eeg1=None, targets_eeg2=None, stratifiedcv=True, path="data/", loc=True, rem=True, sync=False, verbose=False):
     malpha1 = malpha2 = eegpow1 = eegpow2 = eeg1 = eeg2 = pathways1 = pathways2 = species1 = species2 = super1 = super2 = False
     if eeg:
         eeg1, eeg2 = t1, t2
@@ -92,7 +96,7 @@ def run(d: hdict, t1=False, t2=False,
     if verbose:
         print(logname)
     oldout = sys.stdout
-    with open(logname, 'w') as sys.stdout:
+    with open(path + "\\" + logname, 'w') as sys.stdout:
         newout = sys.stdout
         sys.stdout = oldout
 
@@ -120,55 +124,55 @@ def run(d: hdict, t1=False, t2=False,
             #################################################################################################################
             if malpha1:
                 d = d >> apply(file2df, path + "data_microbiome___2023-06-18___alpha_diversity_n525.csv").microbiome_alpha1
-                d = drop_many_by_vif(d, "microbiome_alpha1", loc, rem, local, remote)
+                d = drop_many_by_vif(d, "microbiome_alpha1", loc, rem, local, remote, sync)
             if pathways1:
                 d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T1_n525.csv").microbiome_pathways1
                 d = d >> apply(only_abundant, _.microbiome_pathways1).microbiome_pathways1
-                d = drop_many_by_vif(d, "microbiome_pathways1", loc, rem, local, remote)
+                d = drop_many_by_vif(d, "microbiome_pathways1", loc, rem, local, remote, sync)
             if species1:
                 d = d >> apply(file2df, path + "data_microbiome___2023-06-18___especies_3_meses_n525.csv").microbiome_species1
                 d = d >> apply(only_abundant, _.microbiome_species1).microbiome_species1
-                d = drop_many_by_vif(d, "microbiome_species1", loc, rem, local, remote)
+                d = drop_many_by_vif(d, "microbiome_species1", loc, rem, local, remote, sync)
             if super1:
                 d = d >> apply(file2df, path + "data_microbiome___2023-07-04___T1_vias_relab_superpathways.csv").microbiome_super1
-                d = drop_many_by_vif(d, "microbiome_super1", loc, rem, local, remote)
+                d = drop_many_by_vif(d, "microbiome_super1", loc, rem, local, remote, sync)
             if malpha2:
                 d = d >> apply(file2df, path + "data_microbiome___2023-07-03___alpha_diversity_T2_n441.csv").microbiome_alpha2
-                d = drop_many_by_vif(d, "microbiome_alpha2", loc, rem, local, remote)
+                d = drop_many_by_vif(d, "microbiome_alpha2", loc, rem, local, remote, sync)
             if pathways2:
                 d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T2_n441.csv").microbiome_pathways2
                 d = d >> apply(only_abundant, _.microbiome_pathways2).microbiome_pathways2
-                d = drop_many_by_vif(d, "microbiome_pathways2", loc, rem, local, remote)
+                d = drop_many_by_vif(d, "microbiome_pathways2", loc, rem, local, remote, sync)
             if species2:
                 d = d >> apply(file2df, path + "data_microbiome___2023-06-29___especies_6_meses_n441.csv").microbiome_species2
                 d = d >> apply(only_abundant, _.microbiome_species2).microbiome_species2
-                d = drop_many_by_vif(d, "microbiome_species2", loc, rem, local, remote)
+                d = drop_many_by_vif(d, "microbiome_species2", loc, rem, local, remote, sync)
             if super2:
                 d = d >> apply(file2df, path + "data_microbiome___2023-07-04___T2_vias_relab_superpathways.csv").microbiome_super2
-                d = drop_many_by_vif(d, "microbiome_super2", loc, rem, local, remote)
+                d = drop_many_by_vif(d, "microbiome_super2", loc, rem, local, remote, sync)
 
             ########################################################################################################################
             if (eeg1 and not targets_eeg2) or targets_eeg1:
                 d = d >> apply(file2df, path + "data_eeg___2023-06-20___T1_RS_average_dwPLI_withEEGCovariates.csv").eeg1
                 if not targets_eeg1:
-                    d = drop_many_by_vif(d, "eeg1", loc, rem, local, remote)
+                    d = drop_many_by_vif(d, "eeg1", loc, rem, local, remote, sync)
                     if eegpow1:
                         d = d >> apply(file2df, path + "data_eeg___2023-07-19___BRAINRISE_RS_3m_power.csv").eegpow1
-                        d = drop_many_by_vif(d, "eegpow1", loc, rem, local, remote)
+                        d = drop_many_by_vif(d, "eegpow1", loc, rem, local, remote, sync)
             if targets_eeg1:
                 d = d >> apply(DataFrame.__getitem__, _.eeg1, ["id_estudo"] + targets_eeg1).eeg1
             if eeg2 or targets_eeg2:
                 d = d >> apply(file2df, path + "data_eeg___2023-06-20___T2_RS_average_dwPLI_withEEGCovariates.csv").eeg2
                 d = d >> apply(remove_nan_rows_cols, _.eeg2, keep=[]).eeg2
                 if not targets_eeg2:
-                    d = drop_many_by_vif(d, "eeg2", loc, rem, local, remote)
+                    d = drop_many_by_vif(d, "eeg2", loc, rem, local, remote, sync)
                     if eegpow2:
                         d = d >> apply(file2df, path + "data_eeg___2023-07-19___BRAINRISE_RS_T2_Power.csv").eegpow2
                         d = d >> apply(remove_nan_rows_cols, _.eegpow2, keep=[]).eegpow2
-                        d = drop_many_by_vif(d, "eegpow2", loc, rem, local, remote)
+                        d = drop_many_by_vif(d, "eegpow2", loc, rem, local, remote, sync)
             if targets_eeg2:
                 d = d >> apply(DataFrame.__getitem__, _.eeg2, ["id_estudo"] + targets_eeg2).eeg2
-            d = ch(d, loc, rem, local, remote)
+            d = ch(d, loc, rem, local, remote, sync)
 
             # join #######################################################################################################################
             new_or_join = lambda fi: field(fi) if "df" not in d else apply(join, other=field(fi))
@@ -181,7 +185,7 @@ def run(d: hdict, t1=False, t2=False,
                     d["df"] = new_or_join("microbiome_species1")
                 if super1:
                     d["df"] = new_or_join("microbiome_super1")
-                d = ch(d, loc, rem, local, remote)
+                d = ch(d, loc, rem, local, remote, sync)
             if t2:
                 if malpha2:
                     d["df"] = new_or_join("microbiome_alpha2")
@@ -191,7 +195,7 @@ def run(d: hdict, t1=False, t2=False,
                     d["df"] = new_or_join("microbiome_species2")
                 if super2:
                     d["df"] = new_or_join("microbiome_super2")
-                d = ch(d, loc, rem, local, remote)
+                d = ch(d, loc, rem, local, remote, sync)
             if eeg or targets_eeg1 or targets_eeg2:
                 if (t1 and not targets_eeg2) or targets_eeg1:
                     if "df" not in d:
@@ -208,7 +212,7 @@ def run(d: hdict, t1=False, t2=False,
                     if "eegpow2" in d and not (targets_eeg1 or targets_eeg2):
                         d = d >> apply(join, other=_.eegpow2).df
             # d = d >> apply(remove_nan_rows_cols, cols_at_a_time=0, keep=["id_estudo"] + targets).df
-            d = ch(d, loc, rem, local, remote)
+            d = ch(d, loc, rem, local, remote, sync)
             if verbose:
                 print("Joined------------------------------------------------------------------------\n", d.df, "______________________________________________________\n")
 
@@ -223,20 +227,20 @@ def run(d: hdict, t1=False, t2=False,
                 d = d >> apply(loga, _.metadata, attribute="renda_familiar_total_t0").metadata
                 d = d >> apply(join, other=_.metadata).df
                 d = d >> apply(remove_nan_rows_cols, keep=["id_estudo"] + targets).df
-                d = ch(d, loc, rem, local, remote)
+                d = ch(d, loc, rem, local, remote, sync)
                 if verbose:
                     print("Metadata----------------------------------------------------------------------\n", d.df, "______________________________________________________\n")
 
             ##############################   VIF    ######################################
             # d = d >> apply(remove_cols, cols=dropped, keep=[]).df
-            d = drop_many_by_vif(d, "df", loc, rem, local, remote)
+            d = drop_many_by_vif(d, "df", loc, rem, local, remote, sync)
 
             # Join targets ##############################################################################################################
             if targets_meta:
                 d = d >> apply(file2df, path + "metadata___2023-06-18.csv").targets
                 d = d >> apply(DataFrame.__getitem__, _.targets, targets + ["id_estudo"]).targets
                 d = d >> apply(join, other=_.targets).df
-                d = ch(d, loc, rem, local, remote)
+                d = ch(d, loc, rem, local, remote, sync)
             if verbose:
                 print("Dataset-----------------------------------------------------------------------\n", d.df, "______________________________________________________\n")
 
@@ -272,7 +276,7 @@ def run(d: hdict, t1=False, t2=False,
                 d = d >> apply(lambda t: t[t != 1]).t
                 d = d >> apply(lambda t: t // 2).y
 
-                d = ch(d, loc, rem, local, remote)
+                d = ch(d, loc, rem, local, remote, sync)
                 print("X:", d.X.shape)
                 if verbose:
                     print("y:", d.y.shape)
@@ -318,7 +322,7 @@ def run(d: hdict, t1=False, t2=False,
                         pval_fi = f"pval_{scores_fi}"
                         # d = d >> apply(cross_val_score, field(classifier_field), _.X, _.y, cv=_.cv, scoring=m)(scores_fi)
                         d = d >> apply(permutation_test_score, field(classifier_field), _.X, _.y, cv=_.cv, scoring=m)(scores_fi, permscores_fi, pval_fi)
-                        d = ch(d, loc, rem, local, remote)
+                        d = ch(d, loc, rem, local, remote, sync)
                         me = mean(d[scores_fi])
                         if classifier_field == "DummyClassifier":
                             ref = me
@@ -334,24 +338,24 @@ def run(d: hdict, t1=False, t2=False,
                     if not classifier_field.startswith("Dummy"):
                         members_z.append(field(field_name_z))
                     d = d >> apply(cross_val_predict, field(classifier_field), _.X, _.y, cv=_.cv)(field_name_z)
-                    d = ch(d, loc, rem, local, remote)
+                    d = ch(d, loc, rem, local, remote, sync)
                     z = d[field_name_z]
                     zs[classifier_field[:10]] = z
                     hs[classifier_field[:10]] = (z == d.y).astype(int)
                     if verbose:
                         print(f"{confusion_matrix(d.y, z)}")
                 d = d >> apply(ensemble_predict, *members_z).ensemble_z
-                d = ch(d, loc, rem, local, remote)
+                d = ch(d, loc, rem, local, remote, sync)
 
                 # Accuracy
                 for classifier_field in clas_names:
                     field_name_z = f"{classifier_field}_z"
                     fieldbalacc = f"{classifier_field}_balacc"
                     d = d >> apply(balanced_accuracy_score, _.y, field(field_name_z), adjusted=True)(fieldbalacc)
-                    d = ch(d, loc, rem, local, remote)
+                    d = ch(d, loc, rem, local, remote, sync)
                     print(f"{classifier_field:24} {d[fieldbalacc]:.6f} ")
                 d = d >> apply(balanced_accuracy_score, _.y, _.ensemble_z, adjusted=True).ensemble_balacc
-                d = ch(d, loc, rem, local, remote)
+                d = ch(d, loc, rem, local, remote, sync)
                 print(f"ensemble5 {d.ensemble_balacc:.6f} ")
 
                 if verbose:
@@ -386,7 +390,7 @@ def run(d: hdict, t1=False, t2=False,
                     d = d >> apply(lambda c, *args, **kwargs: clone(c).fit(*args, **kwargs), field(classifier_field), _.X, _.y)(model)
                     importances_field_name = f"{target}_{classifier_field}_importances"
                     d = d >> apply(permutation_importance, field(model), _.X, _.y, n_repeats=20, scoring=scos, n_jobs=-1)(importances_field_name)
-                    d = ch(d, loc, rem, local, remote)
+                    d = ch(d, loc, rem, local, remote, sync)
                     fst = True
                     for metric in d[importances_field_name]:
                         r = d[importances_field_name][metric]
