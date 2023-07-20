@@ -1,5 +1,4 @@
 import pandas as pd
-from mdscuda import MDS
 from numpy import log, ndarray
 from pandas import DataFrame
 from scipy.spatial.distance import cdist
@@ -21,6 +20,7 @@ def clean(targets, path, filenames, cache_uris, mds_on_first):
         m = _.fromfile(path + first_file[0]).df
         m.set_index("d", inplace=True)
         d = hdict(delta=m, random_state=0, sqform=True, n_dims=484)
+        MDS=0
         with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
             d >>= (
                     apply(MDS)("mds") >> apply(MDS.fit, _.mds).betadiv

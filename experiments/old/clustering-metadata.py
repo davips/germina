@@ -6,7 +6,6 @@ from pandas import DataFrame
 from scipy.spatial.distance import cdist
 from sklearn.decomposition import PCA
 from sklearn.manifold import smacof
-from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sortedness import sortedness
 from sortedness.global_ import cov2dissimilarity
@@ -14,7 +13,6 @@ from sortedness.global_ import cov2dissimilarity
 from hdict import _
 
 import numpy as np
-from mdscuda import MDS, mds_fit, minkowski_pairs
 
 MAX_BLANKS_BY_ROW, MAX_BLANKS_BY_COL = 999, 3
 path = "/home/davi/git/germina/data/metadata___2023-05-08-fup5afixed.csv"
@@ -811,12 +809,11 @@ ax = fig.add_subplot(111, projection="3d")
 ax.scatter(p[:, 0], p[:, 1], p[:, 2], c=colors, cmap="coolwarm")
 
 # plt.show()
-from mdscuda import MDS
-mds = MDS(n_dims=3)  # defines sklearn-style class
+# mds = MDS(n_dims=3)  # defines sklearn-style class
 
 
 def g() -> ndarray:
-    x = mds.fit(m, sqform=True)  # fits and returns embedding
+    x = 0#mds.fit(m, sqform=True)  # fits and returns embedding
     # print("mds r2: {}".format(mds.r2))  # prints R-squared value to assess quality of fit
     return x
 

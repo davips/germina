@@ -132,5 +132,9 @@ def only_abundant(df: DataFrame, threshold=10):
     """
     >>> df = DataFrame([[1,2,0],[1,0,0],[1,2,3],[1,0,0]])
     >>> only_abundant(df, 1).to_numpy()
+    array([[1, 2],
+           [1, 0],
+           [1, 2],
+           [1, 0]])
     """
     return df.loc[:, np.count_nonzero(df, axis=0) > threshold]
