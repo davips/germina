@@ -6,6 +6,7 @@ config.read(f"{Path.home()}/.cache.config")
 try:  # pragma: no cover
     local_cache_uri = config.get("Storage", "local")
     remote_cache_uri = config.get("Storage", "remote")
+    schedule_uri = config.get("Storage", "schedule")
 except Exception as e:
     print(
         "Please create a config file '.cache.config' in your home folder following the template:\n"

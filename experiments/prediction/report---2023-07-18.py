@@ -1,7 +1,11 @@
-from germina.runner import run, run_t1_t2
-from hdict import hdict
-
 from sys import argv
+
+from hdict import hdict
+from shelchemy import sopen
+from shelchemy.scheduler import Scheduler
+
+from germina.config import schedule_uri
+from germina.runner import run_t1_t2
 
 loc = bool(int(argv[1]))
 rem = bool(int(argv[2]))
@@ -39,11 +43,12 @@ matts = [
 ]
 kwargs0 = dict(metavars=matts, loc=loc, rem=rem)
 
-for extra in [dict(), dict(eeg=True), dict(eegpow=True), dict(eeg=True, eegpow=True)]:
-    kwargs = kwargs0 | extra
-    run_t1_t2(d, malpha=True, **kwargs)
-    run_t1_t2(d, mspecies=True, **kwargs)
-    run_t1_t2(d, malpha=True, mspecies=True, **kwargs)
-    run_t1_t2(d, malpha=True, mspecies=True, msuper=True, **kwargs)
-    run_t1_t2(d, malpha=True, mspecies=True, mpathways=True, **kwargs)
-    run_t1_t2(d, malpha=True, mspecies=True, mpathways=True, msuper=True, **kwargs)
+with sopen(schedule_uri) as db:
+    for extra in Scheduler(db, timeout=20) << [dict(), dict(eeg=True), dict(eegpow=True), dict(eeg=True, eegpow=True)]:
+        kwargs = kwargs0 | extra
+        run_t1_t2(d, malpha=True, **kwargs)
+        run_t1_t2(d, mspecies=True, **kwargs)
+        run_t1_t2(d, malpha=True, mspecies=True, **kwargs)
+        run_t1_t2(d, malpha=True, mspecies=True, msuper=True, **kwargs)
+        run_t1_t2(d, malpha=True, mspecies=True, mpathways=True, **kwargs)
+        run_t1_t2(d, malpha=True, mspecies=True, mpathways=True, msuper=True, **kwargs)
