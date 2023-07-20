@@ -41,7 +41,7 @@ matts = [
     "a10_t1",  # ordem desta criança entre os irmãos
     "bmi_pregest_t1"
 ]
-kwargs0 = dict(metavars=matts, loc=loc, rem=rem, sync=False)
+kwargs0 = dict(metavars=matts, loc=loc, rem=rem, sync=True)
 mbioma = [dict(empty_mbioma=None), dict(malpha=True), dict(mspecies=True), dict(malpha=True, mspecies=True),
           dict(malpha=True, mspecies=True, msuper=True), dict(malpha=True, mspecies=True, mpathways=True),
           dict(malpha=True, mspecies=True, mpathways=True, msuper=True)]

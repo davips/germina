@@ -225,7 +225,7 @@ def run(d: hdict, t1=False, t2=False,
                 d = d >> apply(bina, _.metadata, attribute="antibiotic", positive_category="yes").metadata
                 d = d >> apply(bina, _.metadata, attribute="EBF_3m", positive_category="EBF").metadata
                 d = d >> apply(loga, _.metadata, attribute="renda_familiar_total_t0").metadata
-                d = d >> apply(join, other=_.metadata).df
+                d["df"] = new_or_join("metadata")
                 d = d >> apply(remove_nan_rows_cols, keep=["id_estudo"] + targets).df
                 d = ch(d, loc, rem, local, remote, sync)
                 if verbose:
