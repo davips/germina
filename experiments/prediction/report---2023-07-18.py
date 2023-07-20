@@ -11,10 +11,12 @@ loc = bool(int(argv[1]))
 rem = bool(int(argv[2]))
 nperm = int(argv[3])
 nest = int(argv[4])
+sync = bool(int(argv[5]))
 print("local cache:", loc)
 print("remote cache:", rem)
 print("permutations for p-value", nperm)
 print("trees", nest)
+print(f"{sync=}")
 print()
 """
         "elegib14_t0",  # sexo
@@ -41,12 +43,12 @@ matts = [
     "a10_t1",  # ordem desta criança entre os irmãos
     "bmi_pregest_t1"
 ]
-kwargs0 = dict(metavars=matts, loc=loc, rem=rem, sync=False)
+kwargs0 = dict(metavars=matts, loc=loc, rem=rem, sync=sync)
 mbioma = [dict(empty_mbioma=None), dict(malpha=True), dict(mspecies=True), dict(malpha=True, mspecies=True),
           dict(malpha=True, mspecies=True, msuper=True), dict(malpha=True, mspecies=True, mpathways=True),
           dict(malpha=True, mspecies=True, mpathways=True, msuper=True)]
 eeg = [dict(empty_eeg=None), dict(eeg=True), dict(eegpow=True), dict(eeg=True, eegpow=True)]
-tasks = [a | b for a in mbioma for b in eeg]
+tasks = [a | b for a in eeg for b in mbioma]
 with sopen(schedule_uri) as db:
     for extra in Scheduler(db, timeout=20) << tasks:
         kwargs = kwargs0 | extra
