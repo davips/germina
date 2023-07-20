@@ -54,9 +54,4 @@ with sopen(schedule_uri) as db:
             del kwargs["empty_mbioma"]
         if "empty_eeg" in kwargs:
             del kwargs["empty_eeg"]
-        run_t1_t2(d, malpha=True, **kwargs)
-        run_t1_t2(d, mspecies=True, **kwargs)
-        run_t1_t2(d, malpha=True, mspecies=True, **kwargs)
-        run_t1_t2(d, malpha=True, mspecies=True, msuper=True, **kwargs)
-        run_t1_t2(d, malpha=True, mspecies=True, mpathways=True, **kwargs)
-        run_t1_t2(d, malpha=True, mspecies=True, mpathways=True, msuper=True, **kwargs)
+        run_t1_t2(d, **kwargs)
