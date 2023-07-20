@@ -72,25 +72,20 @@ def drop_by_vif(df: DataFrame, dropped=None, thresh=5.0):
 
 def run(d: hdict, t1=False, t2=False,
         eeg=False, eegpow=False,
-        microbiome=False, mpathways=False, mspecies=False, msuper=False,
+        malpha=False, mpathways=False, mspecies=False, msuper=False,
         metavars=None, targets_meta=None, targets_eeg1=None, targets_eeg2=None, stratifiedcv=True, path="data/", loc=True, rem=True, verbose=False):
-    eegpow1 = False
-    eegpow2 = False
-    pathways1 = False
-    pathways2 = False
-    species1 = False
-    species2 = False
-    super1 = False
-    super2 = False
+    malpha1 = malpha2 = eegpow1 = eegpow2 = pathways1 = pathways2 = species1 = species2 = super1 = super2 = False
     if eegpow:
         eegpow1 = eegpow2 = True
+    if malpha:
+        malpha1 = malpha2 = True
     if mpathways:
         pathways1 = pathways2 = True
     if mspecies:
         species1 = species2 = True
     if msuper:
         super1 = super2 = True
-    logname = f"{d.id}-{t1=}{t2=}{targets_meta=}{targets_eeg1=}{targets_eeg2=}{[metavars]=}{eeg=}{eegpow1=}{eegpow2=}{microbiome=}{pathways1=}{pathways2=}{species1=}{species2=}{super1=}{super2=}{stratifiedcv=}"
+    logname = f"{d.id}-{t1=}{t2=}{targets_meta=}{targets_eeg1=}{targets_eeg2=}{[metavars]=}{eeg=}{eegpow1=}{eegpow2=}{malpha=}{pathways1=}{pathways2=}{species1=}{species2=}{super1=}{super2=}{stratifiedcv=}"
     logname = logname[:200] + Hosh(logname.encode()).id
     if verbose:
         print(logname)
@@ -99,7 +94,7 @@ def run(d: hdict, t1=False, t2=False,
         newout = sys.stdout
         sys.stdout = oldout
 
-        print(f"Scenario: {t1=}, {t2=}, {microbiome=}, {pathways1=}, {pathways2=}, {species1=}, {species2=}, {super1=}, {super2=}, {eeg=},\n")
+        print(f"Scenario: {t1=}, {t2=}, {malpha=}, {pathways1=}, {pathways2=}, {species1=}, {species2=}, {super1=}, {super2=}, {eeg=},\n")
         if verbose:
             print(f"{metavars=},\n"
                   f"{targets_meta=},\n"
@@ -119,35 +114,37 @@ def run(d: hdict, t1=False, t2=False,
             targets_eeg1 = []
         targets = targets_meta + targets_eeg1 + targets_eeg2
         with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
-            if microbiome:  #################################################################################################################
-                if t1:
+            #################################################################################################################
+            if t1:
+                if malpha1:
                     d = d >> apply(file2df, path + "data_microbiome___2023-06-18___alpha_diversity_n525.csv").microbiome_alpha1
                     d = drop_many_by_vif(d, "microbiome_alpha1", loc, rem, local, remote)
-                    if pathways1:
-                        d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T1_n525.csv").microbiome_pathways1
-                        d = d >> apply(only_abundant, _.microbiome_pathways1).microbiome_pathways1
-                        d = drop_many_by_vif(d, "microbiome_pathways1", loc, rem, local, remote)
-                    if species1:
-                        d = d >> apply(file2df, path + "data_microbiome___2023-06-18___especies_3_meses_n525.csv").microbiome_species1
-                        d = d >> apply(only_abundant, _.microbiome_species1).microbiome_species1
-                        d = drop_many_by_vif(d, "microbiome_species1", loc, rem, local, remote)
-                    if super1:
-                        d = d >> apply(file2df, path + "data_microbiome___2023-07-04___T1_vias_relab_superpathways.csv").microbiome_super1
-                        d = drop_many_by_vif(d, "microbiome_super1", loc, rem, local, remote)
-                if t2:
+                if pathways1:
+                    d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T1_n525.csv").microbiome_pathways1
+                    d = d >> apply(only_abundant, _.microbiome_pathways1).microbiome_pathways1
+                    d = drop_many_by_vif(d, "microbiome_pathways1", loc, rem, local, remote)
+                if species1:
+                    d = d >> apply(file2df, path + "data_microbiome___2023-06-18___especies_3_meses_n525.csv").microbiome_species1
+                    d = d >> apply(only_abundant, _.microbiome_species1).microbiome_species1
+                    d = drop_many_by_vif(d, "microbiome_species1", loc, rem, local, remote)
+                if super1:
+                    d = d >> apply(file2df, path + "data_microbiome___2023-07-04___T1_vias_relab_superpathways.csv").microbiome_super1
+                    d = drop_many_by_vif(d, "microbiome_super1", loc, rem, local, remote)
+            if t2:
+                if malpha2:
                     d = d >> apply(file2df, path + "data_microbiome___2023-07-03___alpha_diversity_T2_n441.csv").microbiome_alpha2
                     d = drop_many_by_vif(d, "microbiome_alpha2", loc, rem, local, remote)
-                    if pathways2:
-                        d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T2_n441.csv").microbiome_pathways2
-                        d = d >> apply(only_abundant, _.microbiome_pathways2).microbiome_pathways2
-                        d = drop_many_by_vif(d, "microbiome_pathways2", loc, rem, local, remote)
-                    if species2:
-                        d = d >> apply(file2df, path + "data_microbiome___2023-06-29___especies_6_meses_n441.csv").microbiome_species2
-                        d = d >> apply(only_abundant, _.microbiome_species2).microbiome_species2
-                        d = drop_many_by_vif(d, "microbiome_species2", loc, rem, local, remote)
-                    if super2:
-                        d = d >> apply(file2df, path + "data_microbiome___2023-07-04___T2_vias_relab_superpathways.csv").microbiome_super2
-                        d = drop_many_by_vif(d, "microbiome_super2", loc, rem, local, remote)
+                if pathways2:
+                    d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T2_n441.csv").microbiome_pathways2
+                    d = d >> apply(only_abundant, _.microbiome_pathways2).microbiome_pathways2
+                    d = drop_many_by_vif(d, "microbiome_pathways2", loc, rem, local, remote)
+                if species2:
+                    d = d >> apply(file2df, path + "data_microbiome___2023-06-29___especies_6_meses_n441.csv").microbiome_species2
+                    d = d >> apply(only_abundant, _.microbiome_species2).microbiome_species2
+                    d = drop_many_by_vif(d, "microbiome_species2", loc, rem, local, remote)
+                if super2:
+                    d = d >> apply(file2df, path + "data_microbiome___2023-07-04___T2_vias_relab_superpathways.csv").microbiome_super2
+                    d = drop_many_by_vif(d, "microbiome_super2", loc, rem, local, remote)
 
             if eeg:  ########################################################################################################################
                 if (t1 and not targets_eeg2) or targets_eeg1:
@@ -173,28 +170,27 @@ def run(d: hdict, t1=False, t2=False,
                 d = ch(d, loc, rem, local, remote)
 
             # join #######################################################################################################################
-            if microbiome:
-                if t1:
-                    d["df"] = _.microbiome_alpha1
-                    if pathways1:
-                        d = d >> apply(join, other=_.microbiome_pathways1).df
-                    if species1:
-                        d = d >> apply(join, other=_.microbiome_species1).df
-                    if super1:
-                        d = d >> apply(join, other=_.microbiome_super1).df
-                    d = ch(d, loc, rem, local, remote)
-                if t2:
-                    if "df" not in d:
-                        d["df"] = _.microbiome_alpha2
-                    else:
-                        d = d >> apply(join, other=_.microbiome_alpha2).df
-                    if pathways2:
-                        d = d >> apply(join, other=_.microbiome_pathways2).df
-                    if species2:
-                        d = d >> apply(join, other=_.microbiome_species2).df
-                    if super2:
-                        d = d >> apply(join, other=_.microbiome_super2).df
-                    d = ch(d, loc, rem, local, remote)
+            new_or_join = lambda fi: field(fi) if "df" not in d else apply(join, other=field(fi))
+            if t1:
+                if malpha1:
+                    d["df"] = new_or_join("microbiome_alpha1")
+                if pathways1:
+                    d["df"] = new_or_join("microbiome_pathways1")
+                if species1:
+                    d["df"] = new_or_join("microbiome_species1")
+                if super1:
+                    d["df"] = new_or_join("microbiome_super1")
+                d = ch(d, loc, rem, local, remote)
+            if t2:
+                if malpha2:
+                    d["df"] = new_or_join("microbiome_alpha2")
+                if pathways2:
+                    d["df"] = new_or_join("microbiome_pathways2")
+                if species2:
+                    d["df"] = new_or_join("microbiome_species2")
+                if super2:
+                    d["df"] = new_or_join("microbiome_super2")
+                d = ch(d, loc, rem, local, remote)
             if eeg or targets_eeg1 or targets_eeg2:
                 if (t1 and not targets_eeg2) or targets_eeg1:
                     if "df" not in d:
@@ -281,7 +277,7 @@ def run(d: hdict, t1=False, t2=False,
                     print("y:", d.y.shape)
                 unique_labels, counts = np.unique(d.y, return_counts=True)
                 proportions = counts / len(d.y)
-                print(f"{proportions=}")
+                print(f"{counts=}\t{proportions=}")
 
                 clas_names = []
                 clas = {
@@ -411,10 +407,10 @@ def run(d: hdict, t1=False, t2=False,
 
 
 def run_t1_t2(d: hdict, eeg=False, eegpow=False,
-              microbiome=False, mpathways=False, mspecies=False, msuper=False,
+              malpha=False, mpathways=False, mspecies=False, msuper=False,
               metavars=None, stratifiedcv=True, path="data/", loc=True, rem=True, verbose=False):
     #       t1 → t1
-    kwargs = dict(eeg=eeg, eegpow=eegpow, microbiome=microbiome, mpathways=mpathways, mspecies=mspecies, msuper=msuper, metavars=metavars, stratifiedcv=stratifiedcv, path=path, loc=loc, rem=rem, verbose=verbose)
+    kwargs = dict(eeg=eeg, eegpow=eegpow, malpha=malpha, mpathways=mpathways, mspecies=mspecies, msuper=msuper, metavars=metavars, stratifiedcv=stratifiedcv, path=path, loc=loc, rem=rem, verbose=verbose)
     run(d, t1=True, targets_meta=["ibq_reg_t1", "ibq_soot_t1", "ibq_dura_t1", "bayley_3_t1"], **kwargs)
     run(d, t1=True, targets_eeg1=["Beta_t1", "r_20hz_post_pre_waveleting_t1", "Number_Segs_Post_Seg_Rej_t1"], **kwargs)
     #       t1 → t2

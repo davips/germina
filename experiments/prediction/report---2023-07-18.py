@@ -37,11 +37,13 @@ matts = [
     "a10_t1",  # ordem desta criança entre os irmãos
     "bmi_pregest_t1"
 ]
-kwargs = dict(metavars=matts, loc=loc, rem=rem)
+kwargs0 = dict(metavars=matts, loc=loc, rem=rem)
 
-run_t1_t2(d, microbiome=True, **kwargs)
-run_t1_t2(d, microbiome=True, mspecies=True, mpathways=True, msuper=True, **kwargs)
-run_t1_t2(d, microbiome=True, eeg=True, **kwargs)
-run_t1_t2(d, microbiome=True, eeg=True, eegpow=True, **kwargs)
-run_t1_t2(d, microbiome=True, mspecies=True, mpathways=True, msuper=True, eeg=True, **kwargs)
-run_t1_t2(d, microbiome=True, mspecies=True, mpathways=True, msuper=True, eeg=True, eegpow=True, **kwargs)
+for extra in [dict(), dict(eeg=True), dict(eegpow=True), dict(eeg=True, eegpow=True)]:
+    kwargs = kwargs0 | extra
+    run_t1_t2(d, malpha=True, **kwargs)
+    run_t1_t2(d, mspecies=True, **kwargs)
+    run_t1_t2(d, malpha=True, mspecies=True, **kwargs)
+    run_t1_t2(d, malpha=True, mspecies=True, msuper=True, **kwargs)
+    run_t1_t2(d, malpha=True, mspecies=True, mpathways=True, **kwargs)
+    run_t1_t2(d, malpha=True, mspecies=True, mpathways=True, msuper=True, **kwargs)
