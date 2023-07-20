@@ -156,20 +156,20 @@ def run(d: hdict, t1=False, t2=False,
                 d = d >> apply(file2df, path + "data_eeg___2023-06-20___T1_RS_average_dwPLI_withEEGCovariates.csv").eeg1
                 if not targets_eeg1:
                     d = drop_many_by_vif(d, "eeg1", loc, rem, local, remote, sync)
-                    if eegpow1:
-                        d = d >> apply(file2df, path + "data_eeg___2023-07-19___BRAINRISE_RS_3m_power.csv").eegpow1
-                        d = drop_many_by_vif(d, "eegpow1", loc, rem, local, remote, sync)
+            if eegpow1 and not (targets_eeg1 or targets_eeg2):
+                d = d >> apply(file2df, path + "data_eeg___2023-07-19___BRAINRISE_RS_3m_power.csv").eegpow1
+                d = drop_many_by_vif(d, "eegpow1", loc, rem, local, remote, sync)
             if targets_eeg1:
                 d = d >> apply(DataFrame.__getitem__, _.eeg1, ["id_estudo"] + targets_eeg1).eeg1
-            if eeg2 or targets_eeg2:
+            if (eeg2 and not targets_eeg1) or targets_eeg2:
                 d = d >> apply(file2df, path + "data_eeg___2023-06-20___T2_RS_average_dwPLI_withEEGCovariates.csv").eeg2
                 d = d >> apply(remove_nan_rows_cols, _.eeg2, keep=[]).eeg2
                 if not targets_eeg2:
                     d = drop_many_by_vif(d, "eeg2", loc, rem, local, remote, sync)
-                    if eegpow2:
-                        d = d >> apply(file2df, path + "data_eeg___2023-07-19___BRAINRISE_RS_T2_Power.csv").eegpow2
-                        d = d >> apply(remove_nan_rows_cols, _.eegpow2, keep=[]).eegpow2
-                        d = drop_many_by_vif(d, "eegpow2", loc, rem, local, remote, sync)
+            if eegpow2 and not (targets_eeg1 or targets_eeg2):
+                d = d >> apply(file2df, path + "data_eeg___2023-07-19___BRAINRISE_RS_T2_Power.csv").eegpow2
+                d = d >> apply(remove_nan_rows_cols, _.eegpow2, keep=[]).eegpow2
+                d = drop_many_by_vif(d, "eegpow2", loc, rem, local, remote, sync)
             if targets_eeg2:
                 d = d >> apply(DataFrame.__getitem__, _.eeg2, ["id_estudo"] + targets_eeg2).eeg2
             d = ch(d, loc, rem, local, remote, sync)
