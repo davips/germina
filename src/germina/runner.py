@@ -413,9 +413,9 @@ def run(d: hdict, t1=False, t2=False,
 
 def run_t1_t2(d: hdict, eeg=False, eegpow=False,
               malpha=False, mpathways=False, mspecies=False, msuper=False,
-              metavars=None, stratifiedcv=True, path="data/", loc=True, rem=True, verbose=False):
+              metavars=None, stratifiedcv=True, path="data/", loc=True, rem=True, verbose=False, sync=False):
     #       t1 → t1
-    kwargs = dict(eeg=eeg, eegpow=eegpow, malpha=malpha, mpathways=mpathways, mspecies=mspecies, msuper=msuper, metavars=metavars, stratifiedcv=stratifiedcv, path=path, loc=loc, rem=rem, verbose=verbose)
+    kwargs = dict(eeg=eeg, eegpow=eegpow, malpha=malpha, mpathways=mpathways, mspecies=mspecies, msuper=msuper, metavars=metavars, stratifiedcv=stratifiedcv, path=path, loc=loc, rem=rem, verbose=verbose, sync=sync)
     run(d, t1=True, targets_meta=["ibq_reg_t1", "ibq_soot_t1", "ibq_dura_t1", "bayley_3_t1"], **kwargs)
     run(d, t1=True, targets_eeg1=["Beta_t1", "r_20hz_post_pre_waveleting_t1", "Number_Segs_Post_Seg_Rej_t1"], **kwargs)
     #       t1 → t2

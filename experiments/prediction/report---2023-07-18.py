@@ -41,7 +41,7 @@ matts = [
     "a10_t1",  # ordem desta criança entre os irmãos
     "bmi_pregest_t1"
 ]
-kwargs0 = dict(metavars=matts, loc=loc, rem=rem, sync=False)
+kwargs0 = dict(metavars=matts, loc=loc, rem=rem, sync=not False)
 
 with sopen(schedule_uri) as db:
     for extra in Scheduler(db, timeout=20) << [dict(), dict(eeg=True), dict(eegpow=True), dict(eeg=True, eegpow=True)]:
