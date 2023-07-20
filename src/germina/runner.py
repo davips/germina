@@ -75,6 +75,8 @@ def run(d: hdict, t1=False, t2=False,
         malpha=False, mpathways=False, mspecies=False, msuper=False,
         metavars=None, targets_meta=None, targets_eeg1=None, targets_eeg2=None, stratifiedcv=True, path="data/", loc=True, rem=True, verbose=False):
     malpha1 = malpha2 = eegpow1 = eegpow2 = pathways1 = pathways2 = species1 = species2 = super1 = super2 = False
+    if eeg:
+        eeg1 = eeg2 = True
     if eegpow:
         eegpow1 = eegpow2 = True
     if malpha:
@@ -85,7 +87,7 @@ def run(d: hdict, t1=False, t2=False,
         species1 = species2 = True
     if msuper:
         super1 = super2 = True
-    logname = f"{d.id}-{t1=}{t2=}{targets_meta=}{targets_eeg1=}{targets_eeg2=}{[metavars]=}{eeg=}{eegpow1=}{eegpow2=}{malpha=}{pathways1=}{pathways2=}{species1=}{species2=}{super1=}{super2=}{stratifiedcv=}"
+    logname = f"{d.id}-{t1=}{t2=}{targets_meta=}{targets_eeg1=}{targets_eeg2=}{[metavars]=}{eeg=}{eegpow1=}{eegpow2=}{malpha1=}{malpha2=}{pathways1=}{pathways2=}{species1=}{species2=}{super1=}{super2=}{stratifiedcv=}"
     logname = logname[:200] + Hosh(logname.encode()).id
     if verbose:
         print(logname)
@@ -112,6 +114,7 @@ def run(d: hdict, t1=False, t2=False,
             targets_eeg2 = []
         if targets_eeg1 is None:
             targets_eeg1 = []
+
         targets = targets_meta + targets_eeg1 + targets_eeg2
         with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
             #################################################################################################################
