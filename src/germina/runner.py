@@ -74,20 +74,20 @@ def run(d: hdict, t1=False, t2=False,
         eeg=False, eegpow=False,
         malpha=False, mpathways=False, mspecies=False, msuper=False,
         metavars=None, targets_meta=None, targets_eeg1=None, targets_eeg2=None, stratifiedcv=True, path="data/", loc=True, rem=True, verbose=False):
-    malpha1 = malpha2 = eegpow1 = eegpow2 = pathways1 = pathways2 = species1 = species2 = super1 = super2 = False
+    malpha1 = malpha2 = eegpow1 = eegpow2 = eeg1 = eeg2 = pathways1 = pathways2 = species1 = species2 = super1 = super2 = False
     if eeg:
-        eeg1 = eeg2 = True
+        eeg1, eeg2 = t1, t2
     if eegpow:
-        eegpow1 = eegpow2 = True
+        eegpow1, eegpow2 = t1, t2
     if malpha:
-        malpha1 = malpha2 = True
+        malpha1, malpha2 = t1, t2
     if mpathways:
-        pathways1 = pathways2 = True
+        pathways1, pathways2 = t1, t2
     if mspecies:
-        species1 = species2 = True
+        species1, species2 = t1, t2
     if msuper:
-        super1 = super2 = True
-    logname = f"{d.id}-{t1=}{t2=}{targets_meta=}{targets_eeg1=}{targets_eeg2=}{[metavars]=}{eeg=}{eegpow1=}{eegpow2=}{malpha1=}{malpha2=}{pathways1=}{pathways2=}{species1=}{species2=}{super1=}{super2=}{stratifiedcv=}"
+        super1, super2 = t1, t2
+    logname = f"{d.id}-{t1=}{t2=}{malpha=}{mpathways=}{mspecies=}{msuper=}{eeg=}{eegpow=}{targets_meta=}{targets_eeg1=}{targets_eeg2=}{[metavars]=}{stratifiedcv=}"
     logname = logname[:200] + Hosh(logname.encode()).id
     if verbose:
         print(logname)
@@ -96,7 +96,7 @@ def run(d: hdict, t1=False, t2=False,
         newout = sys.stdout
         sys.stdout = oldout
 
-        print(f"Scenario: {t1=}, {t2=}, {malpha=}, {pathways1=}, {pathways2=}, {species1=}, {species2=}, {super1=}, {super2=}, {eeg=},\n")
+        print(f"Scenario: {t1=}, {t2=}, {malpha=}, {mpathways=}, {mspecies=}, {msuper=}, {eeg=}, {eegpow=},\n")
         if verbose:
             print(f"{metavars=},\n"
                   f"{targets_meta=},\n"
@@ -118,59 +118,57 @@ def run(d: hdict, t1=False, t2=False,
         targets = targets_meta + targets_eeg1 + targets_eeg2
         with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
             #################################################################################################################
-            if t1:
-                if malpha1:
-                    d = d >> apply(file2df, path + "data_microbiome___2023-06-18___alpha_diversity_n525.csv").microbiome_alpha1
-                    d = drop_many_by_vif(d, "microbiome_alpha1", loc, rem, local, remote)
-                if pathways1:
-                    d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T1_n525.csv").microbiome_pathways1
-                    d = d >> apply(only_abundant, _.microbiome_pathways1).microbiome_pathways1
-                    d = drop_many_by_vif(d, "microbiome_pathways1", loc, rem, local, remote)
-                if species1:
-                    d = d >> apply(file2df, path + "data_microbiome___2023-06-18___especies_3_meses_n525.csv").microbiome_species1
-                    d = d >> apply(only_abundant, _.microbiome_species1).microbiome_species1
-                    d = drop_many_by_vif(d, "microbiome_species1", loc, rem, local, remote)
-                if super1:
-                    d = d >> apply(file2df, path + "data_microbiome___2023-07-04___T1_vias_relab_superpathways.csv").microbiome_super1
-                    d = drop_many_by_vif(d, "microbiome_super1", loc, rem, local, remote)
-            if t2:
-                if malpha2:
-                    d = d >> apply(file2df, path + "data_microbiome___2023-07-03___alpha_diversity_T2_n441.csv").microbiome_alpha2
-                    d = drop_many_by_vif(d, "microbiome_alpha2", loc, rem, local, remote)
-                if pathways2:
-                    d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T2_n441.csv").microbiome_pathways2
-                    d = d >> apply(only_abundant, _.microbiome_pathways2).microbiome_pathways2
-                    d = drop_many_by_vif(d, "microbiome_pathways2", loc, rem, local, remote)
-                if species2:
-                    d = d >> apply(file2df, path + "data_microbiome___2023-06-29___especies_6_meses_n441.csv").microbiome_species2
-                    d = d >> apply(only_abundant, _.microbiome_species2).microbiome_species2
-                    d = drop_many_by_vif(d, "microbiome_species2", loc, rem, local, remote)
-                if super2:
-                    d = d >> apply(file2df, path + "data_microbiome___2023-07-04___T2_vias_relab_superpathways.csv").microbiome_super2
-                    d = drop_many_by_vif(d, "microbiome_super2", loc, rem, local, remote)
+            if malpha1:
+                d = d >> apply(file2df, path + "data_microbiome___2023-06-18___alpha_diversity_n525.csv").microbiome_alpha1
+                d = drop_many_by_vif(d, "microbiome_alpha1", loc, rem, local, remote)
+            if pathways1:
+                d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T1_n525.csv").microbiome_pathways1
+                d = d >> apply(only_abundant, _.microbiome_pathways1).microbiome_pathways1
+                d = drop_many_by_vif(d, "microbiome_pathways1", loc, rem, local, remote)
+            if species1:
+                d = d >> apply(file2df, path + "data_microbiome___2023-06-18___especies_3_meses_n525.csv").microbiome_species1
+                d = d >> apply(only_abundant, _.microbiome_species1).microbiome_species1
+                d = drop_many_by_vif(d, "microbiome_species1", loc, rem, local, remote)
+            if super1:
+                d = d >> apply(file2df, path + "data_microbiome___2023-07-04___T1_vias_relab_superpathways.csv").microbiome_super1
+                d = drop_many_by_vif(d, "microbiome_super1", loc, rem, local, remote)
+            if malpha2:
+                d = d >> apply(file2df, path + "data_microbiome___2023-07-03___alpha_diversity_T2_n441.csv").microbiome_alpha2
+                d = drop_many_by_vif(d, "microbiome_alpha2", loc, rem, local, remote)
+            if pathways2:
+                d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T2_n441.csv").microbiome_pathways2
+                d = d >> apply(only_abundant, _.microbiome_pathways2).microbiome_pathways2
+                d = drop_many_by_vif(d, "microbiome_pathways2", loc, rem, local, remote)
+            if species2:
+                d = d >> apply(file2df, path + "data_microbiome___2023-06-29___especies_6_meses_n441.csv").microbiome_species2
+                d = d >> apply(only_abundant, _.microbiome_species2).microbiome_species2
+                d = drop_many_by_vif(d, "microbiome_species2", loc, rem, local, remote)
+            if super2:
+                d = d >> apply(file2df, path + "data_microbiome___2023-07-04___T2_vias_relab_superpathways.csv").microbiome_super2
+                d = drop_many_by_vif(d, "microbiome_super2", loc, rem, local, remote)
 
-            if eeg:  ########################################################################################################################
-                if (t1 and not targets_eeg2) or targets_eeg1:
-                    d = d >> apply(file2df, path + "data_eeg___2023-06-20___T1_RS_average_dwPLI_withEEGCovariates.csv").eeg1
-                    if not targets_eeg1:
-                        d = drop_many_by_vif(d, "eeg1", loc, rem, local, remote)
-                        if eegpow1:
-                            d = d >> apply(file2df, path + "data_eeg___2023-07-19___BRAINRISE_RS_3m_power.csv").eegpow1
-                            d = drop_many_by_vif(d, "eegpow1", loc, rem, local, remote)
-                if t2 or targets_eeg2:
-                    d = d >> apply(file2df, path + "data_eeg___2023-06-20___T2_RS_average_dwPLI_withEEGCovariates.csv").eeg2
-                    d = d >> apply(remove_nan_rows_cols, _.eeg2, keep=[]).eeg2
-                    if not targets_eeg2:
-                        d = drop_many_by_vif(d, "eeg2", loc, rem, local, remote)
-                        if eegpow2:
-                            d = d >> apply(file2df, path + "data_eeg___2023-07-19___BRAINRISE_RS_T2_Power.csv").eegpow2
-                            d = d >> apply(remove_nan_rows_cols, _.eegpow2, keep=[]).eegpow2
-                            d = drop_many_by_vif(d, "eegpow2", loc, rem, local, remote)
-                if targets_eeg1:
-                    d = d >> apply(DataFrame.__getitem__, _.eeg1, ["id_estudo"] + targets_eeg1).eeg1
-                if targets_eeg2:
-                    d = d >> apply(DataFrame.__getitem__, _.eeg2, ["id_estudo"] + targets_eeg2).eeg2
-                d = ch(d, loc, rem, local, remote)
+            ########################################################################################################################
+            if (eeg1 and not targets_eeg2) or targets_eeg1:
+                d = d >> apply(file2df, path + "data_eeg___2023-06-20___T1_RS_average_dwPLI_withEEGCovariates.csv").eeg1
+                if not targets_eeg1:
+                    d = drop_many_by_vif(d, "eeg1", loc, rem, local, remote)
+                    if eegpow1:
+                        d = d >> apply(file2df, path + "data_eeg___2023-07-19___BRAINRISE_RS_3m_power.csv").eegpow1
+                        d = drop_many_by_vif(d, "eegpow1", loc, rem, local, remote)
+            if targets_eeg1:
+                d = d >> apply(DataFrame.__getitem__, _.eeg1, ["id_estudo"] + targets_eeg1).eeg1
+            if eeg2 or targets_eeg2:
+                d = d >> apply(file2df, path + "data_eeg___2023-06-20___T2_RS_average_dwPLI_withEEGCovariates.csv").eeg2
+                d = d >> apply(remove_nan_rows_cols, _.eeg2, keep=[]).eeg2
+                if not targets_eeg2:
+                    d = drop_many_by_vif(d, "eeg2", loc, rem, local, remote)
+                    if eegpow2:
+                        d = d >> apply(file2df, path + "data_eeg___2023-07-19___BRAINRISE_RS_T2_Power.csv").eegpow2
+                        d = d >> apply(remove_nan_rows_cols, _.eegpow2, keep=[]).eegpow2
+                        d = drop_many_by_vif(d, "eegpow2", loc, rem, local, remote)
+            if targets_eeg2:
+                d = d >> apply(DataFrame.__getitem__, _.eeg2, ["id_estudo"] + targets_eeg2).eeg2
+            d = ch(d, loc, rem, local, remote)
 
             # join #######################################################################################################################
             new_or_join = lambda fi: field(fi) if "df" not in d else apply(join, other=field(fi))
