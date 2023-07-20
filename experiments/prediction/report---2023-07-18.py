@@ -9,8 +9,8 @@ nperm = int(argv[3])
 nest = int(argv[4])
 print("local cache:", loc)
 print("remote cache:", rem)
-print("n perms", nperm)
-print("n estimators", nest)
+print("permutations for p-value", nperm)
+print("trees", nest)
 print()
 """
         "elegib14_t0",  # sexo
@@ -24,9 +24,14 @@ matts = [
     "infant_ethinicity", "a08_t1",  # infant ethnicity
     "elegib2_t0",  # mother age
     "c12f_t1",  # depression during or posparto
-    "EBF_3m", "delivery_mode", "chaos_tot_t1",  # Confusion, hubbub, and order scale
-    "epds_2c_t1", "epds_tot_t1",
-    "bisq_3_mins_t1", "bisq_4_mins_t1", "bisq_9_mins_t1", "bisq_sleep_prob_t1",
+    "EBF_3m", "delivery_mode",
+    "chaos_tot_t1",  # Confusion, hubbub, and order scale
+    "epds_2c_t1",  # EPDS Classification according to Santos et al. 2007
+    "epds_tot_t1",
+    "bisq_3_mins_t1",  # nocturnal sleep
+    "bisq_4_mins_t1",  # diurnal sleep
+    "bisq_9_mins_t1",  # nocturnal sleep time
+    "bisq_sleep_prob_t1",  # any sleep problem according to Sadeh 2004
     "ebia_tot_t1",  # Food insecurity
     "ahmed_c14_2c_t1", "educationLevelAhmedNum_t1",
     "a10_t1",  # ordem desta criança entre os irmãos

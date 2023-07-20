@@ -39,7 +39,7 @@ def ch(d, loc, rem, local, remote):
 
 
 def drop_many_by_vif(d, dffield, loc, rem, local, remote):
-    if hasNaN(d[dffield]) > 1:
+    if hasNaN(d[dffield], debug=False) > 1:
         d = d >> apply(remove_nan_rows_cols, field(dffield), keep=[])(dffield)
     lstfield = f"{dffield}_dropped"
     d[lstfield] = old = []
@@ -70,7 +70,7 @@ def drop_by_vif(df: DataFrame, dropped=None, thresh=5.0):
     return dropped
 
 
-def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, eeg=False, metavars=None, targets_meta=None, targets_eeg1=None, targets_eeg2=None, stratifiedcv=True, path="data/", loc=True, rem=True):
+def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, eeg=False, metavars=None, targets_meta=None, targets_eeg1=None, targets_eeg2=None, stratifiedcv=True, path="data/", loc=True, rem=True, verbose=False):
     lst = []
     if t1:
         lst.append("t1")
@@ -95,18 +95,20 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
     name = "out/" + "§".join(lst).replace("_", "_").replace("§", "-") + ".txt"
     name = name.replace("=", "").replace("[", "«").replace("]", "»").replace(", ", ",").replace("'", "").replace("waveleting", "wv")
     name = name[:50] + Hosh(name.encode()).id
-    print(name)
+    if verbose:
+        print(name)
     oldout = sys.stdout
     with open(name, 'w') as sys.stdout:
         newout = sys.stdout
         sys.stdout = oldout
 
-        print(f"Scenario: {t1=}, {t2=}, {microbiome=}, {microbiome_extra=}, {eeg=},\n"
-              f"{metavars=},\n"
-              f"{targets_meta=},\n"
-              f"{targets_eeg1=},\n"
-              f"{targets_eeg2=}")
-        pprint(dict(d))
+        print(f"Scenario: {t1=}, {t2=}, {microbiome=}, {microbiome_extra=}, {eeg=},\n")
+        if verbose:
+            print(f"{metavars=},\n"
+                  f"{targets_meta=},\n"
+                  f"{targets_eeg1=},\n"
+                  f"{targets_eeg2=}")
+            pprint(dict(d))
         print()
         d = d >> dict(join="inner", shuffle=True, n_jobs=-1, return_name=False)
 
@@ -207,20 +209,23 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                         d = d >> apply(join, other=_.eegpow2).df
             # d = d >> apply(remove_nan_rows_cols, cols_at_a_time=0, keep=["id_estudo"] + targets).df
             d = ch(d, loc, rem, local, remote)
-            print("Joined------------------------------------------------------------------------\n", d.df, "______________________________________________________\n")
+            if verbose:
+                print("Joined------------------------------------------------------------------------\n", d.df, "______________________________________________________\n")
 
             # Join metadata #############################################################################################################
             if metavars:
                 d = d >> apply(file2df, path + "metadata___2023-07-17.csv").metadata
                 d = d >> apply(DataFrame.__getitem__, _.metadata, metavars + ["id_estudo"]).metadata
-                print("Format problematic attributes.")
+                if verbose:
+                    print("Format problematic attributes.")
                 d = d >> apply(bina, _.metadata, attribute="antibiotic", positive_category="yes").metadata
                 d = d >> apply(bina, _.metadata, attribute="EBF_3m", positive_category="EBF").metadata
                 d = d >> apply(loga, _.metadata, attribute="renda_familiar_total_t0").metadata
                 d = d >> apply(join, other=_.metadata).df
                 d = d >> apply(remove_nan_rows_cols, keep=["id_estudo"] + targets).df
                 d = ch(d, loc, rem, local, remote)
-                print("Metadata----------------------------------------------------------------------\n", d.df, "______________________________________________________\n")
+                if verbose:
+                    print("Metadata----------------------------------------------------------------------\n", d.df, "______________________________________________________\n")
 
             ##############################   VIF    ######################################
             # d = d >> apply(remove_cols, cols=dropped, keep=[]).df
@@ -232,11 +237,13 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                 d = d >> apply(DataFrame.__getitem__, _.targets, targets + ["id_estudo"]).targets
                 d = d >> apply(join, other=_.targets).df
                 d = ch(d, loc, rem, local, remote)
-            print("Dataset-----------------------------------------------------------------------\n", d.df, "______________________________________________________\n")
+            if verbose:
+                print("Dataset-----------------------------------------------------------------------\n", d.df, "______________________________________________________\n")
 
             # Remove NaNs ##################################################################################################################
             d = d >> apply(remove_nan_rows_cols, keep=["id_estudo"] + targets).df
-            print("Dataset without NaNs ------------------------------------------------------------\n", d.df, "______________________________________________________\n")
+            if verbose:
+                print("Dataset without NaNs ------------------------------------------------------------\n", d.df, "______________________________________________________\n")
 
             # Visualize ####################################################################################################################
             print("Vars:", d.df.columns.to_list())
@@ -267,7 +274,11 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
 
                 d = ch(d, loc, rem, local, remote)
                 print("X:", d.X.shape)
-                print("y:", d.y.shape)
+                if verbose:
+                    print("y:", d.y.shape)
+                unique_labels, counts = np.unique(d.y, return_counts=True)
+                proportions = counts / len(d.y)
+                print(f"{proportions=}")
 
                 clas_names = []
                 clas = {
@@ -281,7 +292,6 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                 }
                 for cla, kwargs in clas.items():
                     clas_names.append(cla.__name__)
-                    # print(clas_names[-1])
                     d = d >> apply(cla, **kwargs)(clas_names[-1])
 
                 # Prediction power.
@@ -299,8 +309,9 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                 scos = ["precision", "recall", "balanced_accuracy", "roc_auc"]
                 scos = ["roc_auc", "balanced_accuracy"]
                 for m in scos:
+                    print("-------------------------------------------")
                     print(m)
-                    print("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv")
+                    print("-------------------------------------------")
                     for classifier_field in clas_names:
                         scores_fi = f"{m}_{classifier_field}"
                         permscores_fi = f"perm_{scores_fi}"
@@ -312,13 +323,13 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                         if classifier_field == "DummyClassifier":
                             ref = me
                         print(f"{classifier_field:24} {me:.6f} {std(d[scores_fi]):.6f}   p-value={d[pval_fi]}")
-                    print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
 
                 # ConfusionMatrix; prediction and hit agreement.
                 zs, hs = {}, {}
                 members_z = []
                 for classifier_field in clas_names:
-                    print(classifier_field)
+                    if verbose:
+                        print(classifier_field)
                     field_name_z = f"{classifier_field}_z"
                     if not classifier_field.startswith("Dummy"):
                         members_z.append(field(field_name_z))
@@ -327,7 +338,8 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                     z = d[field_name_z]
                     zs[classifier_field[:10]] = z
                     hs[classifier_field[:10]] = (z == d.y).astype(int)
-                    print(f"{confusion_matrix(d.y, z)}")
+                    if verbose:
+                        print(f"{confusion_matrix(d.y, z)}")
                 d = d >> apply(ensemble_predict, *members_z).ensemble_z
                 d = ch(d, loc, rem, local, remote)
 
@@ -342,30 +354,31 @@ def run(d: hdict, t1=False, t2=False, microbiome=False, microbiome_extra=False, 
                 d = ch(d, loc, rem, local, remote)
                 print(f"ensemble5 {d.ensemble_balacc:.6f} ")
 
-                print("Prediction:")
-                Z = array(list(zs.values()))
-                zs["   AND    "] = np.logical_and.reduce(Z, axis=0).astype(int)
-                zs["   OR     "] = np.logical_or.reduce(Z, axis=0).astype(int)
-                zs["   SUM    "] = np.sum(Z, axis=0).astype(int)
-                zs["   NOR    "] = np.logical_not(np.logical_or.reduce(Z, axis=0)).astype(int)
-                zs["   ==     "] = (np.logical_and.reduce(Z, axis=0) | np.logical_not(np.logical_or.reduce(Z, axis=0))).astype(int)
-                for k, z in zs.items():
-                    if "AND" in k:
-                        print()
-                    # print(k, sum(z), ",".join(map(str, z)))
-                print()
-                print("Hit:")
-                H = array(list(hs.values()))
-                hs["   AND    "] = np.logical_and.reduce(H, axis=0).astype(int)
-                hs["   OR     "] = np.logical_or.reduce(H, axis=0).astype(int)
-                hs["   SUM    "] = np.sum(H, axis=0).astype(int)
-                hs["   NOR    "] = np.logical_not(np.logical_or.reduce(H, axis=0)).astype(int)
-                hs["   ==     "] = (np.logical_and.reduce(H, axis=0) | np.logical_not(np.logical_or.reduce(H, axis=0))).astype(int)
-                for k, h in hs.items():
-                    if "AND" in k:
-                        print()
-                    # print(k, sum(h), "\t", ",".join(map(str, h)))
-                print()
+                if verbose:
+                    print("Prediction:")
+                    Z = array(list(zs.values()))
+                    zs["   AND    "] = np.logical_and.reduce(Z, axis=0).astype(int)
+                    zs["   OR     "] = np.logical_or.reduce(Z, axis=0).astype(int)
+                    zs["   SUM    "] = np.sum(Z, axis=0).astype(int)
+                    zs["   NOR    "] = np.logical_not(np.logical_or.reduce(Z, axis=0)).astype(int)
+                    zs["   ==     "] = (np.logical_and.reduce(Z, axis=0) | np.logical_not(np.logical_or.reduce(Z, axis=0))).astype(int)
+                    for k, z in zs.items():
+                        if "AND" in k:
+                            print()
+                        # print(k, sum(z), ",".join(map(str, z)))
+                    print()
+                    print("Hit:")
+                    H = array(list(hs.values()))
+                    hs["   AND    "] = np.logical_and.reduce(H, axis=0).astype(int)
+                    hs["   OR     "] = np.logical_or.reduce(H, axis=0).astype(int)
+                    hs["   SUM    "] = np.sum(H, axis=0).astype(int)
+                    hs["   NOR    "] = np.logical_not(np.logical_or.reduce(H, axis=0)).astype(int)
+                    hs["   ==     "] = (np.logical_and.reduce(H, axis=0) | np.logical_not(np.logical_or.reduce(H, axis=0))).astype(int)
+                    for k, h in hs.items():
+                        if "AND" in k:
+                            print()
+                        # print(k, sum(h), "\t", ",".join(map(str, h)))
+                    print()
 
                 # Importances
                 for classifier_field in clas_names:
