@@ -39,9 +39,9 @@ matts = [
 ]
 kwargs = dict(metavars=matts, loc=loc, rem=rem)
 
-# run_t1_t2(d, microbiome=True, **kwargs)
-# run_t1_t2(d, microbiome=True, mspecies=True, mpathways=True, msuper=True, **kwargs)
-# run_t1_t2(d, microbiome=True, eeg=True, **kwargs)
-# run_t1_t2(d, microbiome=True, eeg=True, eegpow=True, **kwargs)
-# run_t1_t2(d, microbiome=True, mspecies=True, mpathways=True, msuper=True, eeg=True, **kwargs)
+run_t1_t2(d, microbiome=True, **kwargs)
+run_t1_t2(d, microbiome=True, mspecies=True, mpathways=True, msuper=True, **kwargs)
+run_t1_t2(d, microbiome=True, eeg=True, **kwargs)
+run_t1_t2(d, microbiome=True, eeg=True, eegpow=True, **kwargs)
+run_t1_t2(d, microbiome=True, mspecies=True, mpathways=True, msuper=True, eeg=True, **kwargs)
 run_t1_t2(d, microbiome=True, mspecies=True, mpathways=True, msuper=True, eeg=True, eegpow=True, **kwargs)
