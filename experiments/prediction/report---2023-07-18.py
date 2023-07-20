@@ -48,7 +48,7 @@ mbioma = [dict(empty_mbioma=None), dict(malpha=True), dict(mspecies=True), dict(
           dict(malpha=True, mspecies=True, msuper=True), dict(malpha=True, mspecies=True, mpathways=True),
           dict(malpha=True, mspecies=True, mpathways=True, msuper=True)]
 eeg = [dict(empty_eeg=None), dict(eeg=True), dict(eegpow=True), dict(eeg=True, eegpow=True)]
-tasks = [a | b for a in eeg for b in mbioma]
+tasks = reversed([a | b for a in eeg for b in mbioma])
 with sopen(schedule_uri) as db:
     for extra in Scheduler(db, timeout=20) << tasks:
         kwargs = kwargs0 | extra
