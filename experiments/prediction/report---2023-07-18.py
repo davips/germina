@@ -1,4 +1,4 @@
-from germina.runner import run
+from germina.runner import run, run_t1_t2
 from hdict import hdict
 
 from sys import argv
@@ -37,18 +37,11 @@ matts = [
     "a10_t1",  # ordem desta criança entre os irmãos
     "bmi_pregest_t1"
 ]
+kwargs = dict(metavars=matts, loc=loc, rem=rem)
 
-mtgts = ["ibq_reg_t1", "ibq_soot_t1", "ibq_dura_t1", "bayley_3_t1"]
-run(d, t1=True, microbiome=True, microbiome_extra=True, eeg=True, metavars=matts, targets_meta=mtgts, loc=loc, rem=rem)
-run(d, t1=True, microbiome=True, microbiome_extra=True, eeg=True, metavars=matts, loc=loc, rem=rem,
-    targets_eeg1=["Beta_t1", "r_20hz_post_pre_waveleting_t1", "Number_Segs_Post_Seg_Rej_t1"])
-
-mtgts = ["ibq_reg_t2", "ibq_soot_t2", "ibq_dura_t2", "bayley_3_t2"]
-run(d, t1=True, microbiome=True, microbiome_extra=True, eeg=True, metavars=matts, targets_meta=mtgts, loc=loc, rem=rem)
-run(d, t1=True, microbiome=True, microbiome_extra=True, eeg=True, metavars=matts, loc=loc, rem=rem,
-    targets_eeg2=["Beta_t2", "r_20hz_post_pre_waveleting_t2", "Number_Segs_Post_Seg_Rej_t2"])
-
-mtgts = ["ibq_reg_t2", "ibq_soot_t2", "ibq_dura_t2", "bayley_3_t2"]
-run(d, t1=True, t2=True, microbiome=True, microbiome_extra=True, eeg=True, metavars=matts, targets_meta=mtgts, loc=loc, rem=rem)
-run(d, t1=True, t2=True, microbiome=True, microbiome_extra=True, eeg=True, metavars=matts, loc=loc, rem=rem,
-    targets_eeg2=["Beta_t2", "r_20hz_post_pre_waveleting_t2", "Number_Segs_Post_Seg_Rej_t2"])
+# run_t1_t2(d, microbiome=True, **kwargs)
+# run_t1_t2(d, microbiome=True, mspecies=True, mpathways=True, msuper=True, **kwargs)
+# run_t1_t2(d, microbiome=True, eeg=True, **kwargs)
+# run_t1_t2(d, microbiome=True, eeg=True, eegpow=True, **kwargs)
+# run_t1_t2(d, microbiome=True, mspecies=True, mpathways=True, msuper=True, eeg=True, **kwargs)
+run_t1_t2(d, microbiome=True, mspecies=True, mpathways=True, msuper=True, eeg=True, eegpow=True, **kwargs)
