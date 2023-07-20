@@ -42,13 +42,21 @@ matts = [
     "bmi_pregest_t1"
 ]
 kwargs0 = dict(metavars=matts, loc=loc, rem=rem, sync=False)
-
+mbioma = [dict(empty_mbioma=None), dict(malpha=True), dict(mspecies=True), dict(malpha=True, mspecies=True),
+          dict(malpha=True, mspecies=True, msuper=True), dict(malpha=True, mspecies=True, mpathways=True),
+          dict(malpha=True, mspecies=True, mpathways=True, msuper=True)]
+eeg = [dict(empty_eeg=None), dict(eeg=True), dict(eegpow=True), dict(eeg=True, eegpow=True)]
 with sopen(schedule_uri) as db:
-    for extra in Scheduler(db, timeout=20) << [dict(), dict(eeg=True), dict(eegpow=True), dict(eeg=True, eegpow=True)]:
-        kwargs = kwargs0 | extra
-        run_t1_t2(d, malpha=True, **kwargs)
-        run_t1_t2(d, mspecies=True, **kwargs)
-        run_t1_t2(d, malpha=True, mspecies=True, **kwargs)
-        run_t1_t2(d, malpha=True, mspecies=True, msuper=True, **kwargs)
-        run_t1_t2(d, malpha=True, mspecies=True, mpathways=True, **kwargs)
-        run_t1_t2(d, malpha=True, mspecies=True, mpathways=True, msuper=True, **kwargs)
+    for extra1 in Scheduler(db, timeout=20) << mbioma:
+        for extra2 in Scheduler(db, timeout=20) << eeg:
+            kwargs = kwargs0 | extra1 | extra2
+            if "empty_mbioma" in kwargs:
+                del kwargs["empty_mbioma"]
+            if "empty_eeg" in kwargs:
+                del kwargs["empty_eeg"]
+            run_t1_t2(d, malpha=True, **kwargs)
+            run_t1_t2(d, mspecies=True, **kwargs)
+            run_t1_t2(d, malpha=True, mspecies=True, **kwargs)
+            run_t1_t2(d, malpha=True, mspecies=True, msuper=True, **kwargs)
+            run_t1_t2(d, malpha=True, mspecies=True, mpathways=True, **kwargs)
+            run_t1_t2(d, malpha=True, mspecies=True, mpathways=True, msuper=True, **kwargs)
