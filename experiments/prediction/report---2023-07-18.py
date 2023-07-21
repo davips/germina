@@ -1,8 +1,14 @@
+from hdict import hdict
+from shelchemy import sopen
+from shelchemy.scheduler import Scheduler
+from sklearn.ensemble import StackingClassifier, RandomForestClassifier
+from sklearn.model_selection import StratifiedKFold
 from sys import argv
 
 from hdict import hdict
 from shelchemy import sopen
 from shelchemy.scheduler import Scheduler
+from sklearn.model_selection import StratifiedKFold
 
 from germina.config import schedule_uri
 from germina.runner import run_t1_t2
@@ -48,6 +54,10 @@ mbioma = [dict(empty_mbioma=None), dict(malpha=True), dict(mspecies=True), dict(
           dict(malpha=True, mspecies=True, msuper=True), dict(malpha=True, mspecies=True, mpathways=True),
           dict(malpha=True, mspecies=True, mpathways=True, msuper=True)]
 eeg = [dict(empty_eeg=None), dict(eeg=True), dict(eegpow=True), dict(eeg=True, eegpow=True)]
+for dct in mbioma + eeg:
+    dct["stacking_cv"] = StratifiedKFold(n_splits=4)
+    dct["stacking_final_estimator"] = RandomForestClassifier(n_estimators=20)
+
 tasks = reversed([a | b for a in eeg for b in mbioma])
 with sopen(schedule_uri) as db:
     for extra in Scheduler(db, timeout=20) << tasks:
