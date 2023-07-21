@@ -22,6 +22,7 @@ stacking_trees = int(argv[6])
 stacking_splits = int(argv[7])
 sync = bool(int(argv[8]))
 measures = argv[9].split(",")
+reverse = bool(int(argv[10]))
 print(f"local cache:{loc}\t\tremote cache:{rem}")
 print(f"permutations for p-value:{nperm}\t\t{trees=}")
 print(f"{stacking=}:\t{stacking_trees=}\t{stacking_splits=}")
@@ -67,6 +68,8 @@ for dct in mbioma + eeg:
     dct["did"] = d.id
 
 tasks = [a | b for a in eeg for b in mbioma]
+if reverse:
+    tasks.reverse()
 with sopen(schedule_uri) as db:
     for extra in Scheduler(db, timeout=20) << tasks:
         kwargs = kwargs0 | extra
