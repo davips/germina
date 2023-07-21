@@ -12,6 +12,7 @@ from numpy import array, quantile
 from numpy import mean, std
 from pandas import DataFrame
 from shelchemy import sopen
+from shelchemy.scheduler import Scheduler
 from sklearn import clone
 from sklearn.ensemble import ExtraTreesClassifier as ETc, StackingClassifier
 from sklearn.ensemble import RandomForestClassifier as RFc
@@ -22,7 +23,7 @@ from sklearn.model_selection import KFold, cross_val_predict, StratifiedKFold, p
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from xgboost import XGBClassifier as XGBc
 
-from germina.config import remote_cache_uri, local_cache_uri
+from germina.config import remote_cache_uri, local_cache_uri, schedule_uri
 from germina.dataset import join, ensemble_predict
 from germina.nan import remove_cols, bina, loga, remove_nan_rows_cols, only_abundant, hasNaN
 
@@ -94,7 +95,7 @@ def run(d: hdict, t1=False, t2=False, did=None, just_df=False,
     if msuper:
         super1, super2 = t1, t2
     logname = f"{d.id}-{t1=}{t2=}{malpha=}{mpathways=}{mspecies=}{msuper=}{eeg=}{eegpow=}{targets_meta=}{targets_eeg1=}{targets_eeg2=}{[metavars]=}{stratifiedcv=}"
-    logname = logname[:200] + Hosh(logname.encode()).id
+    logname = Hosh(logname.encode()).id + logname[:200]
     if verbose:
         print(logname)
     oldout = sys.stdout
@@ -338,100 +339,65 @@ def run(d: hdict, t1=False, t2=False, did=None, just_df=False,
                  'roc_auc', 'roc_auc_ovo', 'roc_auc_ovo_weighted', 'roc_auc_ovr', 'roc_auc_ovr_weighted', 'top_k_accuracy', 'v_measure_score']
                 # scos = ["precision", "recall", "balanced_accuracy", "roc_auc"]
                 scos = d.measures
-                for m in scos:
-                    print("-------------------------------------------")
-                    print(m)
-                    print("-------------------------------------------")
-                    for classifier_field in clas_names:
-                        scores_fi = f"{m}_{classifier_field}"
-                        permscores_fi = f"perm_{scores_fi}"
-                        pval_fi = f"pval_{scores_fi}"
-                        # d = d >> apply(cross_val_score, field(classifier_field), _.X, _.y, cv=_.cv, scoring=m)(scores_fi)
-                        d = d >> apply(permutation_test_score, field(classifier_field), _.X, _.y, cv=_.cv, scoring=m)(scores_fi, permscores_fi, pval_fi)
+
+                tasks = [f"{cn}\timportances\t{target}\t{logname}" for cn in clas_names]
+                with sopen(schedule_uri) as db:
+                    for task in Scheduler(db, timeout=20) << tasks:
+                        classifier_field = task.split("\t")[0]
+                        for m in scos:
+                            print("-------------------------------------------")
+                            print(m)
+                            print("-------------------------------------------")
+                            scores_fi = f"{m}_{classifier_field}"
+                            permscores_fi = f"perm_{scores_fi}"
+                            pval_fi = f"pval_{scores_fi}"
+                            # d = d >> apply(cross_val_score, field(classifier_field), _.X, _.y, cv=_.cv, scoring=m)(scores_fi)
+                            d = d >> apply(permutation_test_score, field(classifier_field), _.X, _.y, cv=_.cv, scoring=m)(scores_fi, permscores_fi, pval_fi)
+                            d = ch(d, loc, rem, local, remote, sync)
+                            me = mean(d[scores_fi])
+                            if classifier_field == "DummyClassifier":
+                                ref = me
+                            print(f"{classifier_field:24} {me:.6f} {std(d[scores_fi]):.6f}   p-value={d[pval_fi]}")
+
+                        # ConfusionMatrix; prediction and hit agreement.  # deindent
+                        # zs, hs = {}, {}
+                        # members_z = []
+                        if verbose:
+                            print(classifier_field)
+                        field_name_z = f"{classifier_field}_z"
+                        field_name_p = f"{classifier_field}_p"
+                        # if not classifier_field.startswith("Dummy"):
+                        # members_z.append(field(field_name_z))
+                        d = d >> apply(cross_val_predict, field(classifier_field), _.X, _.y, cv=_.cv)(field_name_z)
+                        # d = d >> apply(cross_val_predict, field(classifier_field), _.X, _.y, cv=_.cv, method="predict_proba")(field_name_p)
                         d = ch(d, loc, rem, local, remote, sync)
-                        me = mean(d[scores_fi])
-                        if classifier_field == "DummyClassifier":
-                            ref = me
-                        print(f"{classifier_field:24} {me:.6f} {std(d[scores_fi]):.6f}   p-value={d[pval_fi]}")
+                        z = d[field_name_z]
+                        # zs[classifier_field[:10]] = z
+                        # hs[classifier_field[:10]] = (z == d.y).astype(int)
+                        if verbose:
+                            print(f"{confusion_matrix(d.y, z)}")
 
-                # ConfusionMatrix; prediction and hit agreement.
-                zs, hs = {}, {}
-                members_z = []
-                for classifier_field in clas_names:
-                    if verbose:
-                        print(classifier_field)
-                    field_name_z = f"{classifier_field}_z"
-                    field_name_p = f"{classifier_field}_p"
-                    if not classifier_field.startswith("Dummy"):
-                        members_z.append(field(field_name_z))
-                    d = d >> apply(cross_val_predict, field(classifier_field), _.X, _.y, cv=_.cv)(field_name_z)
-                    # d = d >> apply(cross_val_predict, field(classifier_field), _.X, _.y, cv=_.cv, method="predict_proba")(field_name_p)
-                    d = ch(d, loc, rem, local, remote, sync)
-                    z = d[field_name_z]
-                    zs[classifier_field[:10]] = z
-                    hs[classifier_field[:10]] = (z == d.y).astype(int)
-                    if verbose:
-                        print(f"{confusion_matrix(d.y, z)}")
-                d = d >> apply(ensemble_predict, *members_z).ensemble_z
-                d = ch(d, loc, rem, local, remote, sync)
+                        # aqui estavam coisas  num  nivel acima na identação
 
-                # Accuracy
-                # for classifier_field in clas_names:
-                #     field_name_z = f"{classifier_field}_z"
-                #     fieldbalacc = f"{classifier_field}_balacc"
-                #     d = d >> apply(balanced_accuracy_score, _.y, field(field_name_z), adjusted=True)(fieldbalacc)
-                #     d = ch(d, loc, rem, local, remote, sync)
-                #     print(f"{classifier_field:24} {d[fieldbalacc]:.6f} ")
-                d = d >> apply(balanced_accuracy_score, _.y, _.ensemble_z).ensemble_balacc
-                d = ch(d, loc, rem, local, remote, sync)
-                print(f"ensemble5 {d.ensemble_balacc:.6f} ")
-
-                if verbose:
-                    print("Prediction:")
-                    Z = array(list(zs.values()))
-                    zs["   AND    "] = np.logical_and.reduce(Z, axis=0).astype(int)
-                    zs["   OR     "] = np.logical_or.reduce(Z, axis=0).astype(int)
-                    zs["   SUM    "] = np.sum(Z, axis=0).astype(int)
-                    zs["   NOR    "] = np.logical_not(np.logical_or.reduce(Z, axis=0)).astype(int)
-                    zs["   ==     "] = (np.logical_and.reduce(Z, axis=0) | np.logical_not(np.logical_or.reduce(Z, axis=0))).astype(int)
-                    for k, z in zs.items():
-                        if "AND" in k:
+                        # Importances
+                        model = f"{target}_{classifier_field}_model"
+                        d = d >> apply(lambda c, *args, **kwargs: clone(c).fit(*args, **kwargs), field(classifier_field), _.X, _.y)(model)
+                        importances_field_name = f"{target}_{classifier_field}_importances"
+                        d = d >> apply(permutation_importance, field(model), _.X, _.y, n_repeats=20, scoring=scos, n_jobs=-1)(importances_field_name)
+                        d = ch(d, loc, rem, local, remote, sync)
+                        fst = True
+                        for metric in d[importances_field_name]:
+                            r = d[importances_field_name][metric]
+                            for i in r.importances_mean.argsort()[::-1]:
+                                if r.importances_mean[i] - r.importances_std[i] > 0:
+                                    if fst:
+                                        print(f"Importances {classifier_field:<20} ----------------------------")
+                                        fst = False
+                                    print(f"  {metric:<17} {d.X.columns[i][-25:]:<17} {r.importances_mean[i]:.6f} +/- {r.importances_std[i]:.6f}")
+                            # if not fst:
+                            #     print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                             print()
-                        # print(k, sum(z), ",".join(map(str, z)))
                     print()
-                    print("Hit:")
-                    H = array(list(hs.values()))
-                    hs["   AND    "] = np.logical_and.reduce(H, axis=0).astype(int)
-                    hs["   OR     "] = np.logical_or.reduce(H, axis=0).astype(int)
-                    hs["   SUM    "] = np.sum(H, axis=0).astype(int)
-                    hs["   NOR    "] = np.logical_not(np.logical_or.reduce(H, axis=0)).astype(int)
-                    hs["   ==     "] = (np.logical_and.reduce(H, axis=0) | np.logical_not(np.logical_or.reduce(H, axis=0))).astype(int)
-                    for k, h in hs.items():
-                        if "AND" in k:
-                            print()
-                        # print(k, sum(h), "\t", ",".join(map(str, h)))
-                    print()
-
-                # Importances
-                for classifier_field in clas_names:
-                    model = f"{target}_{classifier_field}_model"
-                    d = d >> apply(lambda c, *args, **kwargs: clone(c).fit(*args, **kwargs), field(classifier_field), _.X, _.y)(model)
-                    importances_field_name = f"{target}_{classifier_field}_importances"
-                    d = d >> apply(permutation_importance, field(model), _.X, _.y, n_repeats=20, scoring=scos, n_jobs=-1)(importances_field_name)
-                    d = ch(d, loc, rem, local, remote, sync)
-                    fst = True
-                    for metric in d[importances_field_name]:
-                        r = d[importances_field_name][metric]
-                        for i in r.importances_mean.argsort()[::-1]:
-                            if r.importances_mean[i] - r.importances_std[i] > 0:
-                                if fst:
-                                    print(f"Importances {classifier_field:<20} ----------------------------")
-                                    fst = False
-                                print(f"  {metric:<17} {d.X.columns[i][-25:]:<17} {r.importances_mean[i]:.6f} +/- {r.importances_std[i]:.6f}")
-                        # if not fst:
-                        #     print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-                        print()
-                print()
         # sys.stdout = oldout
         # d.show()
         # sys.stdout = newout
@@ -453,3 +419,45 @@ def run_t1_t2(d: hdict, eeg=False, eegpow=False,
     #       t1+t2 → t2
     run(d, t1=True, t2=True, targets_meta=["ibq_reg_t2", "ibq_soot_t2", "ibq_dura_t2", "bayley_3_t2"], **kwargs)
     run(d, t1=True, t2=True, targets_eeg2=["Beta_t2", "r_20hz_post_pre_waveleting_t2", "Number_Segs_Post_Seg_Rej_t2"], **kwargs)
+
+
+"""             # d = d >> apply(ensemble_predict, *members_z).ensemble_z
+                # d = ch(d, loc, rem, local, remote, sync)
+                # 
+                # # Accuracy
+                # # for classifier_field in clas_names:
+                # #     field_name_z = f"{classifier_field}_z"
+                # #     fieldbalacc = f"{classifier_field}_balacc"
+                # #     d = d >> apply(balanced_accuracy_score, _.y, field(field_name_z), adjusted=True)(fieldbalacc)
+                # #     d = ch(d, loc, rem, local, remote, sync)
+                # #     print(f"{classifier_field:24} {d[fieldbalacc]:.6f} ")
+                # d = d >> apply(balanced_accuracy_score, _.y, _.ensemble_z).ensemble_balacc
+                # d = ch(d, loc, rem, local, remote, sync)
+                # print(f"ensemble5 {d.ensemble_balacc:.6f} ")
+
+                # if verbose:
+                #     print("Prediction:")
+                #     Z = array(list(zs.values()))
+                #     zs["   AND    "] = np.logical_and.reduce(Z, axis=0).astype(int)
+                #     zs["   OR     "] = np.logical_or.reduce(Z, axis=0).astype(int)
+                #     zs["   SUM    "] = np.sum(Z, axis=0).astype(int)
+                #     zs["   NOR    "] = np.logical_not(np.logical_or.reduce(Z, axis=0)).astype(int)
+                #     zs["   ==     "] = (np.logical_and.reduce(Z, axis=0) | np.logical_not(np.logical_or.reduce(Z, axis=0))).astype(int)
+                #     for k, z in zs.items():
+                #         if "AND" in k:
+                #             print()
+                #         # print(k, sum(z), ",".join(map(str, z)))
+                #     print()
+                #     print("Hit:")
+                #     H = array(list(hs.values()))
+                #     hs["   AND    "] = np.logical_and.reduce(H, axis=0).astype(int)
+                #     hs["   OR     "] = np.logical_or.reduce(H, axis=0).astype(int)
+                #     hs["   SUM    "] = np.sum(H, axis=0).astype(int)
+                #     hs["   NOR    "] = np.logical_not(np.logical_or.reduce(H, axis=0)).astype(int)
+                #     hs["   ==     "] = (np.logical_and.reduce(H, axis=0) | np.logical_not(np.logical_or.reduce(H, axis=0))).astype(int)
+                #     for k, h in hs.items():
+                #         if "AND" in k:
+                #             print()
+                #         # print(k, sum(h), "\t", ",".join(map(str, h)))
+                #     print()
+"""

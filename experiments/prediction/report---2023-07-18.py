@@ -28,7 +28,6 @@ print(f"permutations for p-value:{nperm}\t\t{trees=}")
 print(f"{stacking=}:\t{stacking_trees=}\t{stacking_splits=}")
 print(f"{sync=}")
 print(f"{measures=}")
-print(f"{reverse=}")
 print()
 """
         "elegib14_t0",  # sexo
@@ -63,21 +62,14 @@ kwargs0 = dict(metavars=matts, loc=loc, rem=rem, sync=sync)
 # mbioma = [dict(empty_mbioma=None), dict(malpha=True), dict(mspecies=True), dict(malpha=True, mspecies=True),
 #           dict(malpha=True, mspecies=True, msuper=True), dict(malpha=True, mspecies=True, mpathways=True),
 #           dict(malpha=True, mspecies=True, mpathways=True, msuper=True)]
-mbioma = [dict(malpha=True, mspecies=True, mpathways=True, msuper=True)]
 # eeg = [dict(empty_eeg=None), dict(eeg=True), dict(eegpow=True), dict(eeg=True, eegpow=True)]
-eeg = [dict(eeg=True, eegpow=True)]
+mbioma = dict(malpha=True, mspecies=True, mpathways=True, msuper=True)
+eeg = dict(eeg=True, eegpow=True)
 
-for dct in mbioma + eeg:
-    dct["did"] = d.id
-
-tasks = [a | b for a in eeg for b in mbioma]
-if reverse:
-    tasks.reverse()
-with sopen(schedule_uri) as db:
-    for extra in Scheduler(db, timeout=20) << tasks:
-        kwargs = kwargs0 | extra
-        if "empty_mbioma" in kwargs:
-            del kwargs["empty_mbioma"]
-        if "empty_eeg" in kwargs:
-            del kwargs["empty_eeg"]
-        run_t1_t2(d, **kwargs)
+kwargs = kwargs0 | mbioma | eeg
+kwargs["did"] = d.id
+if "empty_mbioma" in kwargs:
+    del kwargs["empty_mbioma"]
+if "empty_eeg" in kwargs:
+    del kwargs["empty_eeg"]
+run_t1_t2(d, **kwargs)
