@@ -92,6 +92,14 @@ def remove_cols(df: DataFrame, cols, keep, debug=True):
     return df
 
 
+def select_cols(df: DataFrame, cols):
+    scols = set(cols)
+    for attr in list(scols):
+        if attr not in df:
+            scols.remove(attr)
+    return df[list(scols)]
+
+
 def bina(df: DataFrame, attribute, positive_category):
     if attribute in df:
         df[attribute] = (df[attribute] == positive_category).astype(int)

@@ -72,7 +72,7 @@ def drop_by_vif(df: DataFrame, dropped=None, thresh=5.0):
     return dropped
 
 
-def run(d: hdict, t1=False, t2=False, did=None,
+def run(d: hdict, t1=False, t2=False, did=None, just_df=False,
         eeg=False, eegpow=False,
         malpha=False, mpathways=False, mspecies=False, msuper=False,
         metavars=None, targets_meta=None, targets_eeg1=None, targets_eeg2=None,
@@ -126,52 +126,62 @@ def run(d: hdict, t1=False, t2=False, did=None,
             #################################################################################################################
             if malpha1:
                 d = d >> apply(file2df, path + "data_microbiome___2023-06-18___alpha_diversity_n525.csv").microbiome_alpha1
-                d = drop_many_by_vif(d, "microbiome_alpha1", loc, rem, local, remote, sync)
+                if not just_df:
+                    d = drop_many_by_vif(d, "microbiome_alpha1", loc, rem, local, remote, sync)
             if pathways1:
                 d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T1_n525.csv").microbiome_pathways1
                 d = d >> apply(only_abundant, _.microbiome_pathways1).microbiome_pathways1
-                d = drop_many_by_vif(d, "microbiome_pathways1", loc, rem, local, remote, sync)
+                if not just_df:
+                    d = drop_many_by_vif(d, "microbiome_pathways1", loc, rem, local, remote, sync)
             if species1:
                 d = d >> apply(file2df, path + "data_microbiome___2023-06-18___especies_3_meses_n525.csv").microbiome_species1
                 d = d >> apply(only_abundant, _.microbiome_species1).microbiome_species1
-                d = drop_many_by_vif(d, "microbiome_species1", loc, rem, local, remote, sync)
+                if not just_df:
+                    d = drop_many_by_vif(d, "microbiome_species1", loc, rem, local, remote, sync)
             if super1:
                 d = d >> apply(file2df, path + "data_microbiome___2023-07-04___T1_vias_relab_superpathways.csv").microbiome_super1
-                d = drop_many_by_vif(d, "microbiome_super1", loc, rem, local, remote, sync)
+                if not just_df:
+                    d = drop_many_by_vif(d, "microbiome_super1", loc, rem, local, remote, sync)
             if malpha2:
                 d = d >> apply(file2df, path + "data_microbiome___2023-07-03___alpha_diversity_T2_n441.csv").microbiome_alpha2
-                d = drop_many_by_vif(d, "microbiome_alpha2", loc, rem, local, remote, sync)
+                if not just_df:
+                    d = drop_many_by_vif(d, "microbiome_alpha2", loc, rem, local, remote, sync)
             if pathways2:
                 d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T2_n441.csv").microbiome_pathways2
                 d = d >> apply(only_abundant, _.microbiome_pathways2).microbiome_pathways2
-                d = drop_many_by_vif(d, "microbiome_pathways2", loc, rem, local, remote, sync)
+                if not just_df:
+                    d = drop_many_by_vif(d, "microbiome_pathways2", loc, rem, local, remote, sync)
             if species2:
                 d = d >> apply(file2df, path + "data_microbiome___2023-06-29___especies_6_meses_n441.csv").microbiome_species2
                 d = d >> apply(only_abundant, _.microbiome_species2).microbiome_species2
-                d = drop_many_by_vif(d, "microbiome_species2", loc, rem, local, remote, sync)
+                if not just_df:
+                    d = drop_many_by_vif(d, "microbiome_species2", loc, rem, local, remote, sync)
             if super2:
                 d = d >> apply(file2df, path + "data_microbiome___2023-07-04___T2_vias_relab_superpathways.csv").microbiome_super2
-                d = drop_many_by_vif(d, "microbiome_super2", loc, rem, local, remote, sync)
+                if not just_df:
+                    d = drop_many_by_vif(d, "microbiome_super2", loc, rem, local, remote, sync)
 
             ########################################################################################################################
             if (eeg1 and not targets_eeg2) or targets_eeg1:
                 d = d >> apply(file2df, path + "data_eeg___2023-06-20___T1_RS_average_dwPLI_withEEGCovariates.csv").eeg1
-                if not targets_eeg1:
+                if not targets_eeg1 and not just_df:
                     d = drop_many_by_vif(d, "eeg1", loc, rem, local, remote, sync)
             if eegpow1 and not (targets_eeg1 or targets_eeg2):
                 d = d >> apply(file2df, path + "data_eeg___2023-07-19___BRAINRISE_RS_3m_power.csv").eegpow1
-                d = drop_many_by_vif(d, "eegpow1", loc, rem, local, remote, sync)
+                if not just_df:
+                    d = drop_many_by_vif(d, "eegpow1", loc, rem, local, remote, sync)
             if targets_eeg1:
                 d = d >> apply(DataFrame.__getitem__, _.eeg1, ["id_estudo"] + targets_eeg1).eeg1
             if (eeg2 and not targets_eeg1) or targets_eeg2:
                 d = d >> apply(file2df, path + "data_eeg___2023-06-20___T2_RS_average_dwPLI_withEEGCovariates.csv").eeg2
                 d = d >> apply(remove_nan_rows_cols, _.eeg2, keep=[]).eeg2
-                if not targets_eeg2:
+                if not targets_eeg2 and not just_df:
                     d = drop_many_by_vif(d, "eeg2", loc, rem, local, remote, sync)
             if eegpow2 and not (targets_eeg1 or targets_eeg2):
                 d = d >> apply(file2df, path + "data_eeg___2023-07-19___BRAINRISE_RS_T2_Power.csv").eegpow2
                 d = d >> apply(remove_nan_rows_cols, _.eegpow2, keep=[]).eegpow2
-                d = drop_many_by_vif(d, "eegpow2", loc, rem, local, remote, sync)
+                if not just_df:
+                    d = drop_many_by_vif(d, "eegpow2", loc, rem, local, remote, sync)
             if targets_eeg2:
                 d = d >> apply(DataFrame.__getitem__, _.eeg2, ["id_estudo"] + targets_eeg2).eeg2
             d = ch(d, loc, rem, local, remote, sync)
@@ -235,7 +245,8 @@ def run(d: hdict, t1=False, t2=False, did=None,
 
             ##############################   VIF    ######################################
             # d = d >> apply(remove_cols, cols=dropped, keep=[]).df
-            d = drop_many_by_vif(d, "df", loc, rem, local, remote, sync)
+            if not just_df:
+                d = drop_many_by_vif(d, "df", loc, rem, local, remote, sync)
 
             # Join targets ##############################################################################################################
             if targets_meta:
@@ -266,6 +277,7 @@ def run(d: hdict, t1=False, t2=False, did=None,
             else:
                 d = d >> apply(KFold).cv
             d = d >> apply(StratifiedKFold, n_splits=3).cv3
+            dfs = {}
             for target in targets:
                 print("=======================================================")
                 print(target)
@@ -280,6 +292,10 @@ def run(d: hdict, t1=False, t2=False, did=None,
                 d = d >> apply(lambda t: t // 2).y
 
                 d = ch(d, loc, rem, local, remote, sync)
+                if just_df:
+                    dfs[target] = d.X, d.y
+                    continue
+
                 print("X:", d.X.shape)
                 if verbose:
                     print("y:", d.y.shape)
@@ -421,13 +437,14 @@ def run(d: hdict, t1=False, t2=False, did=None,
         # sys.stdout = newout
 
     sys.stdout = oldout
+    return dfs
 
 
 def run_t1_t2(d: hdict, eeg=False, eegpow=False,
               malpha=False, mpathways=False, mspecies=False, msuper=False,
               metavars=None, stratifiedcv=True, path="data/", loc=True, rem=True, verbose=False, sync=False, **kwargs):
-    #       t1 → t1
     kwargs |= dict(eeg=eeg, eegpow=eegpow, malpha=malpha, mpathways=mpathways, mspecies=mspecies, msuper=msuper, metavars=metavars, stratifiedcv=stratifiedcv, path=path, loc=loc, rem=rem, verbose=verbose, sync=sync)
+    #       t1 → t1
     run(d, t1=True, targets_meta=["ibq_reg_t1", "ibq_soot_t1", "ibq_dura_t1", "bayley_3_t1"], **kwargs)
     run(d, t1=True, targets_eeg1=["Beta_t1", "r_20hz_post_pre_waveleting_t1", "Number_Segs_Post_Seg_Rej_t1"], **kwargs)
     #       t1 → t2
