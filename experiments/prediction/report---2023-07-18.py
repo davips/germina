@@ -58,7 +58,7 @@ for dct in mbioma + eeg:
     dct["stacking_cv"] = StratifiedKFold(n_splits=4)
     dct["stacking_final_estimator"] = RandomForestClassifier(n_estimators=20)
 
-tasks = reversed([a | b for a in eeg for b in mbioma])
+tasks = [a | b for a in eeg for b in mbioma]
 with sopen(schedule_uri) as db:
     for extra in Scheduler(db, timeout=20) << tasks:
         kwargs = kwargs0 | extra
