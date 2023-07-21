@@ -340,7 +340,7 @@ def run(d: hdict, t1=False, t2=False, did=None, just_df=False,
                 # scos = ["precision", "recall", "balanced_accuracy", "roc_auc"]
                 scos = d.measures
 
-                tasks = [f"{cn}\timportances\t{target}\t{logname}" for cn in clas_names]
+                tasks = [f"{cn}\timportances\t{target}\t{logname[:40]}" for cn in clas_names]
                 with sopen(schedule_uri) as db:
                     for task in Scheduler(db, timeout=20) << tasks:
                         classifier_field = task.split("\t")[0]
