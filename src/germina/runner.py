@@ -76,7 +76,7 @@ def run(d: hdict, t1=False, t2=False,
         eeg=False, eegpow=False,
         malpha=False, mpathways=False, mspecies=False, msuper=False,
         metavars=None, targets_meta=None, targets_eeg1=None, targets_eeg2=None,
-        stacking_cv=None, stacking_final_estimator=None,
+        stacking=False, stacking_cv=None, stacking_final_estimator=None,
         stratifiedcv=True, path="data/", loc=True, rem=True, sync=False, verbose=False):
     d["stacking_cv"] = stacking_cv
     d["stacking_final_estimator"] = stacking_final_estimator
@@ -303,8 +303,9 @@ def run(d: hdict, t1=False, t2=False,
                     clas_names.append(nam)
                     d = d >> apply(cla, **kwargs)(nam)
                     d = d >> apply(lambda na, _: _.estimators + [(na, _[na])], nam).estimators
-                clas_names.append("StackingClassifier")
-                d = d >> apply(StackingClassifier, cv=_.stacking_cv, final_estimator=_.stacking_final_estimator).StackingClassifier
+                if stacking:
+                    clas_names.append("StackingClassifier")
+                    d = d >> apply(StackingClassifier, cv=_.stacking_cv, final_estimator=_.stacking_final_estimator).StackingClassifier
 
                 # Prediction power.
                 ['accuracy', 'adjusted_mutual_info_score', 'adjusted_rand_score', 'average_precision',

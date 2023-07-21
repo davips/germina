@@ -59,6 +59,7 @@ eeg = [dict(empty_eeg=None), dict(eeg=True), dict(eegpow=True), dict(eeg=True, e
 
 if stacking:
     for dct in mbioma + eeg:
+        dct["stacking"] = True
         dct["stacking_cv"] = StratifiedKFold(n_splits=stacking_splits)
         dct["stacking_final_estimator"] = RandomForestClassifier(n_estimators=stacking_trees)
 
