@@ -72,14 +72,14 @@ def drop_by_vif(df: DataFrame, dropped=None, thresh=5.0):
     return dropped
 
 
-def run(d: hdict, t1=False, t2=False,
+def run(d: hdict, t1=False, t2=False, did=None,
         eeg=False, eegpow=False,
         malpha=False, mpathways=False, mspecies=False, msuper=False,
         metavars=None, targets_meta=None, targets_eeg1=None, targets_eeg2=None,
-        stacking=False, stacking_cv=None, stacking_final_estimator=None,
         stratifiedcv=True, path="data/", loc=True, rem=True, sync=False, verbose=False):
-    d["stacking_cv"] = stacking_cv
-    d["stacking_final_estimator"] = stacking_final_estimator
+    print(did)
+    if did is None:
+        raise Exception(f"")
     malpha1 = malpha2 = eegpow1 = eegpow2 = eeg1 = eeg2 = pathways1 = pathways2 = species1 = species2 = super1 = super2 = False
     if eeg:
         eeg1, eeg2 = t1, t2
@@ -303,7 +303,8 @@ def run(d: hdict, t1=False, t2=False,
                     clas_names.append(nam)
                     d = d >> apply(cla, **kwargs)(nam)
                     d = d >> apply(lambda na, _: _.estimators + [(na, _[na])], nam).estimators
-                if stacking:
+                d = ch(d, loc, rem, local, remote, sync)
+                if d.stacking:
                     clas_names.append("StackingClassifier")
                     d = d >> apply(StackingClassifier, cv=_.stacking_cv, final_estimator=_.stacking_final_estimator).StackingClassifier
 
@@ -319,8 +320,8 @@ def run(d: hdict, t1=False, t2=False,
                  'r2', 'rand_score',
                  'recall', 'recall_macro', 'recall_micro', 'recall_samples', 'recall_weighted',
                  'roc_auc', 'roc_auc_ovo', 'roc_auc_ovo_weighted', 'roc_auc_ovr', 'roc_auc_ovr_weighted', 'top_k_accuracy', 'v_measure_score']
-                scos = ["precision", "recall", "balanced_accuracy", "roc_auc"]
-                scos = ["roc_auc", "balanced_accuracy"]
+                # scos = ["precision", "recall", "balanced_accuracy", "roc_auc"]
+                scos = d.measures
                 for m in scos:
                     print("-------------------------------------------")
                     print(m)
@@ -359,13 +360,13 @@ def run(d: hdict, t1=False, t2=False,
                 d = ch(d, loc, rem, local, remote, sync)
 
                 # Accuracy
-                for classifier_field in clas_names:
-                    field_name_z = f"{classifier_field}_z"
-                    fieldbalacc = f"{classifier_field}_balacc"
-                    d = d >> apply(balanced_accuracy_score, _.y, field(field_name_z), adjusted=True)(fieldbalacc)
-                    d = ch(d, loc, rem, local, remote, sync)
-                    print(f"{classifier_field:24} {d[fieldbalacc]:.6f} ")
-                d = d >> apply(balanced_accuracy_score, _.y, _.ensemble_z, adjusted=True).ensemble_balacc
+                # for classifier_field in clas_names:
+                #     field_name_z = f"{classifier_field}_z"
+                #     fieldbalacc = f"{classifier_field}_balacc"
+                #     d = d >> apply(balanced_accuracy_score, _.y, field(field_name_z), adjusted=True)(fieldbalacc)
+                #     d = ch(d, loc, rem, local, remote, sync)
+                #     print(f"{classifier_field:24} {d[fieldbalacc]:.6f} ")
+                d = d >> apply(balanced_accuracy_score, _.y, _.ensemble_z).ensemble_balacc
                 d = ch(d, loc, rem, local, remote, sync)
                 print(f"ensemble5 {d.ensemble_balacc:.6f} ")
 

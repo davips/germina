@@ -21,16 +21,17 @@ stacking = bool(int(argv[5]))
 stacking_trees = int(argv[6])
 stacking_splits = int(argv[7])
 sync = bool(int(argv[8]))
+measures = argv[9].split(",")
 print(f"local cache:{loc}\t\tremote cache:{rem}")
 print(f"permutations for p-value:{nperm}\t\t{trees=}")
 print(f"{stacking=}:\t{stacking_trees=}\t{stacking_splits=}")
 print(f"{sync=}")
+print(f"{measures=}")
 print()
 """
         "elegib14_t0",  # sexo
 """
 # "idade_crianca_meses_t1", "idade_crianca_meses_t2", "bisq_sleep_prob_t2"] # bisq_sleep_prob_t2/idade_crianca_meses_t2 mata 62 rows
-d = hdict(n_permutations=nperm, n_splits=5, n_estimators=trees, random_state=0, index="id_estudo")
 matts = [
     "b13_t1",  # father ethnicity
     "maternal_ethinicity", "b04_t1",  # mother ethnicity
@@ -51,17 +52,19 @@ matts = [
     "a10_t1",  # ordem desta criança entre os irmãos
     "bmi_pregest_t1"
 ]
+d = hdict(n_permutations=nperm, n_splits=5, n_estimators=trees,
+          stacking=stacking, stacking_cv=StratifiedKFold(n_splits=stacking_splits), stacking_final_estimator=RandomForestClassifier(n_estimators=stacking_trees),
+          measures=measures,
+          random_state=0, index="id_estudo")
+
 kwargs0 = dict(metavars=matts, loc=loc, rem=rem, sync=sync)
 mbioma = [dict(empty_mbioma=None), dict(malpha=True), dict(mspecies=True), dict(malpha=True, mspecies=True),
           dict(malpha=True, mspecies=True, msuper=True), dict(malpha=True, mspecies=True, mpathways=True),
           dict(malpha=True, mspecies=True, mpathways=True, msuper=True)]
 eeg = [dict(empty_eeg=None), dict(eeg=True), dict(eegpow=True), dict(eeg=True, eegpow=True)]
 
-if stacking:
-    for dct in mbioma + eeg:
-        dct["stacking"] = True
-        dct["stacking_cv"] = StratifiedKFold(n_splits=stacking_splits)
-        dct["stacking_final_estimator"] = RandomForestClassifier(n_estimators=stacking_trees)
+for dct in mbioma + eeg:
+    dct["did"] = d.id
 
 tasks = [a | b for a in eeg for b in mbioma]
 with sopen(schedule_uri) as db:
