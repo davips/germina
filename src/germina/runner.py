@@ -343,7 +343,7 @@ def run(d: hdict, t1=False, t2=False,
                     if not classifier_field.startswith("Dummy"):
                         members_z.append(field(field_name_z))
                     d = d >> apply(cross_val_predict, field(classifier_field), _.X, _.y, cv=_.cv)(field_name_z)
-                    d = d >> apply(cross_val_predict, field(classifier_field), _.X, _.y, cv=_.cv, method="predict_proba")(field_name_p)
+                    # d = d >> apply(cross_val_predict, field(classifier_field), _.X, _.y, cv=_.cv, method="predict_proba")(field_name_p)
                     d = ch(d, loc, rem, local, remote, sync)
                     z = d[field_name_z]
                     zs[classifier_field[:10]] = z
