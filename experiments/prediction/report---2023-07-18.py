@@ -28,6 +28,7 @@ print(f"permutations for p-value:{nperm}\t\t{trees=}")
 print(f"{stacking=}:\t{stacking_trees=}\t{stacking_splits=}")
 print(f"{sync=}")
 print(f"{measures=}")
+print(f"{reverse=}")
 print()
 """
         "elegib14_t0",  # sexo
