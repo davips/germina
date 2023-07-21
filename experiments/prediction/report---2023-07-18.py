@@ -16,19 +16,21 @@ from germina.runner import run_t1_t2
 loc = bool(int(argv[1]))
 rem = bool(int(argv[2]))
 nperm = int(argv[3])
-nest = int(argv[4])
-sync = bool(int(argv[5]))
-print("local cache:", loc)
-print("remote cache:", rem)
-print("permutations for p-value", nperm)
-print("trees", nest)
+trees = int(argv[4])
+stacking = bool(int(argv[5]))
+stacking_trees = int(argv[6])
+stacking_splits = int(argv[7])
+sync = bool(int(argv[8]))
+print(f"local cache:{loc}\t\tremote cache:{rem}")
+print(f"permutations for p-value:{nperm}\t\t{trees=}")
+print(f"{stacking=}:\t{stacking_trees=}\t{stacking_splits=}")
 print(f"{sync=}")
 print()
 """
         "elegib14_t0",  # sexo
 """
 # "idade_crianca_meses_t1", "idade_crianca_meses_t2", "bisq_sleep_prob_t2"] # bisq_sleep_prob_t2/idade_crianca_meses_t2 mata 62 rows
-d = hdict(n_permutations=nperm, n_splits=5, n_estimators=nest, random_state=0, index="id_estudo")
+d = hdict(n_permutations=nperm, n_splits=5, n_estimators=trees, random_state=0, index="id_estudo")
 matts = [
     "b13_t1",  # father ethnicity
     "maternal_ethinicity", "b04_t1",  # mother ethnicity
@@ -54,9 +56,11 @@ mbioma = [dict(empty_mbioma=None), dict(malpha=True), dict(mspecies=True), dict(
           dict(malpha=True, mspecies=True, msuper=True), dict(malpha=True, mspecies=True, mpathways=True),
           dict(malpha=True, mspecies=True, mpathways=True, msuper=True)]
 eeg = [dict(empty_eeg=None), dict(eeg=True), dict(eegpow=True), dict(eeg=True, eegpow=True)]
-for dct in mbioma + eeg:
-    dct["stacking_cv"] = StratifiedKFold(n_splits=4)
-    dct["stacking_final_estimator"] = RandomForestClassifier(n_estimators=20)
+
+if stacking:
+    for dct in mbioma + eeg:
+        dct["stacking_cv"] = StratifiedKFold(n_splits=stacking_splits)
+        dct["stacking_final_estimator"] = RandomForestClassifier(n_estimators=stacking_trees)
 
 tasks = [a | b for a in eeg for b in mbioma]
 with sopen(schedule_uri) as db:
