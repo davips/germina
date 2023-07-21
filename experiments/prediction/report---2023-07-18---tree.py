@@ -33,7 +33,8 @@ matts = [
 ]
 attributes1 = ["chaos_tot_t1", "Frontocentral_delta_t1",
                "k__Bacteria|p__Actinobacteria|c__Actinobacteria|o__Bifidobacteriales|f__Bifidobacteriaceae|g__Bifidobacterium|s__Bifidobacterium_dentium",
-               "PWY-7456", "THISYNARA-PWY", "PWY-7328", "DTDPRHAMSYN-PWY", "PWY-7237", "Theta_t1", "PWY66-430", "PWY-6749", "H_lateral_frontal_beta_t1", "HighAlpha_t1", "PWY-6902", "P164-PWY", "bisq_4_mins_t1"]
+               "PWY-7456", "THISYNARA-PWY", "PWY-7328", "DTDPRHAMSYN-PWY", "PWY-7237", "Theta_t1", "PWY66-430", "PWY-6749", "H_lateral_frontal_beta_t1",
+               "HighAlpha_t1", "PWY-6902", "P164-PWY", "bisq_4_mins_t1"]
 attributes2 = ["CENTFERM-PWY_t2", "HighAlpha_t2", "AEROBACTINSYN-PWY_t2", "LH_lateral_frontal_beta_t1", "HighAlpha_t1", "bisq_4_mins_t1"]
 targets_meta1 = ['ibq_reg_t1', 'ibq_soot_t1', 'ibq_dura_t1', 'bayley_3_t1']
 targets_meta2 = ['ibq_reg_t2', 'ibq_soot_t2', 'ibq_dura_t2', 'bayley_3_t2']
@@ -60,12 +61,12 @@ for t, datasets in datasetses.items():
         selected += attributes2
     for target, (X, y) in datasets.items():
 
-        print(target, list(X.columns))
-        X = select_cols(X, selected)
-        print(target, list(X.columns))
+        # print(target, list(X.columns))
+        # X = select_cols(X, selected)
+        # print(target, list(X.columns))
 
         algs = [
-            DecisionTreeClassifier(max_depth=3, min_samples_split=22, min_samples_leaf=10, random_state=0, max_leaf_nodes=8),
+            DecisionTreeClassifier(max_depth=4, min_samples_split=10, min_samples_leaf=20, min_impurity_decrease=0.02, random_state=0, max_leaf_nodes=8),
             # DecisionTreeRegressor(max_depth=3, min_samples_split=22, min_samples_leaf=10, random_state=0, max_leaf_nodes=8)
         ]
         ys = [y]

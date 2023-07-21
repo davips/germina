@@ -22,11 +22,15 @@ stacking_trees = int(argv[6])
 stacking_splits = int(argv[7])
 sync = bool(int(argv[8]))
 measures = argv[9].split(",")
+scheduler = bool(int(argv[10]))
+printing = bool(int(argv[11]))
 print(f"local cache:{loc}\t\tremote cache:{rem}")
 print(f"permutations for p-value:{nperm}\t\t{trees=}")
 print(f"{stacking=}:\t{stacking_trees=}\t{stacking_splits=}")
 print(f"{sync=}")
 print(f"{measures=}")
+print(f"{scheduler=}")
+print(f"{printing=}")
 print()
 """
         "elegib14_t0",  # sexo
@@ -57,7 +61,7 @@ d = hdict(n_permutations=nperm, n_splits=5, n_estimators=trees,
           measures=measures,
           random_state=0, index="id_estudo")
 
-kwargs0 = dict(metavars=matts, loc=loc, rem=rem, sync=sync)
+kwargs0 = dict(metavars=matts, loc=loc, rem=rem, sync=sync, scheduler=scheduler, printing=printing)
 # mbioma = [dict(empty_mbioma=None), dict(malpha=True), dict(mspecies=True), dict(malpha=True, mspecies=True),
 #           dict(malpha=True, mspecies=True, msuper=True), dict(malpha=True, mspecies=True, mpathways=True),
 #           dict(malpha=True, mspecies=True, mpathways=True, msuper=True)]
