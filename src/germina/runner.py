@@ -2,18 +2,22 @@ import sys
 from pprint import pprint
 
 import numpy as np
+from hdict import _, apply, cache
+from hdict import field
+from hdict import hdict
+from hdict.dataset.pandas_handling import file2df
+from hosh import Hosh
 from lightgbm import LGBMClassifier as LGBMc
 from numpy import array, quantile
 from numpy import mean, std
 from pandas import DataFrame
+from shelchemy import sopen
 from sklearn import clone
-from sklearn.dummy import DummyClassifier
-from sklearn.ensemble import ExtraTreesClassifier as ETc
+from sklearn.ensemble import ExtraTreesClassifier as ETc, StackingClassifier
 from sklearn.ensemble import RandomForestClassifier as RFc
 from sklearn.inspection import permutation_importance
 from sklearn.linear_model import SGDClassifier as SGDc
 from sklearn.metrics import confusion_matrix, balanced_accuracy_score
-from sklearn.metrics._scorer import balanced_accuracy_scorer
 from sklearn.model_selection import KFold, cross_val_predict, StratifiedKFold, permutation_test_score
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from xgboost import XGBClassifier as XGBc
@@ -21,12 +25,6 @@ from xgboost import XGBClassifier as XGBc
 from germina.config import remote_cache_uri, local_cache_uri
 from germina.dataset import join, ensemble_predict
 from germina.nan import remove_cols, bina, loga, remove_nan_rows_cols, only_abundant, hasNaN
-from hdict import _, apply, cache
-from hdict import field
-from hdict import hdict
-from hdict.dataset.pandas_handling import file2df
-from hosh import Hosh
-from shelchemy import sopen
 
 
 def ch(d, loc, rem, local, remote, sync):
@@ -263,6 +261,7 @@ def run(d: hdict, t1=False, t2=False,
                 d = d >> apply(StratifiedKFold).cv
             else:
                 d = d >> apply(KFold).cv
+            d = d >> apply(StratifiedKFold, n_splits=3).cv3
             for target in targets:
                 print("=======================================================")
                 print(target)
@@ -294,9 +293,14 @@ def run(d: hdict, t1=False, t2=False,
                     ETc: {},
                     SGDc: {},
                 }
+                d["estimators"] = []
                 for cla, kwargs in clas.items():
-                    clas_names.append(cla.__name__)
-                    d = d >> apply(cla, **kwargs)(clas_names[-1])
+                    nam = cla.__name__
+                    clas_names.append(nam)
+                    d = d >> apply(cla, **kwargs)(nam)
+                    d = d >> apply(lambda na, _: _.estimators + [(na, _[na])], nam).estimators
+                clas_names.append("StackingClassifier")
+                d = d >> apply(StackingClassifier, cv=_.cv4).StackingClassifier
 
                 # Prediction power.
                 ['accuracy', 'adjusted_mutual_info_score', 'adjusted_rand_score', 'average_precision',
@@ -335,9 +339,11 @@ def run(d: hdict, t1=False, t2=False,
                     if verbose:
                         print(classifier_field)
                     field_name_z = f"{classifier_field}_z"
+                    field_name_p = f"{classifier_field}_p"
                     if not classifier_field.startswith("Dummy"):
                         members_z.append(field(field_name_z))
                     d = d >> apply(cross_val_predict, field(classifier_field), _.X, _.y, cv=_.cv)(field_name_z)
+                    d = d >> apply(cross_val_predict, field(classifier_field), _.X, _.y, cv=_.cv, method="predict_proba")(field_name_p)
                     d = ch(d, loc, rem, local, remote, sync)
                     z = d[field_name_z]
                     zs[classifier_field[:10]] = z
