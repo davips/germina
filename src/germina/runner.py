@@ -300,7 +300,7 @@ def run(d: hdict, t1=False, t2=False,
                     d = d >> apply(cla, **kwargs)(nam)
                     d = d >> apply(lambda na, _: _.estimators + [(na, _[na])], nam).estimators
                 clas_names.append("StackingClassifier")
-                d = d >> apply(StackingClassifier, cv=_.cv4).StackingClassifier
+                d = d >> apply(StackingClassifier, cv=_.cv3).StackingClassifier
 
                 # Prediction power.
                 ['accuracy', 'adjusted_mutual_info_score', 'adjusted_rand_score', 'average_precision',
