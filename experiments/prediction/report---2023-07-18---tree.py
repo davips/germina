@@ -61,12 +61,12 @@ for t, datasets in datasetses.items():
         selected += attributes2
     for target, (X, y) in datasets.items():
 
-        # print(target, list(X.columns))
-        # X = select_cols(X, selected)
-        # print(target, list(X.columns))
+        print(target, list(X.columns))
+        X = select_cols(X, selected)
+        print(target, list(X.columns))
 
         algs = [
-            DecisionTreeClassifier(max_depth=4, min_samples_split=10, min_samples_leaf=20, min_impurity_decrease=0.02, random_state=0, max_leaf_nodes=8),
+            DecisionTreeClassifier(max_depth=4, min_samples_split=10, min_samples_leaf=16, min_impurity_decrease=0.01, random_state=0, max_leaf_nodes=8),
             # DecisionTreeRegressor(max_depth=3, min_samples_split=22, min_samples_leaf=10, random_state=0, max_leaf_nodes=8)
         ]
         ys = [y]
