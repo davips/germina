@@ -341,12 +341,12 @@ def run(d: hdict, t1=False, t2=False, did=None, just_df=False, vif=True, schedul
                 # scos = ["precision", "recall", "balanced_accuracy", "roc_auc"]
                 scos = d.measures
 
-                tasks = [f"{cn}\timportances\t{target}\t{logname[:40]}" for cn in clas_names]
                 with sopen(schedule_uri) as db:
-                    tasks = (Scheduler(db, timeout=20) << tasks) if scheduler else tasks
-                    for task in tasks:
-                        classifier_field = task.split("\t")[0]
-                        for m in scos:
+                    for m in scos:
+                        jobs = [f"{cn} {target} perm test {m} {logname[:40]}" for cn in clas_names]
+                        tasks = (Scheduler(db, timeout=20) << jobs) if scheduler else jobs
+                        for task in tasks:
+                            classifier_field = task.split(" ")[0]
                             # print("-------------------------------------------")
                             # print(m)
                             # print("-------------------------------------------")
@@ -361,7 +361,12 @@ def run(d: hdict, t1=False, t2=False, did=None, just_df=False, vif=True, schedul
                                 ref = me
                             print(f"{m} {classifier_field:24} {me:.6f} {std(d[scores_fi]):.6f}   p-value={d[pval_fi]}")
 
-                        # ConfusionMatrix; prediction and hit agreement.  # deindent
+                # ConfusionMatrix; prediction and hit agreement.  # deindent
+                jobs = [f"{cn} {target} cvpredict/importance {logname[:40]}" for cn in clas_names]
+                with sopen(schedule_uri) as db:
+                    tasks = (Scheduler(db, timeout=20) << jobs) if scheduler else jobs
+                    for task in tasks:
+                        classifier_field = task.split(" ")[0]
                         # zs, hs = {}, {}
                         # members_z = []
                         if verbose:
