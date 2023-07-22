@@ -343,7 +343,7 @@ def run(d: hdict, t1=False, t2=False, did=None, just_df=False, vif=True, schedul
 
                 with sopen(schedule_uri) as db:
                     for m in scos:
-                        jobs = [f"{cn} {target} perm test {m} {logname[:40]}" for cn in clas_names]
+                        jobs = [f"{cn} {target} perm test {m} {Hosh(logname.encode()).ansi}" for cn in clas_names]
                         tasks = (Scheduler(db, timeout=20) << jobs) if scheduler else jobs
                         for task in tasks:
                             classifier_field = task.split(" ")[0]
@@ -362,7 +362,7 @@ def run(d: hdict, t1=False, t2=False, did=None, just_df=False, vif=True, schedul
                             print(f"{m} {classifier_field:24} {me:.6f} {std(d[scores_fi]):.6f}   p-value={d[pval_fi]}")
 
                 # ConfusionMatrix; prediction and hit agreement.  # deindent
-                jobs = [f"{cn} {target} cvpredict/importance {logname[:40]}" for cn in clas_names]
+                jobs = [f"{cn} {target} cvpredict/importance {Hosh(logname.encode()).ansi}" for cn in clas_names]
                 with sopen(schedule_uri) as db:
                     tasks = (Scheduler(db, timeout=20) << jobs) if scheduler else jobs
                     for task in tasks:
