@@ -62,14 +62,11 @@ d = hdict(n_permutations=nperm, n_splits=5, n_estimators=trees,
           random_state=0, index="id_estudo")
 
 kwargs0 = dict(metavars=matts, loc=loc, rem=rem, sync=sync, scheduler=scheduler, printing=printing)
-# mbioma = [dict(empty_mbioma=None), dict(malpha=True), dict(mspecies=True), dict(malpha=True, mspecies=True),
-#           dict(malpha=True, mspecies=True, msuper=True), dict(malpha=True, mspecies=True, mpathways=True),
-#           dict(malpha=True, mspecies=True, mpathways=True, msuper=True)]
-# eeg = [dict(empty_eeg=None), dict(eeg=True), dict(eegpow=True), dict(eeg=True, eegpow=True)]
 mbioma = dict(malpha=True, mspecies=True, mpathways=True, msuper=True)
 eeg = dict(eeg=True, eegpow=True)
 
 kwargs = kwargs0 | mbioma | eeg
+d["kwargs"] = kwargs
 kwargs["did"] = d.id
 if "empty_mbioma" in kwargs:
     del kwargs["empty_mbioma"]
