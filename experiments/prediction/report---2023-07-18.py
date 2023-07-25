@@ -12,25 +12,11 @@ from sklearn.model_selection import StratifiedKFold
 
 from germina.config import schedule_uri
 from germina.runner import run_t1_t2
+from argvsucks import handle_command_line
 
-loc = bool(int(argv[1]))
-rem = bool(int(argv[2]))
-nperm = int(argv[3])
-trees = int(argv[4])
-stacking = bool(int(argv[5]))
-stacking_trees = int(argv[6])
-stacking_splits = int(argv[7])
-sync = bool(int(argv[8]))
-measures = argv[9].split(",")
-scheduler = bool(int(argv[10]))
-printing = bool(int(argv[11]))
-print(f"local cache:{loc}\t\tremote cache:{rem}")
-print(f"permutations for p-value:{nperm}\t\t{trees=}")
-print(f"{stacking=}:\t{stacking_trees=}\t{stacking_splits=}")
-print(f"{sync=}")
-print(f"{measures=}")
-print(f"{scheduler=}")
-print(f"{printing=}")
+dct = handle_command_line(argv, loc=False, rem=False, permutations=int, trees=int, stacking=False, strees=int, ssplits=int, sync=False, measures=list, schedule=True, print=True)
+loc, rem, permutations, trees, stacking, strees, ssplits, sync, measures, schedule, printing = dct["loc"], dct["rem"], dct["permutations"], dct["trees"], dct["stacking"], dct["strees"], dct["ssplits"], dct["sync"], dct["measures"], dct["schedule"], dct["print"]
+print(dct)
 print()
 """
         "elegib14_t0",  # sexo
@@ -56,12 +42,12 @@ matts = [
     "a10_t1",  # ordem desta criança entre os irmãos
     "bmi_pregest_t1"
 ]
-d = hdict(n_permutations=nperm, n_splits=5, n_estimators=trees,
-          stacking=stacking, stacking_cv=StratifiedKFold(n_splits=stacking_splits), stacking_final_estimator=RandomForestClassifier(n_estimators=stacking_trees),
+d = hdict(n_permutations=permutations, n_splits=5, n_estimators=trees,
+          stacking=stacking, stacking_cv=StratifiedKFold(n_splits=ssplits), stacking_final_estimator=RandomForestClassifier(n_estimators=strees),
           measures=measures,
           random_state=0, index="id_estudo")
 
-kwargs0 = dict(metavars=matts, loc=loc, rem=rem, sync=sync, scheduler=scheduler, printing=printing)
+kwargs0 = dict(metavars=matts, loc=loc, rem=rem, sync=sync, scheduler=schedule, printing=printing)
 mbioma = dict(malpha=True, mspecies=True, mpathways=True, msuper=True)
 eeg = dict(eeg=True, eegpow=True)
 

@@ -26,6 +26,7 @@ safeserializer = "^0.230202.1"
 lz4 = "^4.3.2"
 statsmodels = "^0.14.0"
 shelchemy = "^1.230706.3"
+argvsucks = "^0.230725.6"
 
 [tool.poetry.extras]    #[tool.poetry.group.extras.dependencies]
 full = []

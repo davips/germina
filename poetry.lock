@@ -170,6 +170,17 @@ files = [
 ]
 
 [[package]]
+name = "argvsucks"
+version = "0.230725.6"
+description = ""
+optional = false
+python-versions = ">=3.7,<4.0"
+files = [
+    {file = "argvsucks-0.230725.6-py3-none-any.whl", hash = "sha256:d830f6684989bcd803682f4174956e552696094533cd7a8ad28328197340536a"},
+    {file = "argvsucks-0.230725.6.tar.gz", hash = "sha256:e4b58d301f1b5c380f86bc1f2d5e9a19b347c4ba8745435bcf248bfaac867ccb"},
+]
+
+[[package]]
 name = "astroid"
 version = "2.15.6"
 description = "An abstract syntax tree for Python with inference support."
@@ -3372,4 +3383,4 @@ full = []
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10,<3.10.7"
-content-hash = "1b6cbe82820f5f42cdf3e24bd6f6ddb399312f39a1237cfb4df227ec9c9b95ce"
+content-hash = "e01e29e9b3a1c56f3eea403c36ba50702f006b6bf8d8ad9abb0c0fea5c82455e"
