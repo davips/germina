@@ -1180,6 +1180,30 @@ files = [
 ]
 
 [[package]]
+name = "imodels"
+version = "1.3.17"
+description = "Implementations of various interpretable models"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "imodels-1.3.17-py3-none-any.whl", hash = "sha256:9eb437f6851e9c1c531670ae710343a52f89dbc06f63f3c06abc3defacb1740c"},
+    {file = "imodels-1.3.17.tar.gz", hash = "sha256:d98667c4c90643118862ba90a156397a54070dfa5455fff12ec25257801790d0"},
+]
+
+[package.dependencies]
+matplotlib = "*"
+mlxtend = ">=0.18.0"
+numpy = "*"
+pandas = "*"
+requests = "*"
+scikit-learn = "*"
+scipy = "*"
+tqdm = "*"
+
+[package.extras]
+dev = ["dvu", "gdown", "jupyter", "jupytext", "matplotlib", "pmlb", "pytest", "pytest-cov", "slurmpy", "tqdm"]
+
+[[package]]
 name = "indexed"
 version = "1.3.0"
 description = "A dictionary that is indexed by insertion order."
@@ -1668,6 +1692,30 @@ files = [
     {file = "mccabe-0.7.0-py2.py3-none-any.whl", hash = "sha256:6c2d30ab6be0e4a46919781807b4f0d834ebdd6c6e3dca0bda5a15f863427b6e"},
     {file = "mccabe-0.7.0.tar.gz", hash = "sha256:348e0240c33b60bbdf4e523192ef919f28cb2c3d7d5c7794f74009290f236325"},
 ]
+
+[[package]]
+name = "mlxtend"
+version = "0.22.0"
+description = "Machine Learning Library Extensions"
+optional = false
+python-versions = "*"
+files = [
+    {file = "mlxtend-0.22.0-py2.py3-none-any.whl", hash = "sha256:666daf3be70c61b3a43309accd29124efbba70bd4599aa0f07a4d2af546f52ef"},
+    {file = "mlxtend-0.22.0.tar.gz", hash = "sha256:bab0a9b28b5ffc5254fb73dc68f12fdab44215bc6b097ea3cc78d6bb7f10c47a"},
+]
+
+[package.dependencies]
+joblib = ">=0.13.2"
+matplotlib = ">=3.0.0"
+numpy = ">=1.16.2"
+pandas = ">=0.24.2"
+scikit-learn = ">=1.0.2"
+scipy = ">=1.2.1"
+setuptools = "*"
+
+[package.extras]
+docs = ["mkdocs"]
+testing = ["pytest"]
 
 [[package]]
 name = "multidict"
@@ -3383,4 +3431,4 @@ full = []
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10,<3.10.7"
-content-hash = "e01e29e9b3a1c56f3eea403c36ba50702f006b6bf8d8ad9abb0c0fea5c82455e"
+content-hash = "894e917c8634e75b43cd0174a55687c793f0c7e44b4f8b536d06ad16b1490051"

@@ -7,6 +7,7 @@ from hdict import field
 from hdict import hdict
 from hdict.dataset.pandas_handling import file2df
 from hosh import Hosh
+from imodels.tree.figs import FIGS, FIGSClassifier
 from lightgbm import LGBMClassifier as LGBMc
 from numpy import array, quantile
 from numpy import mean, std
@@ -326,6 +327,10 @@ def run(d: hdict, t1=False, t2=False, did=None, just_df=False, vif=True, schedul
                     clas_names.append("StackingClassifier")
                     d = d >> apply(StackingClassifier, cv=_.stacking_cv, final_estimator=_.stacking_final_estimator).StackingClassifier
 
+                # Interpretable.
+                clas_names.append("FIGSClassifier")
+                d = d >> apply(FIGSClassifier).FIGSClassifier
+
                 # Prediction power.
                 ['accuracy', 'adjusted_mutual_info_score', 'adjusted_rand_score', 'average_precision',
                  'balanced_accuracy', 'completeness_score', 'explained_variance',
@@ -383,6 +388,11 @@ def run(d: hdict, t1=False, t2=False, did=None, just_df=False, vif=True, schedul
                         # hs[classifier_field[:10]] = (z == d.y).astype(int)
                         if verbose:
                             print(f"{confusion_matrix(d.y, z)}")
+                        # if classifier_field == "FIGSClassifier":
+                        #     fieldbalacc = f"{classifier_field}_balacc"
+                        #     d = d >> apply(balanced_accuracy_score, _.y, field(field_name_z))(fieldbalacc)
+                        #     d = ch(d, loc, rem, local, remote, sync)
+                        #     print(f"balanced_accuracy {classifier_field:24} {d[fieldbalacc]:.6f}    ---     p-value=  ---")
 
                         # aqui estavam coisas  num  nivel acima na identação
 
