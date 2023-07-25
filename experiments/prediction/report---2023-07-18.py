@@ -55,6 +55,7 @@ eeg = dict(eeg=True, eegpow=True)
 
 kwargs = kwargs0 | mbioma | eeg
 d["kwargs"] = kwargs
+dct.update(kwargs)
 del dct["loc"]
 del dct["rem"]
 del dct["stacking"]
@@ -62,8 +63,7 @@ del dct["sync"]
 del dct["schedule"]
 del dct["print"]
 del dct["measures"]
-d["dct"] = list(sorted(dct.items()))
-kwargs["did"] = d.id
+d["dct"] = dct
 if "empty_mbioma" in kwargs:
     del kwargs["empty_mbioma"]
 if "empty_eeg" in kwargs:

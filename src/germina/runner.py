@@ -74,14 +74,17 @@ def drop_by_vif(df: DataFrame, dropped=None, thresh=5.0):
     return dropped
 
 
-def run(d: hdict, t1=False, t2=False, did=None, just_df=False, vif=True, scheduler=True, printing=True,
+def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, printing=True,
         eeg=False, eegpow=False,
         malpha=False, mpathways=False, mspecies=False, msuper=False,
         metavars=None, targets_meta=None, targets_eeg1=None, targets_eeg2=None,
         stratifiedcv=True, path="data/", loc=True, rem=True, sync=False, verbose=False):
-    print(did)
-    if did is None:
-        raise Exception(f"")
+    dct = d.dct
+    dct["t1"] = t1
+    dct["t2"] = t2
+    dct["stratifiedcv"] = stratifiedcv
+    d["dct"] = list(sorted(dct.items()))
+    print(d.id)
     malpha1 = malpha2 = eegpow1 = eegpow2 = eeg1 = eeg2 = pathways1 = pathways2 = species1 = species2 = super1 = super2 = False
     if eeg:
         eeg1, eeg2 = t1, t2
@@ -95,7 +98,7 @@ def run(d: hdict, t1=False, t2=False, did=None, just_df=False, vif=True, schedul
         species1, species2 = t1, t2
     if msuper:
         super1, super2 = t1, t2
-    logname = f"{d.id}-{t1=}{t2=}{malpha=}{mpathways=}{mspecies=}{msuper=}{eeg=}{eegpow=}{targets_meta=}{targets_eeg1=}{targets_eeg2=}{[metavars]=}{stratifiedcv=}"
+    logname = f"{d.ids['dct']}-{t1=}{t2=}{malpha=}{mpathways=}{mspecies=}{msuper=}{eeg=}{eegpow=}{targets_meta=}{targets_eeg1=}{targets_eeg2=}{[metavars]=}{stratifiedcv=}"
     logname = Hosh(logname.encode()).id + logname[:200]
     if verbose:
         print(logname)
@@ -348,7 +351,7 @@ def run(d: hdict, t1=False, t2=False, did=None, just_df=False, vif=True, schedul
 
                 with sopen(schedule_uri) as db:
                     for m in scos:
-                        jobs = [f"{cn:<25} {target} perm {m} {Hosh(logname.encode()).ansi}" for cn in clas_names]
+                        jobs = [f"{cn:<25} {target} perm {m} {d.hoshes['dct'].ansi}" for cn in clas_names]
                         tasks = (Scheduler(db, timeout=20) << jobs) if scheduler else jobs
                         for task in tasks:
                             classifier_field = task.split(" ")[0]
@@ -367,7 +370,7 @@ def run(d: hdict, t1=False, t2=False, did=None, just_df=False, vif=True, schedul
                             print(f"{m} {classifier_field:24} {me:.6f} {std(d[scores_fi]):.6f}   p-value={d[pval_fi]}")
 
                 # ConfusionMatrix; prediction and hit agreement.  # deindent
-                jobs = [f"{cn:<25} {target} importance {Hosh(logname.encode()).ansi}" for cn in clas_names]
+                jobs = [f"{cn:<25} {target} importance {d.hoshes['dct'].ansi}" for cn in clas_names]
                 with sopen(schedule_uri) as db:
                     tasks = (Scheduler(db, timeout=20) << jobs) if scheduler else jobs
                     for task in tasks:
