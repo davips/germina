@@ -370,7 +370,7 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                             print(f"{m} {classifier_field:24} {me:.6f} {std(d[scores_fi]):.6f}   p-value={d[pval_fi]}")
 
                 # ConfusionMatrix; prediction and hit agreement.  # deindent
-                jobs = [f"{cn:<25} {target} importance {Hosh(str(scos)+d.ids['dct']).ansi}" for cn in clas_names]
+                jobs = [f"{cn:<25} {target} importance {Hosh((str(scos) + d.ids['dct']).encode()).ansi}" for cn in clas_names]
                 with sopen(schedule_uri) as db:
                     tasks = (Scheduler(db, timeout=20) << jobs) if scheduler else jobs
                     for task in tasks:
@@ -423,6 +423,7 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
         # sys.stdout = newout
 
     sys.stdout = oldout
+    print("Scenario finished")
     return dfs
 
 
