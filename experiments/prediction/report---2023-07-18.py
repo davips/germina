@@ -62,7 +62,7 @@ del dct["sync"]
 del dct["schedule"]
 del dct["print"]
 del dct["measures"]
-d["dct"] = dct
+d["dct"] = list(sorted(dct.items()))
 kwargs["did"] = d.id
 if "empty_mbioma" in kwargs:
     del kwargs["empty_mbioma"]
