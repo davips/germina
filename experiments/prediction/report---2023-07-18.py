@@ -1,3 +1,5 @@
+from pprint import pprint
+
 from hdict import hdict
 from shelchemy import sopen
 from shelchemy.scheduler import Scheduler
@@ -16,7 +18,7 @@ from argvsucks import handle_command_line
 
 dct = handle_command_line(argv, loc=False, rem=False, permutations=int, trees=int, stacking=False, strees=int, ssplits=int, sync=False, measures=list, schedule=False, print=False)
 loc, rem, permutations, trees, stacking, strees, ssplits, sync, measures, schedule, printing = dct["loc"], dct["rem"], dct["permutations"], dct["trees"], dct["stacking"], dct["strees"], dct["ssplits"], dct["sync"], dct["measures"], dct["schedule"], dct["print"]
-print(dct)
+pprint(dct)
 print()
 """
         "elegib14_t0",  # sexo
