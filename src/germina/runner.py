@@ -84,7 +84,7 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
     dct["t2"] = t2
     dct["stratifiedcv"] = stratifiedcv
     d["dct"] = list(sorted(dct.items()))
-    print(d.id)
+    d.hosh.show()
     malpha1 = malpha2 = eegpow1 = eegpow2 = eeg1 = eeg2 = pathways1 = pathways2 = species1 = species2 = super1 = super2 = False
     if eeg:
         eeg1, eeg2 = t1, t2
