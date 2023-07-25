@@ -403,7 +403,7 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                         model = f"{target}_{classifier_field}_model"
                         d = d >> apply(lambda c, *args, **kwargs: clone(c).fit(*args, **kwargs), field(classifier_field), _.X, _.y)(model)
                         importances_field_name = f"{target}_{classifier_field}_importances"
-                        d = d >> apply(permutation_importance, field(model), _.X, _.y, n_repeats=20, scoring=scos, n_jobs=-1)(importances_field_name)
+                        d = d >> apply(permutation_importance, field(model), _.X, _.y, n_repeats=100, scoring=scos, n_jobs=-1)(importances_field_name)
                         d = ch(d, loc, rem, local, remote, sync)
                         fst = True
                         for metric in d[importances_field_name]:
