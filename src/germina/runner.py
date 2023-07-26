@@ -38,7 +38,7 @@ def ch(d, loc, rem, local, remote, sync):
         d = d >> cache(remote)
     if loc:
         d = d >> cache(local)
-    # d.evaluate()
+    d.evaluate()
     return d
 
 
@@ -324,7 +324,6 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                     # CATc: {"subsample": 0.1},
                     LGBMc: {},
                     ETc: {},
-                    SGDc: {},
                 }
                 d["estimators"] = []
                 for cla, kwargs in clas.items():
@@ -387,6 +386,7 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                             field_name_z = f"{classifier_field}_z"
                             field_name_p = f"{classifier_field}_p"
                             d = d >> apply(cross_val_predict, field(classifier_field), _.X, _.y, cv=_.cv)(field_name_z)
+                            d = d >> apply(cross_val_predict, field(classifier_field), _.X, _.y, cv=_.cv, method="predict_proba")(field_name_p)
                             d = d >> apply(lambda y, z: confusion_matrix(y, z), z=_[field_name_z]).confusion_matrix
                             d = ch(d, loc, rem, local, remote, sync)
                             if verbose:
@@ -426,7 +426,6 @@ def run_t1_t2(d: hdict, eeg=False, eegpow=False,
     run(d.fromdict(d, d.ids), t1=True, t2=True, targets_eeg2=["Beta_t2", "r_20hz_post_pre_waveleting_t2", "Number_Segs_Post_Seg_Rej_t2"], **kwargs)
 
     """ 
-                                # d = d >> apply(cross_val_predict, field(classifier_field), _.X, _.y, cv=_.cv, method="predict_proba")(field_name_p)
                                 # zs[classifier_field[:10]] = z
                                 # hs[classifier_field[:10]] = (z == d.y).astype(int)
                     # d = d >> apply(ensemble_predict, *members_z).ensemble_z
