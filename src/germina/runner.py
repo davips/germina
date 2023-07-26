@@ -341,7 +341,6 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                 clas_names.append("FIGSClassifier")
                 d = d >> apply(FIGSClassifier).FIGSClassifier
 
-                # Prediction power.
                 ['accuracy', 'adjusted_mutual_info_score', 'adjusted_rand_score', 'average_precision',
                  'balanced_accuracy', 'completeness_score', 'explained_variance',
                  'f1', 'f1_macro', 'f1_micro', 'f1_samples', 'f1_weighted', 'fowlkes_mallows_score',
@@ -358,7 +357,9 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
 
                 with sopen(schedule_uri) as db:
                     for m in scos:
-                        jobs = [f"{cn:<25} {target} PERMs {m} {d.hoshes['dct'].ansi}" for cn in clas_names]
+                        cor = (d.hoshes['dct'] * Hosh(m.encode())).ansi
+                        # Prediction power.
+                        jobs = [f"{cn:<25} {target} PERMs {m} {cor}" for cn in clas_names]
                         tasks = (Scheduler(db, timeout=20) << jobs) if scheduler else jobs
                         for task in tasks:
                             classifier_field = task.split(" ")[0]
@@ -376,10 +377,8 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                                 ref = me
                             print(f"{m} {classifier_field:24} {me:.6f} {std(d[scores_fi]):.6f}   p-value={d[pval_fi]}")
 
-                # ConfusionMatrix; importance
-                with sopen(schedule_uri) as db:
-                    for m in scos:
-                        jobs = [f"{cn:<25} {target} importance {m} {Hosh((str(scos) + d.ids['dct']).encode()).ansi}" for cn in clas_names]
+                        # ConfusionMatrix; importance
+                        jobs = [f"{cn:<25} {target} importance {m} {cor}" for cn in clas_names]
                         tasks = (Scheduler(db, timeout=20) << jobs) if scheduler else jobs
                         for task in tasks:
                             classifier_field = task.split(" ")[0]
