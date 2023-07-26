@@ -79,7 +79,8 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
         malpha=False, mpathways=False, mspecies=False, msuper=False,
         metavars=None, targets_meta=None, targets_eeg1=None, targets_eeg2=None,
         stratifiedcv=True, path="data/", loc=True, rem=True, sync=False, verbose=False):
-    dct = d.dct
+    dct = d.dct.copy() if isinstance(d.dct, dict) else dict(d.dct)
+    print(dct)
     dct["t1"] = t1
     dct["t2"] = t2
     dct["stratifiedcv"] = stratifiedcv
@@ -403,7 +404,7 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                         model = f"{target}_{classifier_field}_model"
                         d = d >> apply(lambda c, *args, **kwargs: clone(c).fit(*args, **kwargs), field(classifier_field), _.X, _.y)(model)
                         importances_field_name = f"{target}_{classifier_field}_importances"
-                        d = d >> apply(permutation_importance, field(model), _.X, _.y, n_repeats=100, scoring=scos, n_jobs=-1)(importances_field_name)
+                        d = d >> apply(permutation_importance, field(model), _.X, _.y, n_repeats=100, scoring=scos, n_jobs=-1)(importances_field_name)  #todo: explodir saída aqui para que mesmo com o scheduler enganado nao processe de novo qnd tiver mudança nas medidas solicitadas (um subconjunto por exemplo).
                         d = ch(d, loc, rem, local, remote, sync)
                         fst = True
                         for metric in d[importances_field_name]:
