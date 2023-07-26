@@ -371,10 +371,7 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                             # d = d >> apply(cross_val_score, field(classifier_field), _.X, _.y, cv=_.cv, scoring=m)(scores_fi)
                             d = d >> apply(permutation_test_score, field(classifier_field), _.X, _.y, cv=_.cv, scoring=m)(scores_fi, permscores_fi, pval_fi)
                             d = ch(d, loc, rem, local, remote, sync)
-                            me = mean(d[scores_fi])
-                            if classifier_field == "DummyClassifier":
-                                ref = me
-                            print(f"{m} {classifier_field:24} {me:.6f} {std(d[scores_fi]):.6f}   p-value={d[pval_fi]}")
+                            print(f"{m} {classifier_field:24} {mean(d[scores_fi]):.6f} {std(d[scores_fi]):.6f}   p-value={d[pval_fi]}")
 
                         # ConfusionMatrix; importance
                         jobs = [f"{cn:<25} {target} importance {m} {cor}" for cn in clas_names]
