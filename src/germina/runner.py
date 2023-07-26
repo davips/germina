@@ -38,7 +38,7 @@ def ch(d, loc, rem, local, remote, sync):
         d = d >> cache(remote)
     if loc:
         d = d >> cache(local)
-    d.evaluate()
+    # d.evaluate()
     return d
 
 
@@ -79,6 +79,7 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
         malpha=False, mpathways=False, mspecies=False, msuper=False,
         metavars=None, targets_meta=None, targets_eeg1=None, targets_eeg2=None,
         stratifiedcv=True, path="data/", loc=True, rem=True, sync=False, verbose=False):
+    # d.show()
     dct = d.dct.copy() if isinstance(d.dct, dict) else dict(d.dct)
     print(dct)
     dct["t1"] = t1
@@ -266,11 +267,13 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
 
             # Remove NaNs ##################################################################################################################
             d = d >> apply(remove_nan_rows_cols, keep=["id_estudo"] + targets).df
+            d = d >> apply(lambda df: df.columns.to_list()).columns
+            d = ch(d, loc, rem, local, remote, sync)
             if verbose:
                 print("Dataset without NaNs ------------------------------------------------------------\n", d.df, "______________________________________________________\n")
 
             # Visualize ####################################################################################################################
-            print("Vars:", d.df.columns.to_list())
+            print("Vars:", d.columns)
             # d.df.to_csv(f"/tmp/all.csv")
             # d.df: DataFrame
             # for target in targets:
@@ -303,12 +306,15 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                     dfs[target] = d.X, d.y
                     continue
 
-                print("X:", d.X.shape)
+                d = d >> apply(lambda X: X.shape).Xshape
+                d = d >> apply(lambda y: y.shape).yshape
+                d = d >> apply(lambda y: np.unique(y, return_counts=True))("unique_labels", "counts")
+                d = d >> apply(lambda y, counts: counts / len(y)).proportions
+                d = ch(d, loc, rem, local, remote, sync)
+                print("X:", d.Xshape)
                 if verbose:
-                    print("y:", d.y.shape)
-                unique_labels, counts = np.unique(d.y, return_counts=True)
-                proportions = counts / len(d.y)
-                print(f"{counts=}\t{proportions=}")
+                    print("y:", d.yshape)
+                print(f"{d.counts=}\t{d.proportions=}")
 
                 clas_names = []
                 clas = {
@@ -352,7 +358,7 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
 
                 with sopen(schedule_uri) as db:
                     for m in scos:
-                        jobs = [f"{cn:<25} {target} perm {m} {d.hoshes['dct'].ansi}" for cn in clas_names]
+                        jobs = [f"{cn:<25} {target} PERMs {m} {d.hoshes['dct'].ansi}" for cn in clas_names]
                         tasks = (Scheduler(db, timeout=20) << jobs) if scheduler else jobs
                         for task in tasks:
                             classifier_field = task.split(" ")[0]
@@ -370,58 +376,36 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                                 ref = me
                             print(f"{m} {classifier_field:24} {me:.6f} {std(d[scores_fi]):.6f}   p-value={d[pval_fi]}")
 
-                # ConfusionMatrix; prediction and hit agreement.  # deindent
-                jobs = [f"{cn:<25} {target} importance {Hosh((str(scos) + d.ids['dct']).encode()).ansi}" for cn in clas_names]
+                # ConfusionMatrix; importance
                 with sopen(schedule_uri) as db:
-                    tasks = (Scheduler(db, timeout=20) << jobs) if scheduler else jobs
-                    for task in tasks:
-                        classifier_field = task.split(" ")[0]
-                        # zs, hs = {}, {}
-                        # members_z = []
-                        if verbose:
-                            print(classifier_field)
-                        field_name_z = f"{classifier_field}_z"
-                        field_name_p = f"{classifier_field}_p"
-                        # if not classifier_field.startswith("Dummy"):
-                        # members_z.append(field(field_name_z))
-                        d = d >> apply(cross_val_predict, field(classifier_field), _.X, _.y, cv=_.cv)(field_name_z)
-                        # d = d >> apply(cross_val_predict, field(classifier_field), _.X, _.y, cv=_.cv, method="predict_proba")(field_name_p)
-                        d = ch(d, loc, rem, local, remote, sync)
-                        z = d[field_name_z]
-                        # zs[classifier_field[:10]] = z
-                        # hs[classifier_field[:10]] = (z == d.y).astype(int)
-                        if verbose:
-                            print(f"{confusion_matrix(d.y, z)}")
-                        # if classifier_field == "FIGSClassifier":
-                        #     fieldbalacc = f"{classifier_field}_balacc"
-                        #     d = d >> apply(balanced_accuracy_score, _.y, field(field_name_z))(fieldbalacc)
-                        #     d = ch(d, loc, rem, local, remote, sync)
-                        #     print(f"balanced_accuracy {classifier_field:24} {d[fieldbalacc]:.6f}    ---     p-value=  ---")
+                    for m in scos:
+                        jobs = [f"{cn:<25} {target} importance {m} {Hosh((str(scos) + d.ids['dct']).encode()).ansi}" for cn in clas_names]
+                        tasks = (Scheduler(db, timeout=20) << jobs) if scheduler else jobs
+                        for task in tasks:
+                            classifier_field = task.split(" ")[0]
+                            if verbose:
+                                print(classifier_field)
+                            field_name_z = f"{classifier_field}_z"
+                            field_name_p = f"{classifier_field}_p"
+                            d = d >> apply(cross_val_predict, field(classifier_field), _.X, _.y, cv=_.cv)(field_name_z)
+                            d = d >> apply(lambda y, z: confusion_matrix(y, z), z=_[field_name_z]).confusion_matrix
+                            d = ch(d, loc, rem, local, remote, sync)
+                            if verbose:
+                                print(f"{d.confusion_matrix}")
 
-                        # aqui estavam coisas  num  nivel acima na identação
-
-                        # Importances
-                        model = f"{target}_{classifier_field}_model"
-                        d = d >> apply(lambda c, *args, **kwargs: clone(c).fit(*args, **kwargs), field(classifier_field), _.X, _.y)(model)
-                        importances_field_name = f"{target}_{classifier_field}_importances"
-                        d = d >> apply(permutation_importance, field(model), _.X, _.y, n_repeats=100, scoring=scos, n_jobs=-1)(importances_field_name)  #todo: explodir saída aqui para que mesmo com o scheduler enganado nao processe de novo qnd tiver mudança nas medidas solicitadas (um subconjunto por exemplo).
-                        d = ch(d, loc, rem, local, remote, sync)
-                        fst = True
-                        for metric in d[importances_field_name]:
-                            r = d[importances_field_name][metric]
+                            # Importances
+                            model = f"{target}_{classifier_field}_model"
+                            d = d >> apply(lambda c, *args, **kwargs: clone(c).fit(*args, **kwargs), field(classifier_field), _.X, _.y)(model)
+                            importances_field_name = f"{target}_{classifier_field}_importances"
+                            d = d >> apply(permutation_importance, field(model), _.X, _.y, n_repeats=100, scoring=m, n_jobs=-1)(importances_field_name)
+                            d = ch(d, loc, rem, local, remote, sync)
+                            r = d[importances_field_name]
+                            print(f"Importances {m} {classifier_field:<20} ----------------------------")
                             for i in r.importances_mean.argsort()[::-1]:
                                 if r.importances_mean[i] - r.importances_std[i] > 0:
-                                    if fst:
-                                        print(f"Importances {classifier_field:<20} ----------------------------")
-                                        fst = False
-                                    print(f"  {metric:<17} {d.X.columns[i][-25:]:<17} {r.importances_mean[i]:.6f} +/- {r.importances_std[i]:.6f}")
-                            # if not fst:
-                            #     print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+                                    print(f"  {m:<17} {d.columns[i][-25:]:<17} {r.importances_mean[i]:.6f} +/- {r.importances_std[i]:.6f}")
                             print()
                     print()
-        # sys.stdout = oldout
-        # d.show()
-        # sys.stdout = newout
 
     sys.stdout = oldout
     print("Scenario finished")
@@ -433,53 +417,56 @@ def run_t1_t2(d: hdict, eeg=False, eegpow=False,
               metavars=None, stratifiedcv=True, path="data/", loc=True, rem=True, verbose=False, sync=False, **kwargs):
     kwargs |= dict(eeg=eeg, eegpow=eegpow, malpha=malpha, mpathways=mpathways, mspecies=mspecies, msuper=msuper, metavars=metavars, stratifiedcv=stratifiedcv, path=path, loc=loc, rem=rem, verbose=verbose, sync=sync)
     #       t1 → t1
-    run(d, t1=True, targets_meta=["ibq_reg_t1", "ibq_soot_t1", "ibq_dura_t1", "bayley_3_t1"], **kwargs)
-    run(d, t1=True, targets_eeg1=["Beta_t1", "r_20hz_post_pre_waveleting_t1", "Number_Segs_Post_Seg_Rej_t1"], **kwargs)
+    run(d.fromdict(d, d.ids), t1=True, targets_meta=["ibq_reg_t1", "ibq_soot_t1", "ibq_dura_t1", "bayley_3_t1"], **kwargs)
+    run(d.fromdict(d, d.ids), t1=True, targets_eeg1=["Beta_t1", "r_20hz_post_pre_waveleting_t1", "Number_Segs_Post_Seg_Rej_t1"], **kwargs)
     #       t1 → t2
-    run(d, t1=True, targets_meta=["ibq_reg_t2", "ibq_soot_t2", "ibq_dura_t2", "bayley_3_t2"], **kwargs)
-    run(d, t1=True, targets_eeg2=["Beta_t2", "r_20hz_post_pre_waveleting_t2", "Number_Segs_Post_Seg_Rej_t2"], **kwargs)
+    run(d.fromdict(d, d.ids), t1=True, targets_meta=["ibq_reg_t2", "ibq_soot_t2", "ibq_dura_t2", "bayley_3_t2"], **kwargs)
+    run(d.fromdict(d, d.ids), t1=True, targets_eeg2=["Beta_t2", "r_20hz_post_pre_waveleting_t2", "Number_Segs_Post_Seg_Rej_t2"], **kwargs)
     #       t1+t2 → t2
-    run(d, t1=True, t2=True, targets_meta=["ibq_reg_t2", "ibq_soot_t2", "ibq_dura_t2", "bayley_3_t2"], **kwargs)
-    run(d, t1=True, t2=True, targets_eeg2=["Beta_t2", "r_20hz_post_pre_waveleting_t2", "Number_Segs_Post_Seg_Rej_t2"], **kwargs)
+    run(d.fromdict(d, d.ids), t1=True, t2=True, targets_meta=["ibq_reg_t2", "ibq_soot_t2", "ibq_dura_t2", "bayley_3_t2"], **kwargs)
+    run(d.fromdict(d, d.ids), t1=True, t2=True, targets_eeg2=["Beta_t2", "r_20hz_post_pre_waveleting_t2", "Number_Segs_Post_Seg_Rej_t2"], **kwargs)
 
-
-"""             # d = d >> apply(ensemble_predict, *members_z).ensemble_z
-                # d = ch(d, loc, rem, local, remote, sync)
-                # 
-                # # Accuracy
-                # # for classifier_field in clas_names:
-                # #     field_name_z = f"{classifier_field}_z"
-                # #     fieldbalacc = f"{classifier_field}_balacc"
-                # #     d = d >> apply(balanced_accuracy_score, _.y, field(field_name_z), adjusted=True)(fieldbalacc)
-                # #     d = ch(d, loc, rem, local, remote, sync)
-                # #     print(f"{classifier_field:24} {d[fieldbalacc]:.6f} ")
-                # d = d >> apply(balanced_accuracy_score, _.y, _.ensemble_z).ensemble_balacc
-                # d = ch(d, loc, rem, local, remote, sync)
-                # print(f"ensemble5 {d.ensemble_balacc:.6f} ")
-
-                # if verbose:
-                #     print("Prediction:")
-                #     Z = array(list(zs.values()))
-                #     zs["   AND    "] = np.logical_and.reduce(Z, axis=0).astype(int)
-                #     zs["   OR     "] = np.logical_or.reduce(Z, axis=0).astype(int)
-                #     zs["   SUM    "] = np.sum(Z, axis=0).astype(int)
-                #     zs["   NOR    "] = np.logical_not(np.logical_or.reduce(Z, axis=0)).astype(int)
-                #     zs["   ==     "] = (np.logical_and.reduce(Z, axis=0) | np.logical_not(np.logical_or.reduce(Z, axis=0))).astype(int)
-                #     for k, z in zs.items():
-                #         if "AND" in k:
-                #             print()
-                #         # print(k, sum(z), ",".join(map(str, z)))
-                #     print()
-                #     print("Hit:")
-                #     H = array(list(hs.values()))
-                #     hs["   AND    "] = np.logical_and.reduce(H, axis=0).astype(int)
-                #     hs["   OR     "] = np.logical_or.reduce(H, axis=0).astype(int)
-                #     hs["   SUM    "] = np.sum(H, axis=0).astype(int)
-                #     hs["   NOR    "] = np.logical_not(np.logical_or.reduce(H, axis=0)).astype(int)
-                #     hs["   ==     "] = (np.logical_and.reduce(H, axis=0) | np.logical_not(np.logical_or.reduce(H, axis=0))).astype(int)
-                #     for k, h in hs.items():
-                #         if "AND" in k:
-                #             print()
-                #         # print(k, sum(h), "\t", ",".join(map(str, h)))
-                #     print()
-"""
+    """ 
+                                # d = d >> apply(cross_val_predict, field(classifier_field), _.X, _.y, cv=_.cv, method="predict_proba")(field_name_p)
+                                # zs[classifier_field[:10]] = z
+                                # hs[classifier_field[:10]] = (z == d.y).astype(int)
+                    # d = d >> apply(ensemble_predict, *members_z).ensemble_z
+                    # d = ch(d, loc, rem, local, remote, sync)
+                    # 
+                    # # Accuracy
+                    # # for classifier_field in clas_names:
+                    # #     field_name_z = f"{classifier_field}_z"
+                    # #     fieldbalacc = f"{classifier_field}_balacc"
+                    # #     d = d >> apply(balanced_accuracy_score, _.y, field(field_name_z), adjusted=True)(fieldbalacc)
+                    # #     d = ch(d, loc, rem, local, remote, sync)
+                    # #     print(f"{classifier_field:24} {d[fieldbalacc]:.6f} ")
+                    # d = d >> apply(balanced_accuracy_score, _.y, _.ensemble_z).ensemble_balacc
+                    # d = ch(d, loc, rem, local, remote, sync)
+                    # print(f"ensemble5 {d.ensemble_balacc:.6f} ")
+    
+                    # if verbose:
+                    #     print("Prediction:")
+                    #     Z = array(list(zs.values()))
+                    #     zs["   AND    "] = np.logical_and.reduce(Z, axis=0).astype(int)
+                    #     zs["   OR     "] = np.logical_or.reduce(Z, axis=0).astype(int)
+                    #     zs["   SUM    "] = np.sum(Z, axis=0).astype(int)
+                    #     zs["   NOR    "] = np.logical_not(np.logical_or.reduce(Z, axis=0)).astype(int)
+                    #     zs["   ==     "] = (np.logical_and.reduce(Z, axis=0) | np.logical_not(np.logical_or.reduce(Z, axis=0))).astype(int)
+                    #     for k, z in zs.items():
+                    #         if "AND" in k:
+                    #             print()
+                    #         # print(k, sum(z), ",".join(map(str, z)))
+                    #     print()
+                    #     print("Hit:")
+                    #     H = array(list(hs.values()))
+                    #     hs["   AND    "] = np.logical_and.reduce(H, axis=0).astype(int)
+                    #     hs["   OR     "] = np.logical_or.reduce(H, axis=0).astype(int)
+                    #     hs["   SUM    "] = np.sum(H, axis=0).astype(int)
+                    #     hs["   NOR    "] = np.logical_not(np.logical_or.reduce(H, axis=0)).astype(int)
+                    #     hs["   ==     "] = (np.logical_and.reduce(H, axis=0) | np.logical_not(np.logical_or.reduce(H, axis=0))).astype(int)
+                    #     for k, h in hs.items():
+                    #         if "AND" in k:
+                    #             print()
+                    #         # print(k, sum(h), "\t", ",".join(map(str, h)))
+                    #     print()
+    """
