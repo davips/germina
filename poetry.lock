@@ -2694,13 +2694,13 @@ testing-integration = ["build[virtualenv]", "filelock (>=3.4.0)", "jaraco.envs (
 
 [[package]]
 name = "shelchemy"
-version = "2.230727.2"
+version = "2.230727.3"
 description = "Shelve-like dict using sqlalchemy as a backend, and lazy scheduler for resuming tasks"
 optional = false
 python-versions = ">=3.10,<4.0"
 files = [
-    {file = "shelchemy-2.230727.2-py3-none-any.whl", hash = "sha256:2a6e67eed42ebcc42e57e05a62baa5f9f993313169e5fc48a332d20341fda95e"},
-    {file = "shelchemy-2.230727.2.tar.gz", hash = "sha256:200a79250182a33cff29d949295cb5f373f57235e4df99f478a275e24a6cf8da"},
+    {file = "shelchemy-2.230727.3-py3-none-any.whl", hash = "sha256:cf5a4eec0d3bb51265b4581812cdaae47e6a0f1bc31b69dc006ad9f31fe976d4"},
+    {file = "shelchemy-2.230727.3.tar.gz", hash = "sha256:b98406de27e86c6ccf3a85eedc116d1cf04ced18dc52a0808ad8d2f0a5fea098"},
 ]
 
 [package.dependencies]
@@ -3366,4 +3366,4 @@ full = []
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10,<3.10.7"
-content-hash = "177387c15ecf0b77656d08ed9bc2b40b50eb230f5c0fe907908cdd2015a29e63"
+content-hash = "679add68d73639c1caf2d5d363829f8955fcf78476fcc1db8084f827a92f6670"
