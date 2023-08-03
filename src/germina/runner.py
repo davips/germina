@@ -105,8 +105,10 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
     if verbose:
         print(logname)
     oldout = sys.stdout
-    with open("out\\" + logname, 'w') as sys.stdout:
+    out = sys.stdout if printing else open("out/output-" + logname[40:96] + f"-tgteeg1={bool(targets_eeg1)}-tgteeg2={bool(targets_eeg2)}-{targets_meta and targets_meta[0][-1]}-germina.txt", 'w')
+    with out as sys.stdout:
         newout = sys.stdout
+        # printing = False
         if printing:
             sys.stdout = oldout
 
@@ -413,14 +415,14 @@ def run_t1_t2(d: hdict, eeg=False, eegpow=False,
               metavars=None, stratifiedcv=True, path="data/", loc=True, rem=True, verbose=False, sync=False, **kwargs):
     kwargs |= dict(eeg=eeg, eegpow=eegpow, malpha=malpha, mpathways=mpathways, mspecies=mspecies, msuper=msuper, metavars=metavars, stratifiedcv=stratifiedcv, path=path, loc=loc, rem=rem, verbose=verbose, sync=sync)
     #       t1 → t1
-    run(d.fromdict(d, d.ids), t1=True, targets_meta=["ibq_reg_t1", "ibq_soot_t1", "ibq_dura_t1", "bayley_3_t1"], **kwargs)
-    run(d.fromdict(d, d.ids), t1=True, targets_eeg1=["Beta_t1", "r_20hz_post_pre_waveleting_t1", "Number_Segs_Post_Seg_Rej_t1"], **kwargs)
+    run(hdict.fromdict(d, d.ids), t1=True, targets_meta=["ibq_reg_t1", "ibq_soot_t1", "ibq_dura_t1", "bayley_3_t1"], **kwargs)
+    run(hdict.fromdict(d, d.ids), t1=True, targets_eeg1=["Beta_t1", "r_20hz_post_pre_waveleting_t1", "Number_Segs_Post_Seg_Rej_t1"], **kwargs)
     #       t1 → t2
-    run(d.fromdict(d, d.ids), t1=True, targets_meta=["ibq_reg_t2", "ibq_soot_t2", "ibq_dura_t2", "bayley_3_t2"], **kwargs)
-    run(d.fromdict(d, d.ids), t1=True, targets_eeg2=["Beta_t2", "r_20hz_post_pre_waveleting_t2", "Number_Segs_Post_Seg_Rej_t2"], **kwargs)
+    run(hdict.fromdict(d, d.ids), t1=True, targets_meta=["ibq_reg_t2", "ibq_soot_t2", "ibq_dura_t2", "bayley_3_t2"], **kwargs)
+    run(hdict.fromdict(d, d.ids), t1=True, targets_eeg2=["Beta_t2", "r_20hz_post_pre_waveleting_t2", "Number_Segs_Post_Seg_Rej_t2"], **kwargs)
     #       t1+t2 → t2
-    run(d.fromdict(d, d.ids), t1=True, t2=True, targets_meta=["ibq_reg_t2", "ibq_soot_t2", "ibq_dura_t2", "bayley_3_t2"], **kwargs)
-    run(d.fromdict(d, d.ids), t1=True, t2=True, targets_eeg2=["Beta_t2", "r_20hz_post_pre_waveleting_t2", "Number_Segs_Post_Seg_Rej_t2"], **kwargs)
+    run(hdict.fromdict(d, d.ids), t1=True, t2=True, targets_meta=["ibq_reg_t2", "ibq_soot_t2", "ibq_dura_t2", "bayley_3_t2"], **kwargs)
+    run(hdict.fromdict(d, d.ids), t1=True, t2=True, targets_eeg2=["Beta_t2", "r_20hz_post_pre_waveleting_t2", "Number_Segs_Post_Seg_Rej_t2"], **kwargs)
 
     """ 
                                 # zs[classifier_field[:10]] = z
