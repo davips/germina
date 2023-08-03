@@ -105,7 +105,7 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
     if verbose:
         print(logname)
     oldout = sys.stdout
-    with open(path + "\\" + logname, 'w') as sys.stdout:
+    with open("out\\" + logname, 'w') as sys.stdout:
         newout = sys.stdout
         if printing:
             sys.stdout = oldout
