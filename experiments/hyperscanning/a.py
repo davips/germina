@@ -14,7 +14,7 @@ from shelchemy.scheduler import Scheduler
 from sklearn.model_selection import StratifiedKFold
 
 from germina.config import schedule_uri
-from germina.runner import run_t1_t2
+from germina.runner import run_t1_t2, run
 from argvsucks import handle_command_line
 
 dct = handle_command_line(argv, loc=False, rem=False, permutations=int, trees=int, stacking=False, strees=int, ssplits=int, sync=False, measures=list, schedule=False, print=False)
@@ -50,8 +50,8 @@ d = hdict(n_permutations=permutations, n_splits=5, n_estimators=trees,
           measures=measures,
           random_state=0, index="id_estudo")
 
-kwargs0 = dict(metavars=matts, loc=loc, rem=rem, sync=sync, scheduler=schedule, printing=printing)
-mbioma = dict(malpha=True, mspecies=True, mpathways=True, msuper=True)
+kwargs0 = {}  # dict(metavars=matts, loc=loc, rem=rem, sync=sync, scheduler=schedule, printing=printing)
+mbioma = {}  # dict(malpha=True, mspecies=True, mpathways=True, msuper=True)
 eeg = dict(eeg=True, eegpow=True)
 
 kwargs = kwargs0 | mbioma | eeg
@@ -72,4 +72,4 @@ if "empty_eeg" in kwargs:
 
 print(sys.version)
 
-run_t1_t2(d, **kwargs)
+run(hdict.fromdict(d, d.ids), t1=True, t2=True, targets_meta=["bayley_3_t2"], **kwargs)

@@ -1,4 +1,5 @@
 import sys
+from contextlib import nullcontext
 from pprint import pprint
 
 import numpy as np
@@ -104,14 +105,10 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
     logname = Hosh(logname.encode()).id + logname[:200]
     if verbose:
         print(logname)
-    oldout = sys.stdout
-    out = sys.stdout if printing else open("out/output-" + logname[40:96] + f"-tgteeg1={bool(targets_eeg1)}-tgteeg2={bool(targets_eeg2)}-{targets_meta and targets_meta[0][-1]}-germina.txt", 'w')
-    with out as sys.stdout:
-        newout = sys.stdout
-        # printing = False
-        if printing:
-            sys.stdout = oldout
-
+    with nullcontext() if printing else open("out/output-" + logname[40:96] + f"-tgteeg1={bool(targets_eeg1)}-tgteeg2={bool(targets_eeg2)}-{targets_meta and targets_meta[0][-1]}-germina.txt", 'w') as ctx:
+        if not printing:
+            old = sys.stdout
+            sys.stdout = ctx
         print(f"Scenario: {t1=}, {t2=}, {malpha=}, {mpathways=}, {mspecies=}, {msuper=}, {eeg=}, {eegpow=},\n")
         if verbose:
             print(f"{metavars=},\n"
@@ -182,6 +179,7 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                     d = drop_many_by_vif(d, "eegpow1", loc, rem, local, remote, sync)
             if targets_eeg1:
                 d = d >> apply(DataFrame.__getitem__, _.eeg1, ["id_estudo"] + targets_eeg1).eeg1
+
             if (eeg2 and not targets_eeg1) or targets_eeg2:
                 d = d >> apply(file2df, path + "data_eeg___2023-06-20___T2_RS_average_dwPLI_withEEGCovariates.csv").eeg2
                 d = d >> apply(remove_nan_rows_cols, _.eeg2, keep=[]).eeg2
@@ -300,6 +298,8 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                 d = d >> apply(lambda x: np.digitize(x, quantile(x, [1 / 5, 4 / 5])), _.t).t
                 d = d >> apply(lambda df, t: df[t != 1], _.df, _.t).dfcut
                 d = d >> apply(remove_cols, _.dfcut, targets, keep=[]).X
+                # print(targets)
+                # print(d.X.columns.to_list())
                 d = d >> apply(lambda t: t[t != 1]).t
                 d = d >> apply(lambda t: t // 2).y
 
@@ -342,23 +342,13 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                 clas_names.append("FIGSClassifier")
                 d = d >> apply(FIGSClassifier).FIGSClassifier
 
-                ['accuracy', 'adjusted_mutual_info_score', 'adjusted_rand_score', 'average_precision',
-                 'balanced_accuracy', 'completeness_score', 'explained_variance',
-                 'f1', 'f1_macro', 'f1_micro', 'f1_samples', 'f1_weighted', 'fowlkes_mallows_score',
-                 'homogeneity_score', 'jaccard', 'jaccard_macro', 'jaccard_micro', 'jaccard_samples', 'jaccard_weighted',
-                 'matthews_corrcoef', 'max_error', 'mutual_info_score',
-                 'neg_brier_score', 'neg_log_loss', 'neg_mean_absolute_error', 'neg_mean_absolute_percentage_error', 'neg_mean_gamma_deviance', 'neg_mean_poisson_deviance', 'neg_mean_squared_error', 'neg_mean_squared_log_error', 'neg_median_absolute_error', 'neg_negative_likelihood_ratio', 'neg_root_mean_squared_error',
-                 'normalized_mutual_info_score', 'positive_likelihood_ratio',
-                 'precision', 'precision_macro', 'precision_micro', 'precision_samples', 'precision_weighted',
-                 'r2', 'rand_score',
-                 'recall', 'recall_macro', 'recall_micro', 'recall_samples', 'recall_weighted',
-                 'roc_auc', 'roc_auc_ovo', 'roc_auc_ovo_weighted', 'roc_auc_ovr', 'roc_auc_ovr_weighted', 'top_k_accuracy', 'v_measure_score']
-                # scos = ["precision", "recall", "balanced_accuracy", "roc_auc"]
                 scos = d.measures
 
                 with sopen(schedule_uri) as db:
                     for m in scos:
+                        print(m)
                         cor = (d.hoshes['dct'] * Hosh(m.encode())).ansi
+
                         # Prediction power.
                         jobs = [f"{cn:<25} {target} PERMs {m} {cor}" for cn in clas_names]
                         tasks = (Scheduler(db, timeout=20) << jobs) if scheduler else jobs
@@ -373,7 +363,7 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                             # d = d >> apply(cross_val_score, field(classifier_field), _.X, _.y, cv=_.cv, scoring=m)(scores_fi)
                             d = d >> apply(permutation_test_score, field(classifier_field), _.X, _.y, cv=_.cv, scoring=m)(scores_fi, permscores_fi, pval_fi)
                             d = ch(d, loc, rem, local, remote, sync)
-                            print(f"{m} {classifier_field:24} {mean(d[scores_fi]):.6f} {std(d[scores_fi]):.6f}   p-value={d[pval_fi]}")
+                            print(f"classification\tp-value={d[pval_fi]:.6f}\t{mean(d[scores_fi]):.6f}\t{std(d[scores_fi]):.6f}\t{m:22}\t{classifier_field:24}\t{target:20}")
 
                         # ConfusionMatrix; importance
                         jobs = [f"{cn:<25} {target} importance {m} {cor}" for cn in clas_names]
@@ -398,14 +388,13 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                             d = d >> apply(permutation_importance, field(model), _.X, _.y, n_repeats=100, scoring=m, n_jobs=-1)(importances_field_name)
                             d = ch(d, loc, rem, local, remote, sync)
                             r = d[importances_field_name]
-                            print(f"Importances {m} {classifier_field:<20} ----------------------------")
                             for i in r.importances_mean.argsort()[::-1]:
                                 if r.importances_mean[i] - r.importances_std[i] > 0:
-                                    print(f"  {m:<17} {d.columns[i][-25:]:<17} {r.importances_mean[i]:.6f} +/- {r.importances_std[i]:.6f}")
-                            print()
+                                    print(f"importance   \t                 \t{r.importances_mean[i]:.6f}\t{r.importances_std[i]:.6f}\t{m:22}\t{classifier_field:24}\t{target:20}\t{d.columns[i]}")
+                        print()
                     print()
-
-    sys.stdout = oldout
+    if not printing:
+        sys.stdout = old
     print("Scenario finished")
     return dfs
 
