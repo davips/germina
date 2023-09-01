@@ -50,11 +50,12 @@ d = hdict(n_permutations=permutations, n_splits=5, n_estimators=trees,
           measures=measures,
           random_state=0, index="id_estudo")
 
-kwargs0 = {}  # dict(metavars=matts, loc=loc, rem=rem, sync=sync, scheduler=schedule, printing=printing)
+kwargs0 = dict(loc=loc, rem=rem, sync=sync, scheduler=schedule, printing=printing)
+mt = dict(metavars=matts)
 mbioma = {}  # dict(malpha=True, mspecies=True, mpathways=True, msuper=True)
 eeg = dict(eeg=True, eegpow=True)
 
-kwargs = kwargs0 | mbioma | eeg
+kwargs = kwargs0 | mt | mbioma | eeg
 d["kwargs"] = kwargs
 dct.update(kwargs)
 del dct["loc"]
