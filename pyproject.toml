@@ -7,7 +7,7 @@ readme = "README.md"
 packages = [{include = "germina", from = "src"}]
 
 [tool.poetry.dependencies]
-python = "^3.10,<3.12"
+python = "^3.11.2"
 hdict = "^2.230721.3"
 matplotlib = "^3.7.1"
 datasets = "^2.11.0"
