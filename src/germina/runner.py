@@ -381,7 +381,7 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                             d = ch(d, loc, rem, local, remote, sync)
 
                             print("hit & miss", classifier_field)
-                            print(~(d[field_name_z].astype(bool) ^ d.y.astype(bool)))
+                            print((~(d[field_name_z].astype(bool) ^ d.y.astype(bool))).astype(int).tolist())
                             print("--------------------")
 
                             if verbose:
