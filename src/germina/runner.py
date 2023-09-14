@@ -379,6 +379,11 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                             d = d >> apply(cross_val_predict, field(classifier_field), _.X, _.y, cv=_.cv, method="predict_proba")(field_name_p)
                             d = d >> apply(lambda y, z: confusion_matrix(y, z), z=_[field_name_z]).confusion_matrix
                             d = ch(d, loc, rem, local, remote, sync)
+
+                            print("hit & miss", classifier_field)
+                            print(~(d[field_name_z] ^ d.y))
+                            print("--------------------")
+
                             if verbose:
                                 print(f"{d.confusion_matrix}")
 
