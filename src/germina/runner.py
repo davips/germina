@@ -347,17 +347,17 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
 
                 with sopen(schedule_uri) as db:
                     for m in scos:
-                        print(m)
+                        print(m, end="\t")
+                        d.hosh.show()
                         cor = (d.hoshes['dct'] * Hosh(m.encode())).ansi
 
                         # Prediction power.
                         jobs = [f"{cn:<25} {target} PERMs {m} {cor}" for cn in clas_names]
                         tasks = (Scheduler(db, timeout=20) << jobs) if scheduler else jobs
                         for task in tasks:
+                            print(m, end="\t")
+                            d.hosh.show()
                             classifier_field = task.split(" ")[0]
-                            # print("-------------------------------------------")
-                            # print(m)
-                            # print("-------------------------------------------")
                             scores_fi = f"{m}_{classifier_field}"
                             permscores_fi = f"perm_{scores_fi}"
                             pval_fi = f"pval_{scores_fi}"
@@ -370,6 +370,8 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                         jobs = [f"{cn:<25} {target} importance {m} {cor}" for cn in clas_names]
                         tasks = (Scheduler(db, timeout=20) << jobs) if scheduler else jobs
                         for task in tasks:
+                            print(m, end="\t")
+                            d.hosh.show()
                             classifier_field = task.split(" ")[0]
                             if verbose:
                                 print(classifier_field)
@@ -380,8 +382,7 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                             d = d >> apply(lambda y, z: confusion_matrix(y, z), z=_[field_name_z]).confusion_matrix
                             d = ch(d, loc, rem, local, remote, sync)
 
-                            print("hit & miss", classifier_field)
-                            print((~(d[field_name_z].astype(bool) ^ d.y.astype(bool))).astype(int).tolist())
+                            print(f"hit&miss,{classifier_field},{(~(d[field_name_z].astype(bool) ^ d.y.astype(bool))).astype(int).tolist()}")
                             print("--------------------")
 
                             if verbose:
