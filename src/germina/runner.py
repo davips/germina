@@ -356,12 +356,12 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                         tasks = (Scheduler(db, timeout=20) << jobs) if scheduler else jobs
                         for task in tasks:
                             print(m, end="\t")
-                            d.hosh.show()
                             classifier_field = task.split(" ")[0]
                             scores_fi = f"{m}_{classifier_field}"
                             permscores_fi = f"perm_{scores_fi}"
                             pval_fi = f"pval_{scores_fi}"
                             # d = d >> apply(cross_val_score, field(classifier_field), _.X, _.y, cv=_.cv, scoring=m)(scores_fi)
+                            d.hosh.show()
                             d = d >> apply(permutation_test_score, field(classifier_field), _.X, _.y, cv=_.cv, scoring=m)(scores_fi, permscores_fi, pval_fi)
                             d = ch(d, loc, rem, local, remote, sync)
                             print(f"classification\tp-value={d[pval_fi]:.6f}\t{mean(d[scores_fi]):.6f}\t{std(d[scores_fi]):.6f}\t{m:22}\t{classifier_field:24}\t{target:20}")
