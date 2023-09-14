@@ -301,7 +301,8 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                 # print(targets)
                 # print(d.X.columns.to_list())
                 d = d >> apply(lambda t: t[t != 1]).t
-                d = d >> apply(lambda t: t // 2).y
+                d = d >> apply(lambda t: t // 2 ^ 1).y
+                # print(d.y)
 
                 d = ch(d, loc, rem, local, remote, sync)
                 if just_df:
@@ -339,8 +340,8 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                     d = d >> apply(StackingClassifier, cv=_.stacking_cv, final_estimator=_.stacking_final_estimator).StackingClassifier
 
                 # Interpretable.
-                clas_names.append("FIGSClassifier")
-                d = d >> apply(FIGSClassifier).FIGSClassifier
+                # clas_names.append("FIGSClassifier")
+                # d = d >> apply(FIGSClassifier).FIGSClassifier
 
                 scos = d.measures
 
