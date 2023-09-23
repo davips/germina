@@ -75,7 +75,7 @@ def drop_by_vif(df: DataFrame, dropped=None, thresh=5.0):
     return dropped
 
 
-def run(d: hdict, high_is_positive, tm, t1=False, t2=False, just_df=False, vif=True, scheduler=True, printing=True,
+def run(d: hdict, high_is_positive, mn, t1=False, t2=False, just_df=False, vif=True, scheduler=True, printing=True,
         eeg=False, eegpow=False,
         malpha=False, mpathways=False, mspecies=False, msuper=False,
         metavars=None, targets_meta=None, targets_eeg1=None, targets_eeg2=None,
@@ -300,7 +300,7 @@ def run(d: hdict, high_is_positive, tm, t1=False, t2=False, just_df=False, vif=T
                     q = quantile(x, [1 / 5, 4 / 5])
                     l = extract(x <= q[0], x)
                     h = extract(x >= q[1], x)
-                    w = min(len(l), len(h)) if tm else max(len(l), len(h))
+                    w = min(len(l), len(h)) if mn else max(len(l), len(h))
                     ix = argsort(x)
                     x.iloc[:] = 1
                     x.iloc[ix[:w]] = 0
@@ -367,7 +367,7 @@ def run(d: hdict, high_is_positive, tm, t1=False, t2=False, just_df=False, vif=T
                         cor = (d.hoshes['dct'] * Hosh(m.encode())).ansi
 
                         # Prediction power.
-                        jobs = [f"{cn:<25} {target} PERMs {m} {cor} {'+' if high_is_positive else ''} {'+' if tm else ''}" for cn in clas_names]
+                        jobs = [f"{cn:<25} {target} PERMs {m} {cor} {'+' if high_is_positive else ''} {'+' if mn else ''}" for cn in clas_names]
                         tasks = (Scheduler(db, timeout=20) << jobs) if scheduler else jobs
                         for task in tasks:
                             print(m, end="\t")
@@ -382,7 +382,7 @@ def run(d: hdict, high_is_positive, tm, t1=False, t2=False, just_df=False, vif=T
                             print(f"classification\tp-value={d[pval_fi]:.6f}\t{mean(d[scores_fi]):.6f}\t{std(d[scores_fi]):.6f}\t{m:22}\t{classifier_field:24}\t{target:20}")
 
                         # ConfusionMatrix; importance
-                        jobs = [f"{cn:<25} {target} importance {m} {cor} {'+' if high_is_positive else ''} {'+' if tm else ''}" for cn in clas_names]
+                        jobs = [f"{cn:<25} {target} importance {m} {cor} {'+' if high_is_positive else ''} {'+' if mn else ''}" for cn in clas_names]
                         tasks = (Scheduler(db, timeout=20) << jobs) if scheduler else jobs
                         for task in tasks:
                             print(m, end="\t")
