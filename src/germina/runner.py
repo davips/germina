@@ -75,7 +75,7 @@ def drop_by_vif(df: DataFrame, dropped=None, thresh=5.0):
     return dropped
 
 
-def run(d: hdict, high_is_positive, t1=False, t2=False, just_df=False, vif=True, scheduler=True, printing=True,
+def run(d: hdict, high_is_positive, tm, t1=False, t2=False, just_df=False, vif=True, scheduler=True, printing=True,
         eeg=False, eegpow=False,
         malpha=False, mpathways=False, mspecies=False, msuper=False,
         metavars=None, targets_meta=None, targets_eeg1=None, targets_eeg2=None,
@@ -300,7 +300,7 @@ def run(d: hdict, high_is_positive, t1=False, t2=False, just_df=False, vif=True,
                     q = quantile(x, [1 / 5, 4 / 5])
                     l = extract(x <= q[0], x)
                     h = extract(x >= q[1], x)
-                    w = max(len(l), len(h))
+                    w = min(len(l), len(h)) if tm else max(len(l), len(h))
                     ix = argsort(x)
                     x.iloc[:] = 1
                     x.iloc[ix[:w]] = 0
