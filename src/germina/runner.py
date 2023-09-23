@@ -296,7 +296,7 @@ def run(d: hdict, high_is_positive, mn, t1=False, t2=False, just_df=False, vif=T
                 # Prepare dataset.
                 d = d >> apply(getattr, _.df, target).t
 
-                def qtl(x):
+                def qtl(x, mn):
                     q = quantile(x, [1 / 5, 4 / 5])
                     l = extract(x <= q[0], x)
                     h = extract(x >= q[1], x)
@@ -307,7 +307,7 @@ def run(d: hdict, high_is_positive, mn, t1=False, t2=False, just_df=False, vif=T
                     x.iloc[ix[-w:]] = 2
                     return x.astype(int)
 
-                d = d >> apply(qtl, _.t).t
+                d = d >> apply(qtl, _.t, mn).t
                 d = d >> apply(lambda df, t: df[t != 1], _.df, _.t).dfcut
                 d = d >> apply(remove_cols, _.dfcut, targets, keep=[]).X
                 # print(targets)
