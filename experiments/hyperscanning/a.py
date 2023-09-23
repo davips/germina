@@ -17,8 +17,8 @@ from germina.config import schedule_uri
 from germina.runner import run_t1_t2, run
 from argvsucks import handle_command_line
 
-dct = handle_command_line(argv, loc=False, rem=False, permutations=int, trees=int, stacking=False, strees=int, ssplits=int, sync=False, measures=list, schedule=False, print=False)
-loc, rem, permutations, trees, stacking, strees, ssplits, sync, measures, schedule, printing = dct["loc"], dct["rem"], dct["permutations"], dct["trees"], dct["stacking"], dct["strees"], dct["ssplits"], dct["sync"], dct["measures"], dct["schedule"], dct["print"]
+dct = handle_command_line(argv, loc=False, rem=False, permutations=int, trees=int, stacking=False, strees=int, ssplits=int, sync=False, measures=list, schedule=False, print=False, hip=True)
+loc, rem, permutations, trees, stacking, strees, ssplits, sync, measures, schedule, printing, high_is_positive = dct["loc"], dct["rem"], dct["permutations"], dct["trees"], dct["stacking"], dct["strees"], dct["ssplits"], dct["sync"], dct["measures"], dct["schedule"], dct["print"], dct["hip"]
 pprint(dct)
 print()
 """
@@ -73,4 +73,4 @@ if "empty_eeg" in kwargs:
 
 print(sys.version)
 
-run(hdict.fromdict(d, d.ids), t1=True, t2=True, targets_meta=["bayley_3_t2"], **kwargs)
+run(hdict.fromdict(d, d.ids), t1=True, t2=True, targets_meta=["bayley_3_t2"], high_is_positive=high_is_positive, **kwargs)

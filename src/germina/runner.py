@@ -10,7 +10,7 @@ from hdict.dataset.pandas_handling import file2df
 from hosh import Hosh
 from imodels.tree.figs import FIGS, FIGSClassifier
 from lightgbm import LGBMClassifier as LGBMc
-from numpy import array, quantile
+from numpy import array, quantile, where, extract, argsort
 from numpy import mean, std
 from pandas import DataFrame
 from shelchemy import sopen
@@ -75,7 +75,7 @@ def drop_by_vif(df: DataFrame, dropped=None, thresh=5.0):
     return dropped
 
 
-def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, printing=True,
+def run(d: hdict, high_is_positive, t1=False, t2=False, just_df=False, vif=True, scheduler=True, printing=True,
         eeg=False, eegpow=False,
         malpha=False, mpathways=False, mspecies=False, msuper=False,
         metavars=None, targets_meta=None, targets_eeg1=None, targets_eeg2=None,
@@ -295,13 +295,28 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
 
                 # Prepare dataset.
                 d = d >> apply(getattr, _.df, target).t
-                d = d >> apply(lambda x: np.digitize(x, quantile(x, [1 / 5, 4 / 5])), _.t).t
+
+                def qtl(x):
+                    q = quantile(x, [1 / 5, 4 / 5])
+                    l = extract(x <= q[0], x)
+                    h = extract(x >= q[1], x)
+                    w = max(len(l), len(h))
+                    ix = argsort(x)
+                    x.iloc[:] = 1
+                    x.iloc[ix[:w]] = 0
+                    x.iloc[ix[-w:]] = 2
+                    return x.astype(int)
+
+                d = d >> apply(qtl, _.t).t
                 d = d >> apply(lambda df, t: df[t != 1], _.df, _.t).dfcut
                 d = d >> apply(remove_cols, _.dfcut, targets, keep=[]).X
                 # print(targets)
                 # print(d.X.columns.to_list())
                 d = d >> apply(lambda t: t[t != 1]).t
-                d = d >> apply(lambda t: t // 2 ^ 1).y
+                if high_is_positive:
+                    d = d >> apply(lambda t: t // 2).y
+                else:
+                    d = d >> apply(lambda t: t // 2 ^ 1).y
                 # print(d.y)
 
                 d = ch(d, loc, rem, local, remote, sync)
@@ -352,7 +367,7 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                         cor = (d.hoshes['dct'] * Hosh(m.encode())).ansi
 
                         # Prediction power.
-                        jobs = [f"{cn:<25} {target} PERMs {m} {cor}" for cn in clas_names]
+                        jobs = [f"{cn:<25} {target} PERMs {m} {cor} {'+' if high_is_positive else ''}" for cn in clas_names]
                         tasks = (Scheduler(db, timeout=20) << jobs) if scheduler else jobs
                         for task in tasks:
                             print(m, end="\t")
@@ -367,7 +382,7 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                             print(f"classification\tp-value={d[pval_fi]:.6f}\t{mean(d[scores_fi]):.6f}\t{std(d[scores_fi]):.6f}\t{m:22}\t{classifier_field:24}\t{target:20}")
 
                         # ConfusionMatrix; importance
-                        jobs = [f"{cn:<25} {target} importance {m} {cor}" for cn in clas_names]
+                        jobs = [f"{cn:<25} {target} importance {m} {cor} {'+' if high_is_positive else ''}" for cn in clas_names]
                         tasks = (Scheduler(db, timeout=20) << jobs) if scheduler else jobs
                         for task in tasks:
                             print(m, end="\t")
