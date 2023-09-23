@@ -361,7 +361,7 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                             permscores_fi = f"perm_{scores_fi}"
                             pval_fi = f"pval_{scores_fi}"
                             # d = d >> apply(cross_val_score, field(classifier_field), _.X, _.y, cv=_.cv, scoring=m)(scores_fi)
-                            d.hosh.show()
+                            d.hosh.show()  # todo: por que stacking não está cacheando no roc?
                             d = d >> apply(permutation_test_score, field(classifier_field), _.X, _.y, cv=_.cv, scoring=m)(scores_fi, permscores_fi, pval_fi)
                             d = ch(d, loc, rem, local, remote, sync)
                             print(f"classification\tp-value={d[pval_fi]:.6f}\t{mean(d[scores_fi]):.6f}\t{std(d[scores_fi]):.6f}\t{m:22}\t{classifier_field:24}\t{target:20}")
@@ -382,7 +382,7 @@ def run(d: hdict, t1=False, t2=False, just_df=False, vif=True, scheduler=True, p
                             d = d >> apply(lambda y, z: confusion_matrix(y, z), z=_[field_name_z]).confusion_matrix
                             d = ch(d, loc, rem, local, remote, sync)
 
-                            print(f"hit&miss,{classifier_field},{(~(d[field_name_z].astype(bool) ^ d.y.astype(bool))).astype(int).tolist()}")
+                            print(f"hit&miss,{classifier_field},{','.join(str(x) for x in (~(d[field_name_z].astype(bool) ^ d.y.astype(bool))).astype(int).tolist())}")
                             print("--------------------")
 
                             if verbose:
