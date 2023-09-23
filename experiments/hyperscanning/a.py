@@ -17,7 +17,7 @@ from germina.config import schedule_uri
 from germina.runner import run_t1_t2, run
 from argvsucks import handle_command_line
 
-dct = handle_command_line(argv, loc=False, rem=False, permutations=int, trees=int, stacking=False, strees=int, ssplits=int, sync=False, measures=list, schedule=False, print=False, hip=True)
+dct = handle_command_line(argv, loc=False, rem=False, permutations=int, trees=int, stacking=False, strees=int, ssplits=int, sync=False, measures=list, schedule=False, print=False, hip=False)
 loc, rem, permutations, trees, stacking, strees, ssplits, sync, measures, schedule, printing, high_is_positive = dct["loc"], dct["rem"], dct["permutations"], dct["trees"], dct["stacking"], dct["strees"], dct["ssplits"], dct["sync"], dct["measures"], dct["schedule"], dct["print"], dct["hip"]
 pprint(dct)
 print()
