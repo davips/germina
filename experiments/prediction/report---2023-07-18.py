@@ -17,8 +17,8 @@ from germina.config import schedule_uri
 from germina.runner import run_t1_t2
 from argvsucks import handle_command_line
 
-dct = handle_command_line(argv, loc=False, rem=False, permutations=int, trees=int, stacking=False, strees=int, ssplits=int, sync=False, measures=list, schedule=False, print=False)
-loc, rem, permutations, trees, stacking, strees, ssplits, sync, measures, schedule, printing = dct["loc"], dct["rem"], dct["permutations"], dct["trees"], dct["stacking"], dct["strees"], dct["ssplits"], dct["sync"], dct["measures"], dct["schedule"], dct["print"]
+dct = handle_command_line(argv, loc=False, rem=False, permutations=int, trees=int, stacking=False, strees=int, ssplits=int, sync=False, measures=list, schedule=False, print=False, hip=False, mn=False)
+loc, rem, permutations, trees, stacking, strees, ssplits, sync, measures, schedule, printing, hip, mn = dct["loc"], dct["rem"], dct["permutations"], dct["trees"], dct["stacking"], dct["strees"], dct["ssplits"], dct["sync"], dct["measures"], dct["schedule"], dct["print"], dct["hip"], dct["mn"]
 pprint(dct)
 print()
 """
@@ -72,4 +72,4 @@ if "empty_eeg" in kwargs:
 
 print(sys.version)
 
-run_t1_t2(d, **kwargs)
+run_t1_t2(d, high_is_positive=hip, mn=mn, **kwargs)

@@ -367,7 +367,7 @@ def run(d: hdict, high_is_positive, mn, t1=False, t2=False, just_df=False, vif=T
                         cor = (d.hoshes['dct'] * Hosh(m.encode())).ansi
 
                         # Prediction power.
-                        jobs = [f"{cn:<25} {target} PERMs {m} {cor} {'+' if high_is_positive else ''} {'+' if mn else ''}" for cn in clas_names]
+                        jobs = [f"{cn:<25} {target} PERMs {m} {cor} {'+' if high_is_positive else ''} {'+mn' if mn else ''}" for cn in clas_names]
                         tasks = (Scheduler(db, timeout=20) << jobs) if scheduler else jobs
                         for task in tasks:
                             print(m, end="\t")
@@ -382,7 +382,7 @@ def run(d: hdict, high_is_positive, mn, t1=False, t2=False, just_df=False, vif=T
                             print(f"classification\tp-value={d[pval_fi]:.6f}\t{mean(d[scores_fi]):.6f}\t{std(d[scores_fi]):.6f}\t{m:22}\t{classifier_field:24}\t{target:20}")
 
                         # ConfusionMatrix; importance
-                        jobs = [f"{cn:<25} {target} importance {m} {cor} {'+' if high_is_positive else ''} {'+' if mn else ''}" for cn in clas_names]
+                        jobs = [f"{cn:<25} {target} importance {m} {cor} {'+' if high_is_positive else ''} {'+mn' if mn else ''}" for cn in clas_names]
                         tasks = (Scheduler(db, timeout=20) << jobs) if scheduler else jobs
                         for task in tasks:
                             print(m, end="\t")
