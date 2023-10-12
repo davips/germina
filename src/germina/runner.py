@@ -49,14 +49,15 @@ def drop_many_by_vif(d, dffield, loc, rem, local, remote, sync):
     lstfield = f"{dffield}_dropped"
     d[lstfield] = old = []
     while True:
-        d = d >> apply(drop_by_vif, df=field(dffield), dropped=field(lstfield))(lstfield)
+        d = d >> apply(drop_by_vif, df=field(dffield), dropped=_[lstfield])(lstfield)
         d = ch(d, loc, rem, local, remote, sync)
         # print(d.ids[lstfield], d[lstfield])
         if d[lstfield] == old:
             break
         old = d[lstfield]
     d = d >> apply(remove_cols, field(dffield), field(lstfield), keep=[], debug=False)(dffield)
-    return ch(d, loc, rem, local, remote, sync)
+    d = ch(d, loc, rem, local, remote, sync)
+    return d
 
 
 def drop_by_vif(df: DataFrame, dropped=None, thresh=5.0):

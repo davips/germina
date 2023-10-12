@@ -7,8 +7,8 @@ def join(df: DataFrame, index, other, join):
         df.set_index(index, inplace=True)
     if other.index.name != index:
         other.set_index(index, inplace=True)
-    res = df.join([other], how=join)
-    return res
+    res = df.join([other], how=join, sort=True)
+    return res.reindex(sorted(res.columns), axis=1)
 
 
 def ensemble_predict(*predictions):
@@ -17,3 +17,1049 @@ def ensemble_predict(*predictions):
     array([1, 9, 4])
     """
     return mode(predictions)[0]
+
+
+microbiome_pathways1_dropped = [
+    "ARGDEG-PWY",
+    "GALACTARDEG-PWY",
+    "HCAMHPDEG-PWY",
+    "NAGLIPASYN-PWY",
+    "PWY-5417",
+    "PWY-5692",
+    "PWY-5850",
+    "PWY-5897",
+    "PWY-5898",
+    "PWY-6122",
+    "PWY-7220",
+    "PWY-8173",
+    "PWY-8174",
+    "PWY4FS-7",
+    "PWY0-1319",
+    "PWY-7664",
+    "METSYN-PWY",
+    "PWY-5860",
+    "UBISYN-PWY",
+    "PWY-6126",
+    "PWY-6282",
+    "PWY-6071",
+    "ILEUSYN-PWY",
+    "PWY0-1337",
+    "PWY-5347",
+    "PWY-6125",
+    "PEPTIDOGLYCANSYN-PWY",
+    "TCA-GLYOX-BYPASS",
+    "PWY-7371",
+    "PWY-5838",
+    "PWY-5431",
+    "FASYN-ELONG-PWY",
+    "GLYCOLYSIS",
+    "PWY-7807",
+    "CENTFERM-PWY",
+    "TCA",
+    "BRANCHED-CHAIN-AA-SYN-PWY",
+    "PWY-6284",
+    "PWY-6387",
+    "MET-SAM-PWY",
+    "PWY-5845",
+    "PWY-7790",
+    "PWY-561",
+    "ARG+POLYAMINE-SYN",
+    "ARGSYN-PWY",
+    "PWY-5654",
+    "BIOTIN-BIOSYNTHESIS-PWY",
+    "HEME-BIOSYNTHESIS-II-1",
+    "PWY-7851",
+    "PWY-6612",
+    "FAO-PWY",
+    "DENOVOPURINE2-PWY",
+    "NONOXIPENT-PWY",
+    "PWY-7228",
+    "HEME-BIOSYNTHESIS-II",
+    "PWY0-1277",
+    "PWY-6386",
+    "PWY-5861",
+    "ARO-PWY",
+    "PWY0-1415",
+    "P4-PWY",
+    "PWY-5896",
+    "P41-PWY",
+    "ARGSYNBSUB-PWY",
+    "PWY-5918",
+    "PWY-6969",
+    "P23-PWY",
+    "PWY-5941",
+    "GLYOXYLATE-BYPASS",
+    "SALVADEHYPOX-PWY",
+    "PWY-7187",
+    "FUC-RHAMCAT-PWY",
+    "PWY0-1586",
+    "PWY-5097",
+    "VALSYN-PWY",
+    "GALACTITOLCAT-PWY",
+    "PWY-5837",
+    "PWY-6277",
+    "GLUCARGALACTSUPER-PWY",
+    "PWY4FS-8",
+    "PWY0-862",
+    "PWY-6396",
+    "PWY-6901",
+    "PWY-6185",
+    "PWY-5138",
+    "PWY-6163",
+    "PWY-5913",
+    "PWY0-845",
+    "POLYAMSYN-PWY",
+    "PANTOSYN-PWY",
+    "PWY-6385",
+    "P461-PWY",
+    "AST-PWY",
+    "PWY-3001",
+    "SULFATE-CYS-PWY",
+    "PWY-6285",
+    "THRESYN-PWY",
+    "PWY-5862",
+    "PWY-7560",
+    "PWY0-1338",
+    "PWY-7229",
+    "PWY0-166",
+    "PWY-5189",
+    "P441-PWY",
+    "PWY-7031",
+    "HEMESYN2-PWY",
+    "PWY-5686",
+    "PWY-6353",
+    "UDPNAGSYN-PWY",
+    "PWY-6519",
+    "PWY-6123",
+    "CATECHOL-ORTHO-CLEAVAGE-PWY",
+    "PWY-5723",
+    "PWY0-301",
+    "TRNA-CHARGING-PWY",
+    "PWY-8178",
+    "GLUCONEO-PWY",
+    "GLUCARDEG-PWY",
+    "HOMOSER-METSYN-PWY",
+    "DAPLYSINESYN-PWY",
+    "COA-PWY-1",
+    "PWY-5103",
+    "PROTOCATECHUATE-ORTHO-CLEAVAGE-PWY",
+    "PWY-7118",
+    "NONMEVIPP-PWY",
+    "GLYCOLYSIS-E-D",
+    "PWY-5188",
+    "PWY-5675",
+    "P105-PWY",
+    "ANAGLYCOLYSIS-PWY",
+    "PWY-5910",
+    "PWY-7111",
+    "PWY-5899",
+    "GLUTORN-PWY",
+    "PWY0-1061",
+    "ANAEROFRUCAT-PWY",
+    "PWY0-1477",
+    "PWY1ZNC-1",
+    "PWY-5136",
+    "PHOSLIPSYN-PWY",
+    "PWY-7858",
+    "PWY-7977",
+    "PWY-7791",
+    "PWY-7208",
+    "PWY-7400",
+    "FUCCAT-PWY",
+    "PWY-6121",
+    "PWY-724",
+    "PWY-7663",
+    "HEXITOLDEGSUPER-PWY",
+    "PWY66-391",
+    "PWY-2942",
+    "PWY-7268",
+    "PWY0-1296",
+    "PWY-4041",
+    "CALVIN-PWY",
+    "FERMENTATION-PWY",
+    "CITRULBIO-PWY",
+    "PWY-6531",
+    "PWY-1269",
+    "PWY-3841",
+    "PWY-7117",
+    "PWY-841",
+    "COLANSYN-PWY",
+    "PWY-5484",
+    "PWY-5855",
+    "PYRIDNUCSAL-PWY",
+    "SO4ASSIM-PWY",
+    "PWY-702",
+    "COMPLETE-ARO-PWY",
+    "ORNDEG-PWY",
+    "PWY-7388",
+    "PWY0-1298",
+    "PWY-7238",
+    "ECASYN-PWY",
+    "PWY-1042",
+    "PWY-7357",
+    "PWY-7204",
+    "PENTOSE-P-PWY",
+    "PWY0-781",
+    "PWY-6305",
+    "GLUCUROCAT-PWY",
+    "PWY-6803",
+    "PWY-7282",
+    "PWY4LZ-257",
+    "HISTSYN-PWY",
+    "PWY-5667",
+    "PWY-7197",
+    "PWY0-42",
+    "PWY-8073",
+    "PWY-6527",
+    "PWY-7269",
+    "PWY-7953",
+    "ASPASN-PWY",
+    "PWY-5384",
+    "ARGININE-SYN4-PWY",
+    "PWY-6859",
+    "PWY66-409",
+    "PWY-7345",
+    "P185-PWY",
+    "PWY-7874",
+    "PWY-5695",
+    "PWY-3801",
+    "PWY0-1241",
+    "PWY0-1297",
+    "PWY-6124",
+    "PWY66-429",
+    "PWY-6895",
+    "PWY0-1261",
+    "LIPA-CORESYN-PWY",
+    "PWY-5345",
+    "GLYCOGENSYNTH-PWY",
+    "PWY-6961",
+    "PWY0-1479",
+    "PWY-5840",
+    "PWY-5989",
+    "PWY-7992",
+    "GALACTUROCAT-PWY",
+    "PWY-5920",
+    "PRPP-PWY",
+    "PWY-7409",
+    "PWY-6595",
+    "PWY-5656",
+    "PWY-6608",
+    "PWY-7340",
+    "PWY-6703",
+    "PWY-6628",
+    "PWY-7883",
+    "PWY-922",
+    "PWY-6151",
+    "POLYISOPRENSYN-PWY",
+    "GOLPDLCAT-PWY",
+    "HISDEG-PWY",
+    "PWY-6609",
+    "PWY-7942",
+    "PWY-7115",
+    "CARNMET-PWY",
+    "PWY-6700",
+    "PWY-7222",
+    "PWY-6317",
+    "PWY-5973",
+    "PWY-7242",
+    "PWY-7221",
+    "P221-PWY",
+    "SER-GLYSYN-PWY",
+    "PWY-7184",
+    "PWY-8004",
+    "P161-PWY",
+    "PWY-6823",
+    "PWY-7094",
+    "PWY-7211",
+    "1CMET2-PWY",
+    "DARABCATK12-PWY",
+    "PWY-7234",
+    "PWY-7323",
+    "ORNARGDEG-PWY",
+    "PWY-6606",
+    "PWY-8187",
+    "PWY-5121",
+    "PWY0-41",
+    "PWY-7013",
+    "PANTO-PWY",
+    "PWY-6897",
+    "PPGPPMET-PWY",
+    "FOLSYN-PWY",
+    "PYRIDNUCSYN-PWY",
+    "KDO-NAGLIPASYN-PWY",
+    "THREOCAT-PWY",
+    "PWY-5154",
+    "PWY-5971",
+    "RHAMCAT-PWY",
+    "PWY0-162",
+    "RIBOSYN2-PWY",
+    "PWY-621",
+    "PWY-6936",
+    "PWY-6270",
+    "PWY-5100",
+    "KETOGLUCONMET-PWY",
+    "PWY66-399",
+    "PWY-5005",
+    "GLCMANNANAUT-PWY",
+    "P42-PWY",
+    "PWY-6182",
+    "PWY-7199",
+    "PYRIDOXSYN-PWY",
+    "HSERMETANA-PWY",
+    "PWY-801",
+    "PWY-5981",
+    "PWY-7356",
+    "METHGLYUT-PWY",
+    "GALACT-GLUCUROCAT-PWY",
+    "PWY-6147",
+    "PWY-6690",
+    "PWY-5265",
+    "GLYCOLYSIS-TCA-GLYOX-BYPASS",
+    "GLUCOSE1PMETAB-PWY",
+    "PWY-7761",
+    "PWY-5659",
+    "PWY3O-4107",
+    "PWY-6545",
+    "PWY-6630",
+    "PWY-4361",
+    "PWY-6876",
+    "REDCITCYC",
+    "PWY-5367",
+    "OANTIGEN-PWY",
+    "COBALSYN-PWY",
+    "PWY0-1221",
+    "PWY-6168",
+    "PWY-5464",
+    "P122-PWY",
+    "PWY-622",
+    "LACTOSECAT-PWY",
+    "PWY-5497",
+    "PWY-7165",
+    "PWY-7805",
+    "PWY-5972",
+    "PWY-7384",
+    "PWY-5747",
+    "PWY-6708",
+    "PWY-I9",
+    "PWY-821",
+    "PWY-6731",
+    "PWY-6507",
+    "PWY0-321"
+]
+microbiome_super1_dropped = [
+    "Superpathways_t1",
+    "Degradation_Utilization_Assimilation_t1",
+    "Generation_of_Precursor_Metabolites_and_Energy_t1",
+    "Macromolecule_Modification_t1"
+]
+microbiome_pathways2_dropped = [
+    "GALACTARDEG-PWY_t2",
+    "ARGSYN-PWY_t2",
+    "GLUCARGALACTSUPER-PWY_t2",
+    "FUC-RHAMCAT-PWY_t2",
+    "GLYOXYLATE-BYPASS_t2",
+    "ARGSYNBSUB-PWY_t2",
+    "FAO-PWY_t2",
+    "AST-PWY_t2",
+    "ARO-PWY_t2",
+    "GLYCOLYSIS_t2",
+    "ARG+POLYAMINE-SYN_t2",
+    "GLUCARDEG-PWY_t2",
+    "BIOTIN-BIOSYNTHESIS-PWY_t2",
+    "FUCCAT-PWY_t2",
+    "ANAGLYCOLYSIS-PWY_t2",
+    "COA-PWY-1_t2",
+    "GLYCOLYSIS-E-D_t2",
+    "COMPLETE-ARO-PWY_t2",
+    "FERMENTATION-PWY_t2",
+    "DARABCATK12-PWY_t2",
+    "BRANCHED-CHAIN-AA-SYN-PWY_t2",
+    "GLUCONEO-PWY_t2",
+    "GLUTORN-PWY_t2",
+    "CALVIN-PWY_t2",
+    "DAPLYSINESYN-PWY_t2",
+    "ASPASN-PWY_t2",
+    "COLANSYN-PWY_t2",
+    "ANAEROFRUCAT-PWY_t2",
+    "FASYN-ELONG-PWY_t2",
+    "ECASYN-PWY_t2",
+    "GALACTITOLCAT-PWY_t2",
+    "GLCMANNANAUT-PWY_t2",
+    "GLUCUROCAT-PWY_t2",
+    "DENOVOPURINE2-PWY_t2",
+    "GLYCOGENSYNTH-PWY_t2",
+    "ARGININE-SYN4-PWY_t2"
+]
+microbiome_super2_dropped = [
+    "Superpathways_t2",
+    "Degradation_Utilization_Assimilation_t2",
+    "Generation_of_Precursor_Metabolites_and_Energy_t2",
+    "Macromolecule_Modification_t2"
+]
+
+metavars_no_target = """a08_t1
+a10_t1
+a10_t2
+a10_t3
+a10_t4
+aa_ers_t1
+AFR_t1
+age_accel_t1
+ahmed_c14_2c_t1
+ahmed_c14_2c_t2
+ahmed_c14_2c_t3
+ahmed_c14_2c_t4
+ahmed_finemot_t1
+ahmed_finemot_t3
+ahmed_grossmot_t1
+ahmed_grossmot_t3
+ahmed_phys_t1
+ahmed_phys_t3
+ahmed_stim_t1
+ahmed_stim_t3
+b04_t1
+b23_t1
+Beta_t1
+bisq_3_mins_t1
+bisq_3_mins_t2
+bisq_3_mins_t3
+bisq_3_mins_t4
+bisq_4_mins_t1
+bisq_4_mins_t2
+bisq_4_mins_t3
+bisq_4_mins_t4
+bisq_9_mins_t1
+bisq_9_mins_t2
+bisq_9_mins_t3
+bisq_9_mins_t4
+bisq_sleep_prob_t1
+bisq_sleep_prob_t2
+bisq_sleep_prob_t2
+bisq_sleep_prob_t3
+bisq_sleep_prob_t4
+bmi_pregest_t1
+bmz_t1
+bmz_t2
+bmz_t3
+c12f_t1
+cbcl_agg_t4
+cbcl_anx_t4
+cbcl_att_t4
+cbcl_emo_t4
+cbcl_sle_t4
+cbcl_som_t4
+cbcl_wit_t4
+cgs_glicomean_t1
+chao1_t1
+chao1_t2
+chaos_tot_t1
+chaos_tot_t3
+ctspc_ngl_t3
+ctspc_ngl_t4
+ctspc_pha_t3
+ctspc_pha_t4
+ctspc_psa_t3
+ctspc_psa_t4
+delivery_mode
+Delta_t1
+EAS_t1
+EBF_3m
+ebia_tot_t1
+ebia_tot_t2
+ebia_tot_t3
+educationLevelAhmedNum_t1
+educationLevelAhmedNum_t2
+educationLevelAhmedNum_t3
+educationLevelAhmedNum_t4
+elegib14_t0
+elegib2_t0
+elegib5_t0
+epds_2c_t1
+epds_2c_t2
+epds_2c_t3
+epds_2c_t4
+epds_tot_t1
+epds_tot_t2
+epds_tot_t3
+epds_tot_t4
+eu_ers_t1
+EUR_t1
+Frontocentral_beta_t1
+Frontocentral_delta_t1
+Frontocentral_high_alpha_t1
+Frontocentral_low_alpha_t1
+Frontocentral_theta_t1
+gad_tot_t1
+gad_tot_t2
+gad_tot_t3
+gad_tot_t4
+Gamma_t1
+GLYCOLYSIS_t1
+haz_t1
+haz_t2
+haz_t3
+HighAlpha_t1
+idade_crianca_dias_t1
+idade_crianca_dias_t2
+idade_crianca_dias_t3
+idade_crianca_dias_t4
+idade_crianca_meses_t1
+idade_crianca_meses_t2
+idade_crianca_meses_t3
+idade_crianca_meses_t4
+infant_ethinicity
+LH_lateral_frontal_beta_t1
+LH_lateral_frontal_delta_t1
+LH_lateral_frontal_high_alpha_t1
+LH_lateral_frontal_low_alpha_t1
+LH_lateral_frontal_theta_t1
+LH_parietal_beta_t1
+LH_parietal_delta_t1
+LH_parietal_high_alpha_t1
+LH_parietal_low_alpha_t1
+LH_parietal_theta_t1
+LH_temporal_beta_t1
+LH_temporal_delta_t1
+LH_temporal_high_alpha_t1
+LH_temporal_low_alpha_t1
+LH_temporal_theta_t1
+LowAlpha_t1
+maternal_ethinicity
+mspss_tot_t1
+mspss_tot_t3
+NAT_t1
+Number_Segs_Post_Seg_Rej_t1
+Occipital_beta_t1
+Occipital_delta_t1
+Occipital_gamma_t1
+Occipital_high_alpha_t1
+Occipital_low_alpha_t1
+Occipital_theta_t1
+paths_ab_t1
+paths_ab_t2
+PC1_t1
+PC2_t1
+PC3_t1
+PC4_t1
+PedBe_t1
+pedbe_with_missing_t1
+PRS_ADHD_t1
+PRS_CF_RT_t1
+PRS_EF_t1
+PRS_SCZ_t1
+psi_pcdi_t1
+psi_pcdi_t3
+psi_pd_t1
+psi_pd_t3
+pss_tot_t1
+pss_tot_t2
+pss_tot_t3
+pss_tot_t4
+r_12hz_post_pre_waveleting_t1
+r_20hz_post_pre_waveleting_t1
+r_2hz_post_pre_waveleting_t1
+r_30hz_post_pre_waveleting_t1
+r_5hz_post_pre_waveleting_t1
+r_8hz_post_pre_waveleting_t1
+REDCITCYC_t1
+renda_familiar_total_t0
+RH_lateral_frontal_beta_t1
+RH_lateral_frontal_delta_t1
+RH_lateral_frontal_gamma_t1
+RH_lateral_frontal_high_alpha_t1
+RH_lateral_frontal_low_alpha_t1
+RH_lateral_frontal_theta_t1
+RH_parietal_beta_t1
+RH_parietal_delta_t1
+RH_parietal_gamma_t1
+RH_parietal_high_alpha_t1
+RH_parietal_low_alpha_t1
+RH_parietal_theta_t1
+RH_temporal_beta_t1
+RH_temporal_delta_t1
+RH_temporal_gamma_t1
+RH_temporal_high_alpha_t1
+RH_temporal_low_alpha_t1
+RH_temporal_theta_t1
+risco_class
+s__Absiella_dolichum_t1
+s__Acidaminococcus_fermentans_t1
+s__Acidaminococcus_intestini_t1
+s__Acidipropionibacterium_acidipropionici_t1
+s__Acinetobacter_baylyi_t1
+s__Acinetobacter_bereziniae_t1
+s__Acinetobacter_guillouiae_t1
+s__Acinetobacter_haemolyticus_t1
+s__Acinetobacter_idrijaensis_t1
+s__Acinetobacter_johnsonii_t1
+s__Acinetobacter_lwoffii_t1
+s__Acinetobacter_pittii_t1
+s__Acinetobacter_schindleri_t1
+s__Acinetobacter_ursingii_t1
+s__Actinomyces_europaeus_t1
+s__Actinomyces_graevenitzii_t1
+s__Actinomyces_odontolyticus_t1
+s__Actinomyces_radicidentis_t1
+s__Actinomyces_radingae_t1
+s__Actinomyces_sp_HMSC035G02_t1
+s__Actinomyces_sp_HPA0247_t1
+s__Actinomyces_sp_ICM47_t1
+s__Actinomyces_sp_oral_taxon_181_t1
+s__Actinomyces_sp_S6_Spd3_t1
+s__Actinomyces_turicensis_t1
+s__Actinomyces_urogenitalis_t1
+s__Actinotignum_schaalii_t1
+s__Actinotignum_timonense_t1
+s__Aerococcus_viridans_t1
+s__Aeromonas_caviae_t1
+s__Aeromonas_hydrophila_t1
+s__Agathobaculum_butyriciproducens_t1
+s__Aggregatibacter_aphrophilus_t1
+s__Akkermansia_muciniphila_t1
+s__Alistipes_finegoldii_t1
+s__Alistipes_indistinctus_t1
+s__Alistipes_obesi_t1
+s__Alistipes_onderdonkii_t1
+s__Alistipes_putredinis_t1
+s__Alistipes_shahii_t1
+s__Allisonella_histaminiformans_t1
+s__Anaerococcus_vaginalis_t1
+s__Anaerofustis_stercorihominis_t1
+s__Anaeroglobus_geminatus_t1
+s__Anaerosporobacter_mobilis_t1
+s__Anaerostipes_caccae_t1
+s__Anaerostipes_hadrus_t1
+s__Anaerotruncus_colihominis_t1
+s__Asaccharobacter_celatus_t1
+s__Atlantibacter_hermannii_t1
+s__Atopobium_minutum_t1
+s__Atopobium_parvulum_t1
+s__Azospirillum_sp_47_25_t1
+s__Azospirillum_sp_CAG_260_t1
+s__Bacteroides_caccae_t1
+s__Bacteroides_cellulosilyticus_t1
+s__Bacteroides_clarus_t1
+s__Bacteroides_coprophilus_t1
+s__Bacteroides_dorei_t1
+s__Bacteroides_eggerthii_t1
+s__Bacteroides_faecis_t1
+s__Bacteroides_finegoldii_t1
+s__Bacteroides_fluxus_t1
+s__Bacteroides_fragilis_t1
+s__Bacteroides_galacturonicus_t1
+s__Bacteroides_intestinalis_t1
+s__Bacteroides_massiliensis_t1
+s__Bacteroides_nordii_t1
+s__Bacteroides_ovatus_t1
+s__Bacteroides_plebeius_t1
+s__Bacteroides_salyersiae_t1
+s__Bacteroides_sartorii_t1
+s__Bacteroides_sp_D2_t1
+s__Bacteroides_stercorirosoris_t1
+s__Bacteroides_stercoris_t1
+s__Bacteroides_thetaiotaomicron_t1
+s__Bacteroides_uniformis_t1
+s__Bacteroides_vulgatus_t1
+s__Bacteroides_xylanisolvens_t1
+s__Barnesiella_intestinihominis_t1
+s__Bifidobacterium_adolescentis_t1
+s__Bifidobacterium_animalis_t1
+s__Bifidobacterium_bifidum_t1
+s__Bifidobacterium_breve_t1
+s__Bifidobacterium_dentium_t1
+s__Bifidobacterium_kashiwanohense_t1
+s__Bifidobacterium_longum_t1
+s__Bifidobacterium_moukalabense_t1
+s__Bifidobacterium_pseudocatenulatum_t1
+s__Bifidobacterium_pseudolongum_t1
+s__Bifidobacterium_psychraerophilum_t1
+s__Bifidobacterium_pullorum_t1
+s__Bifidobacterium_saeculare_t1
+s__Bifidobacterium_scardovii_t1
+s__Bilophila_wadsworthia_t1
+s__Blautia_coccoides_t1
+s__Blautia_hansenii_t1
+s__Blautia_hydrogenotrophica_t1
+s__Blautia_obeum_t1
+s__Blautia_producta_t1
+s__Blautia_sp_CAG_257_t1
+s__Blautia_sp_t1
+s__Blautia_wexlerae_t1
+s__Butyribacterium_methylotrophicum_t1
+s__Butyricicoccus_pullicaecorum_t1
+s__Butyricimonas_sp_t1
+s__Butyricimonas_synergistica_t1
+s__Butyricimonas_virosa_t1
+s__Campylobacter_concisus_t1
+s__Campylobacter_curvus_t1
+s__Campylobacter_gracilis_t1
+s__Campylobacter_upsaliensis_t1
+s__Campylobacter_ureolyticus_t1
+s__Candidatus_Stoquefichus_sp_KLE1796_t1
+s__Catabacter_hongkongensis_t1
+s__Catenibacterium_mitsuokai_t1
+s__Christensenella_minuta_t1
+s__Chryseobacterium_hominis_t1
+s__Citrobacter_amalonaticus_t1
+s__Citrobacter_braakii_t1
+s__Citrobacter_europaeus_t1
+s__Citrobacter_farmeri_t1
+s__Citrobacter_freundii_t1
+s__Citrobacter_koseri_t1
+s__Citrobacter_portucalensis_t1
+s__Citrobacter_werkmanii_t1
+s__Clostridiales_bacterium_1_7_47FAA_t1
+s__Clostridioides_difficile_t1
+s__Clostridium_aldenense_t1
+s__Clostridium_asparagiforme_t1
+s__Clostridium_baratii_t1
+s__Clostridium_bolteae_t1
+s__Clostridium_botulinum_t1
+s__Clostridium_butyricum_t1
+s__Clostridium_cadaveris_t1
+s__Clostridium_celerecrescens_t1
+s__Clostridium_citroniae_t1
+s__Clostridium_clostridioforme_t1
+s__Clostridium_disporicum_t1
+s__Clostridium_innocuum_t1
+s__Clostridium_lavalense_t1
+s__Clostridium_leptum_t1
+s__Clostridium_methylpentosum_t1
+s__Clostridium_neonatale_t1
+s__Clostridium_paraputrificum_t1
+s__Clostridium_perfringens_t1
+s__Clostridium_saccharolyticum_t1
+s__Clostridium_sartagoforme_t1
+s__Clostridium_scindens_t1
+s__Clostridium_sp_7_2_43FAA_t1
+s__Clostridium_sp_AM22_11AC_t1
+s__Clostridium_sp_CAG_169_t1
+s__Clostridium_sp_CAG_299_t1
+s__Clostridium_sp_CAG_58_t1
+s__Clostridium_spiroforme_t1
+s__Clostridium_sp_MSTE9_t1
+s__Clostridium_sporogenes_t1
+s__Clostridium_symbiosum_t1
+s__Clostridium_tepidum_t1
+s__Collinsella_aerofaciens_t1
+s__Collinsella_intestinalis_t1
+s__Collinsella_sp_CAG_289_t1
+s__Comamonas_aquatica_t1
+s__Coprobacillus_cateniformis_t1
+s__Coprobacter_fastidiosus_t1
+s__Coprobacter_secundus_t1
+s__Coprococcus_catus_t1
+s__Corynebacterium_accolens_t1
+s__Corynebacterium_kroppenstedtii_t1
+s__Corynebacterium_provencense_t1
+s__Corynebacterium_variabile_t1
+s__Cryptobacterium_curtum_t1
+s__Cutibacterium_acnes_t1
+s__Cutibacterium_avidum_t1
+s__Dermabacter_hominis_t1
+s__Desulfovibrio_fairfieldensis_t1
+s__Desulfovibrio_piger_t1
+s__Dialister_invisus_t1
+s__Dialister_sp_CAG_357_t1
+s__Dialister_sp_CAG_486_t1
+s__Dielma_fastidiosa_t1
+s__Dorea_formicigenerans_t1
+s__Dorea_longicatena_t1
+s__Dysgonomonas_mossii_t1
+s__Dysgonomonas_sp_37_18_t1
+s__Eggerthella_lenta_t1
+s__Eggerthella_sinensis_t1
+s__Eikenella_corrodens_t1
+s__Eisenbergiella_massiliensis_t1
+s__Eisenbergiella_tayi_t1
+s__Enorma_massiliensis_t1
+s__Enterobacter_bugandensis_t1
+s__Enterobacter_cloacae_complex_t1
+s__Enterobacter_soli_t1
+s__Enterococcus_asini_t1
+s__Enterococcus_avium_t1
+s__Enterococcus_canintestini_t1
+s__Enterococcus_casseliflavus_t1
+s__Enterococcus_durans_t1
+s__Enterococcus_faecalis_t1
+s__Enterococcus_faecium_t1
+s__Enterococcus_gallinarum_t1
+s__Enterococcus_gilvus_t1
+s__Enterococcus_hirae_t1
+s__Enterococcus_italicus_t1
+s__Enterococcus_raffinosus_t1
+s__Erysipelatoclostridium_ramosum_t1
+s__Erysipelotrichaceae_bacterium_3_1_53_t1
+s__Escherichia_coli_t1
+s__Escherichia_fergusonii_t1
+s__Escherichia_sp_ESNIH1_t1
+s__Eubacterium_callanderi_t1
+s__Eubacterium_eligens_t1
+s__Eubacterium_hallii_t1
+s__Eubacterium_limosum_t1
+s__Eubacterium_rectale_t1
+s__Eubacterium_sp_CAG_38_t1
+s__Faecalibacterium_prausnitzii_t1
+s__Faecalicoccus_pleomorphus_t1
+s__Faecalitalea_cylindroides_t1
+s__Finegoldia_magna_t1
+s__Firmicutes_bacterium_CAG_102_t1
+s__Firmicutes_bacterium_CAG_103_t1
+s__Firmicutes_bacterium_CAG_114_t1
+s__Firmicutes_bacterium_CAG_145_t1
+s__Firmicutes_bacterium_CAG_41_t1
+s__Firmicutes_bacterium_CAG_424_t1
+s__Firmicutes_bacterium_CAG_646_t1
+s__Flavonifractor_plautii_t1
+s__Fusicatenibacter_saccharivorans_t1
+s__Fusobacterium_mortiferum_t1
+s__Fusobacterium_nucleatum_t1
+s__Fusobacterium_periodonticum_t1
+s__Gemella_haemolysans_t1
+s__Gemella_sanguinis_t1
+s__Gemmiger_formicilis_t1
+s__Gordonibacter_pamelaeae_t1
+s__Gordonibacter_urolithinfaciens_t1
+s__Haemophilus_haemolyticus_t1
+s__Haemophilus_influenzae_t1
+s__Haemophilus_parahaemolyticus_t1
+s__Haemophilus_parainfluenzae_t1
+s__Haemophilus_paraphrohaemolyticus_t1
+s__Haemophilus_pittmaniae_t1
+s__Haemophilus_quentini_t1
+s__Haemophilus_sp_HMSC71H05_t1
+s__Haemophilus_sputorum_t1
+s__Hafnia_paralvei_t1
+shannon_t1
+shannon_t2
+s__Holdemanella_biformis_t1
+s__Holdemania_filiformis_t1
+s__Hungatella_hathewayi_t1
+simpson_t1
+simpson_t2
+s__Intestinibacter_bartlettii_t1
+s__Intestinimonas_butyriciproducens_t1
+s__Klebsiella_aerogenes_t1
+s__Klebsiella_michiganensis_t1
+s__Klebsiella_oxytoca_t1
+s__Klebsiella_pneumoniae_t1
+s__Klebsiella_quasipneumoniae_t1
+s__Klebsiella_variicola_t1
+s__Kluyvera_ascorbata_t1
+s__Kluyvera_cryocrescens_t1
+s__Kluyvera_georgiana_t1
+s__Kluyvera_intermedia_t1
+s__Kluyvera_intestini_t1
+s__Lachnoclostridium_sp_An298_t1
+s__Lachnospiraceae_bacterium_OF09_33XD_t1
+s__Lachnospira_pectinoschiza_t1
+s__Lactobacillus_acidophilus_t1
+s__Lactobacillus_animalis_t1
+s__Lactobacillus_brevis_t1
+s__Lactobacillus_casei_group_t1
+s__Lactobacillus_crispatus_t1
+s__Lactobacillus_fermentum_t1
+s__Lactobacillus_gasseri_t1
+s__Lactobacillus_gastricus_t1
+s__Lactobacillus_harbinensis_t1
+s__Lactobacillus_johnsonii_t1
+s__Lactobacillus_mucosae_t1
+s__Lactobacillus_oris_t1
+s__Lactobacillus_paragasseri_t1
+s__Lactobacillus_plantarum_t1
+s__Lactobacillus_reuteri_t1
+s__Lactobacillus_rhamnosus_t1
+s__Lactobacillus_ruminis_t1
+s__Lactobacillus_salivarius_t1
+s__Lactobacillus_vaginalis_t1
+s__Lactococcus_lactis_t1
+s__Lactococcus_piscium_t1
+s__Lawsonella_clevelandensis_t1
+s__Lawsonibacter_asaccharolyticus_t1
+sleep_t1
+sleep_t2
+sleep_t3
+sleep_t4
+s__Lelliottia_jeotgali_t1
+s__Lelliottia_nimipressuralis_t1
+s__Lentisphaerae_bacterium_t1
+s__Leuconostoc_citreum_t1
+s__Leuconostoc_garlicum_t1
+s__Leuconostoc_lactis_t1
+s__Macrococcus_caseolyticus_t1
+s__Massiliomicrobiota_timonensis_t1
+s__Megamonas_funiformis_t1
+s__Megasphaera_cerevisiae_t1
+s__Megasphaera_elsdenii_t1
+s__Megasphaera_hexanoica_t1
+s__Megasphaera_micronuciformis_t1
+s__Megasphaera_sp_BV3C16_1_t1
+s__Mesosutterella_multiformis_t1
+s__Microvirgula_aerodenitrificans_t1
+s__Moraxella_osloensis_t1
+s__Morganella_morganii_t1
+s__Negativicoccus_succinicivorans_t1
+s__Neisseria_flavescens_t1
+s__Neisseria_subflava_t1
+s__Odoribacter_splanchnicus_t1
+s__Oscillibacter_sp_57_20_t1
+s__Paenibacillus_barengoltzii_t1
+s__Pantoea_dispersa_t1
+s__Pantoea_septica_t1
+s__Parabacteroides_chartae_t1
+s__Parabacteroides_distasonis_t1
+s__Parabacteroides_goldsteinii_t1
+s__Parabacteroides_gordonii_t1
+s__Parabacteroides_johnsonii_t1
+s__Parabacteroides_merdae_t1
+s__Paraeggerthella_hongkongensis_t1
+s__Paraprevotella_clara_t1
+s__Paraprevotella_xylaniphila_t1
+s__Parascardovia_denticolens_t1
+s__Parasutterella_excrementihominis_t1
+species_ab_t1
+species_ab_t2
+s__Pediococcus_acidilactici_t1
+s__Pedobacter_himalayensis_t1
+s__Peptoniphilus_harei_t1
+s__Peptoniphilus_sp_HMSC062D09_t1
+s__Peptostreptococcus_anaerobius_t1
+s__Phascolarctobacterium_faecium_t1
+s__Phascolarctobacterium_succinatutens_t1
+s__Phytobacter_ursingii_t1
+s__Pluralibacter_gergoviae_t1
+s__Porphyromonas_asaccharolytica_t1
+s__Porphyromonas_sp_31_2_t1
+s__Porphyromonas_sp_HMSC065F10_t1
+s__Prevotella_bivia_t1
+s__Prevotella_buccae_t1
+s__Prevotella_colorans_t1
+s__Prevotella_copri_t1
+s__Prevotella_corporis_t1
+s__Prevotella_disiens_t1
+s__Prevotella_histicola_t1
+s__Prevotella_sp_CAG_520_t1
+s__Prevotella_timonensis_t1
+s__Proteobacteria_bacterium_CAG_139_t1
+s__Proteus_mirabilis_t1
+s__Proteus_penneri_t1
+s__Proteus_vulgaris_t1
+s__Providencia_alcalifaciens_t1
+s__Providencia_rettgeri_t1
+s__Pseudomonas_aeruginosa_group_t1
+s__Pseudomonas_geniculata_t1
+s__Raoultella_ornithinolytica_t1
+s__Raoultella_planticola_t1
+s__Raoultella_sp_T31_t1
+s__Robinsoniella_sp_RHS_t1
+s__Romboutsia_ilealis_t1
+s__Roseburia_faecis_t1
+s__Roseburia_hominis_t1
+s__Roseburia_intestinalis_t1
+s__Roseburia_inulinivorans_t1
+s__Rothia_mucilaginosa_t1
+s__Ruminococcaceae_bacterium_D16_t1
+s__Ruminococcaceae_bacterium_KLE1738_t1
+s__Ruminococcus_gnavus_t1
+s__Ruminococcus_lactaris_t1
+s__Ruminococcus_torques_t1
+s__Ruthenibacterium_lactatiformans_t1
+s__Scardovia_wiggsiae_t1
+s__Selenomonas_artemidis_t1
+s__Sellimonas_intestinalis_t1
+s__Senegalimassilia_anaerobia_t1
+s__Serratia_liquefaciens_t1
+s__Serratia_marcescens_t1
+s__Serratia_ureilytica_t1
+s__Slackia_exigua_t1
+s__Slackia_isoflavoniconvertens_t1
+s__Staphylococcus_argenteus_t1
+s__Staphylococcus_aureus_t1
+s__Staphylococcus_epidermidis_t1
+s__Staphylococcus_haemolyticus_t1
+s__Staphylococcus_hominis_t1
+s__Staphylococcus_lugdunensis_t1
+s__Stenotrophomonas_maltophilia_t1
+s__Streptococcus_agalactiae_t1
+s__Streptococcus_anginosus_group_t1
+s__Streptococcus_gallolyticus_t1
+s__Streptococcus_infantarius_t1
+s__Streptococcus_infantis_t1
+s__Streptococcus_lutetiensis_t1
+s__Streptococcus_macedonicus_t1
+s__Streptococcus_mitis_t1
+s__Streptococcus_oralis_t1
+s__Streptococcus_parasanguinis_t1
+s__Streptococcus_pasteurianus_t1
+s__Streptococcus_peroris_t1
+s__Streptococcus_pneumoniae_t1
+s__Streptococcus_salivarius_t1
+s__Streptococcus_sp_M334_t1
+s__Streptococcus_sp_UMB1385_t1
+s__Streptococcus_thermophilus_t1
+s__Streptococcus_vestibularis_t1
+s__Subdoligranulum_sp_t1
+s__Sutterella_sp_CAG_351_t1
+s__Sutterella_sp_CAG_397_t1
+s__Sutterella_sp_CAG_521_t1
+s__Sutterella_wadsworthensis_t1
+s__Terrisporobacter_othiniensis_t1
+s__Tissierellia_bacterium_S5_A11_t1
+s__Tsukamurella_tyrosinosolvens_t1
+s__Turicimonas_muris_t1
+s__Tyzzerella_nexilis_t1
+s__Tyzzerella_sp_t1
+s__Varibaculum_cambriense_t1
+s__Veillonella_atypica_t1
+s__Veillonellaceae_bacterium_t1
+s__Veillonella_dispar_t1
+s__Veillonella_infantium_t1
+s__Veillonella_parvula_t1
+s__Veillonella_rodentium_t1
+s__Veillonella_rogosae_t1
+s__Veillonella_seminalis_t1
+s__Veillonella_sp_CAG_933_t1
+s__Veillonella_sp_DORA_A_3_16_22_t1
+s__Veillonella_sp_T11011_6_t1
+s__Veillonella_tobetsuensis_t1
+s__Victivallis_vadensis_t1
+TCA_t1
+Theta_t1
+wasi_qit2_t2
+waz_t1
+waz_t2
+waz_t3
+whz_t1
+whz_t2
+whz_t3""".split("\n")
+metavars_no_target = set(v.replace("_t1", "").replace("_t2", "").replace("_t3", "").replace("_t4", "") for v in metavars_no_target)
+
+vif_dropped = microbiome_pathways1_dropped + microbiome_pathways2_dropped + microbiome_super1_dropped + microbiome_super2_dropped
+
+"""
+targets
+
+ecbq_atf_*
+ecbq_ats_*
+ecbq_inh_*
+ecbq_sth_*
+ecbq_effco_*
+bayley_average_t*
+bayley_3_t*
+bayley_8_t*
+ibq_reg_t*
+ibq_reg_cat_t*
+ibq_soot_t*
+ibq_soot_cat_t*
+ibq_dura_t*
+ibq_dura_cat_t*
+fe_cat_rev_*
+fe_gire_*
+fe_varinha_*
+"""
+
+"""
+other
+
+hyperscanning_complete_*
+"""
