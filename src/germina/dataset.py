@@ -4,9 +4,9 @@ from scipy.stats import mode
 
 def join(df: DataFrame, index, other, join):
     if df.index.name != index:
-        df.set_index(index, inplace=True)
+        df = df.set_index(index)
     if other.index.name != index:
-        other.set_index(index, inplace=True)
+        other = other.set_index(index)
     res = df.join([other], how=join, sort=True)
     return res.reindex(sorted(res.columns), axis=1)
 

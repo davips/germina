@@ -54,6 +54,8 @@ with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
 
     # Join metadata #############################################################################################################
     d = d >> apply(file2df, path + "germina-osf-request---davi121023.csv").metadata_full
+    # d = d >> apply(lambda metadata_full, index: metadata_full.set_index(index)).metadata_full
+
     metavars = ["id_estudo"]
     for v in sorted(set(metavars_no_target).difference(vif_dropped)):
         for i in range(7):
@@ -62,6 +64,7 @@ with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
                 metavars.append(sub)
     metavars.sort()
     d = d >> apply(lambda metadata_full, mtvs: metadata_full[mtvs], mtvs=metavars).metadata
+    # d = d >> apply(lambda metadata, index: metadata.set_index(index)).metadata
 
     print("Format problematic attributes.")
     # d = d >> apply(bina, _.metadata, attribute="antibiotic", positive_category="yes").metadata
@@ -83,6 +86,9 @@ with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
     d = d >> apply(lambda metadata_full, target: metadata_full[[target, "id_estudo"]].reindex(sorted([target, "id_estudo"]), axis=1)).t
 
     d = d >> apply(join, other=_.t).df
+    print(d.df.index, "estoiu tentando descobrir porque aparece id_estudo em X (ou ao menos no df)")
+    print(d.df.id_estudo)
+    exit()
     d = ch(d, loc, rem, local, remote, sync)
     print(d.metadata_full.columns.tolist())
     print("Dataset-----------------------------------------------------------------------\n", d.df, "______________________________________________________\n")
