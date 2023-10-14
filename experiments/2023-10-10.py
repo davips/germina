@@ -1,4 +1,3 @@
-import os
 from pprint import pprint
 
 import numpy as np
@@ -8,19 +7,19 @@ from shelchemy import sopen
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.model_selection import StratifiedKFold, permutation_test_score
 
-from germina.config import local_cache_uri
+from germina.config import local_cache_uri, remote_cache_uri
 from germina.dataset import join, metavars_no_target, vif_dropped
 from germina.nan import only_abundant, remove_cols
 from germina.runner import drop_many_by_vif, ch
 
 path = "data/"
-loc, rem, remote = True, False, None
+loc, rem = True, True
 sync = False
 vif = True
 # bayley_average_t4
 d = hdict(target="ibq_reg_cat_t3", index="id_estudo", join="inner", shuffle=True, n_jobs=-1, return_name=False, random_state=0, n_permutations=10000, max_iter=3000)
 
-with sopen(local_cache_uri) as local:
+with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
     d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T1_n525.csv").microbiome_pathways1
     d = d >> apply(only_abundant, _.microbiome_pathways1).microbiome_pathways1
     if vif:
