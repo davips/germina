@@ -41,7 +41,7 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
         "near": near_storage,
         "local": local_storage,
     }
-    to_be_updated = "near"
+    to_be_updated = None # "near"
 
     print("Load microbiome CSV data ------------------------------------------------------------------------------------------------------------------------------------------------")
     d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T1_n525.csv").df_microbiome_pathways1
