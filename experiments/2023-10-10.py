@@ -1,6 +1,8 @@
 from pprint import pprint
+from sys import argv
 
 import numpy as np
+from argvsucks import handle_command_line
 from hdict import apply, hdict, _
 from hdict.dataset.pandas_handling import file2df
 from pandas import DataFrame
@@ -16,6 +18,11 @@ from germina.nan import only_abundant, remove_cols
 from germina.runner import drop_many_by_vif, ch
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
+
+dct = handle_command_line(argv, vifall=False)
+vifall = dct["vifall"]
+pprint(dct)
+print()
 
 path = "data/"
 loc, rem = True, True
@@ -92,7 +99,8 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
 
     print("Overall removal of NaNs and VIF application -----------------------------------------------------------------------------------------------------------------------------")
     d["df_after_vif"] = d.df_before_vif
-    d = drop_many_by_vif(d, "df_after_vif", storages, to_be_updated)  # está removendo rows e cols
+    if vifall:
+        d = drop_many_by_vif(d, "df_after_vif", storages, to_be_updated)  # está removendo rows e cols
     d = ch(d, storages, to_be_updated)
 
     print("Join target -------------------------------------------------------------------------------------------------------------------------------------------------------------")
