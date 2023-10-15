@@ -25,22 +25,20 @@ from germina.nan import only_abundant, remove_cols
 from germina.runner import drop_many_by_vif, ch
 
 __ = enable_iterative_imputer
-dct = handle_command_line(argv, vifall=False, nans=False, sched=False)
-vifall, nans, sched = dct["vifall"], dct["nans"], dct["sched"]
-pprint(dct)
+dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vifall=False, nans=False, sched=False)
+pprint(dct, sort_dicts=False)
 print()
-
 path = "data/"
-trees = 10  # for classifier (RFc, HGBc, etc.)
 d = hdict(
-    n_permutations=10,  # for p-value
-    n_repeats=10,  # for permutation importance
-    imputrees=10,  # RF trees for missing values imputer
-    random_state=0,
-    target_var="ibq_reg_cat_t3",  # bayley_average_t4
-    index="id_estudo", join="inner", shuffle=True, n_jobs=-1, return_name=False, max_iter=trees, n_estimators=trees,
+    n_permutations=dct["pvalruns"],
+    n_repeats=dct["importanceruns"],
+    imputrees=dct["imputertrees"],
+    random_state=dct["seed"],
+    target_var=dct["target"], # "ibq_reg_cat_t3", bayley_average_t4
+    max_iter=dct["trees"], n_estimators=dct["trees"],
+    index="id_estudo", join="inner", shuffle=True, n_jobs=-1, return_name=False
 )
-pprint({"trees": trees} | dict(d), sort_dicts=False)
+vifall, nans, sched = dct["vifall"], dct["nans"], dct["sched"]
 
 with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_storage, sopen(remote_cache_uri) as remote_storage:
     storages = {
