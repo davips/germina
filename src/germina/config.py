@@ -5,6 +5,7 @@ config = ConfigParser()
 config.read(f"{Path.home()}/.cache.config")
 try:  # pragma: no cover
     local_cache_uri = config.get("Storage", "local")
+    near_cache_uri = config.get("Storage", "near")
     remote_cache_uri = config.get("Storage", "remote")
     schedule_uri = config.get("Storage", "schedule")
 except Exception as e:

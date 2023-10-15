@@ -30,33 +30,29 @@ from germina.dataset import join, ensemble_predict
 from germina.nan import remove_cols, bina, loga, remove_nan_rows_cols, only_abundant, hasNaN
 
 
-def ch(d, loc, rem, local, remote, sync):
-    if sync:
-        tmp = local
-        local = remote
-        remote = tmp
-    if rem:
-        d = d >> cache(remote)
-    if loc:
-        d = d >> cache(local)
+def ch(d, storages, to_be_updated=None):
+    for storage in storages.values():
+        d = d >> cache(storage)
+    if to_be_updated is not None:
+        d = d >> cache(storages[to_be_updated])
     d.evaluate()
     return d
 
 
-def drop_many_by_vif(d, dffield, loc, rem, local, remote, sync):
+def drop_many_by_vif(d, dffield, storages, to_be_updated):
     if hasNaN(d[dffield], debug=False) > 1:
         d = d >> apply(remove_nan_rows_cols, field(dffield), keep=[])(dffield)
     lstfield = f"{dffield}_dropped"
     d[lstfield] = old = []
     while True:
         d = d >> apply(drop_by_vif, df=field(dffield), dropped=_[lstfield])(lstfield)
-        d = ch(d, loc, rem, local, remote, sync)
+        d = ch(d, storages, to_be_updated)
         # print(d.ids[lstfield], d[lstfield])
         if d[lstfield] == old:
             break
         old = d[lstfield]
     d = d >> apply(remove_cols, field(dffield), field(lstfield), keep=[], debug=False)(dffield)
-    d = ch(d, loc, rem, local, remote, sync)
+    d = ch(d, storages, to_be_updated)
     return d
 
 
