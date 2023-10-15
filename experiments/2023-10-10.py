@@ -1,3 +1,6 @@
+from functools import reduce
+from itertools import repeat
+from operator import mul
 from pprint import pprint
 from sys import argv
 
@@ -179,11 +182,14 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
 
     print("Induce classifier -------------------------------------------------------------------------------------------------------------------------------------------------------")
     d = d >> apply(StratifiedKFold).cv
-    constructors = [HGBc, RFc, XGBc, LGBMc, ETc]
+    hoshes = d.hoshes.copy()
+    del hoshes["n_jobs"]
+    taskmark = (reduce(mul, hoshes.values())).ansi
+    constructors = zip([HGBc, RFc, XGBc, LGBMc, ETc], repeat(taskmark))
     with sopen(schedule_uri) as db:
         for constructor in (Scheduler(db, timeout=20) << constructors) if sched else constructors:
             print(f"{constructor} ################################################################################################################################################################")
-            d = d >> apply(constructor).alg
+            d = d >> apply(constructor[0]).alg
             d = ch(d, storages, to_be_updated)
 
             print()
