@@ -99,6 +99,11 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
     d = ch(d, storages, to_be_updated)
 
     print("Join OSF data -----------------------------------------------------------------------------------------------------------------------------------------------------------")
+    csv_dup_vars = []
+    for v in sorted(d.df.columns):
+        if v in d.df_undropped_osf:
+            csv_dup_vars.append(v)
+    d = d >> apply(remove_cols, cols=csv_dup_vars, keep=[]).df
     d = d >> apply(join, other=_.df_undropped_osf).df_before_vif
     d = ch(d, storages, to_be_updated)
     print("Joined OSF ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.df_before_vif, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
