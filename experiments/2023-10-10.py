@@ -1,6 +1,6 @@
 from functools import reduce
 from itertools import repeat
-from operator import mul
+from operator import mul, add
 from pprint import pprint
 from sys import argv
 
@@ -178,9 +178,7 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
 
     print("Induce classifier -------------------------------------------------------------------------------------------------------------------------------------------------------")
     d = d >> apply(StratifiedKFold).cv
-    hoshes = d.hoshes.copy()
-    del hoshes["n_jobs"]
-    taskmark = (reduce(mul, hoshes.values()))
+    taskmark = d.hosh - (d.hoshes["n_jobs"] * b"n_jobs")
     constructors = {"HGBc": HGBc, "RFc": RFc, "XGBc": XGBc, "LGBMc": LGBMc, "ETc": ETc}
     tasks = zip(repeat(taskmark), constructors.keys())
     with sopen(schedule_uri) as db:
