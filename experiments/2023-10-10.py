@@ -23,9 +23,9 @@ from germina.dataset import join, osf_except_target_vars, vif_dropped_vars
 from germina.nan import only_abundant, remove_cols
 from germina.runner import drop_many_by_vif, ch
 
-foo = enable_iterative_imputer
-dct = handle_command_line(argv, vifall=False)
-vifall = dct["vifall"]
+__ = enable_iterative_imputer
+dct = handle_command_line(argv, vifall=False, nans=False)
+vifall, nans = dct["vifall"], dct["nans"]
 pprint(dct)
 print()
 
@@ -116,12 +116,17 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
     print(f"Joined target {d.target_var} with df_before_vif ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.df_before_vif, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
     print(f"Joined target {d.target_var} with df_after_vif ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.df_after_vif, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
-    print("Restart now to recover NaNs ---------------------------------------------------------------------------------------------------------------------------------------------")
-    d = d >> apply(lambda df_after_vif: df_after_vif.columns.to_list()).columns
-    d = ch(d, storages, to_be_updated)
-    d = d >> apply(lambda df_before_vif, columns: df_before_vif[columns]).df
-    d = ch(d, storages, to_be_updated)
-    print(f"Noncolinear dataset with NaNs again ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.df, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
+    if nans:
+        print("Restart now to recover NaNs ---------------------------------------------------------------------------------------------------------------------------------------------")
+        d = d >> apply(lambda df_after_vif: df_after_vif.columns.to_list()).columns
+        d = ch(d, storages, to_be_updated)
+        d = d >> apply(lambda df_before_vif, columns: df_before_vif[columns]).df
+        d = ch(d, storages, to_be_updated)
+        print(f"Noncolinear dataset with NaNs again ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.df, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
+    else:
+        d["df"] = _.df_after_vif
+        d = ch(d, storages, to_be_updated)
+
 
     print(d.df.index, "falta ainda checar se ainda aparece id_estudo em X (ou ao menos como ultima coluna de df)")
     if d:
