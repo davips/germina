@@ -25,7 +25,7 @@ from germina.nan import only_abundant, remove_cols
 from germina.runner import drop_many_by_vif, ch
 
 __ = enable_iterative_imputer
-dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vifall=False, nans=False, sched=False)
+dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vifdomain=False, vifall=False, nans=False, sched=False)
 pprint(dct, sort_dicts=False)
 print()
 path = "data/"
@@ -34,11 +34,11 @@ d = hdict(
     n_repeats=dct["importanceruns"],
     imputrees=dct["imputertrees"],
     random_state=dct["seed"],
-    target_var=dct["target"], # "ibq_reg_cat_t3", bayley_average_t4
+    target_var=dct["target"],  # "ibq_reg_cat_t3", bayley_average_t4
     max_iter=dct["trees"], n_estimators=dct["trees"],
     index="id_estudo", join="inner", shuffle=True, n_jobs=-1, return_name=False
 )
-vifall, nans, sched = dct["vifall"], dct["nans"], dct["sched"]
+vifdomain, vifall, nans, sched = dct["vifdomain"], dct["vifall"], dct["nans"], dct["sched"]
 
 with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_storage, sopen(remote_cache_uri) as remote_storage:
     storages = {
@@ -59,17 +59,19 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
 
     d = d >> apply(file2df, path + "data_microbiome___2023-07-04___T2_vias_relab_superpathways.csv").df_microbiome_super2
 
-    print("Remove previously known vars selected through by-domain VIF -------------------------------------------------------------------------------------------------------------")
-    d = d >> apply(remove_cols, _.df_microbiome_pathways1, cols=vif_dropped_vars, keep=[], debug=False).df_microbiome_pathways1
-    d = d >> apply(remove_cols, _.df_microbiome_super1, cols=vif_dropped_vars, keep=[], debug=False).df_microbiome_super1
-    d = d >> apply(remove_cols, _.df_microbiome_pathways2, cols=vif_dropped_vars, keep=[], debug=False).df_microbiome_pathways2
-    d = d >> apply(remove_cols, _.df_microbiome_super2, cols=vif_dropped_vars, keep=[], debug=False).df_microbiome_super2
+    if vifdomain:
+        print("Remove previously known vars selected through by-domain VIF -------------------------------------------------------------------------------------------------------------")
+        d = d >> apply(remove_cols, _.df_microbiome_pathways1, cols=vif_dropped_vars, keep=[], debug=False).df_microbiome_pathways1
+        d = d >> apply(remove_cols, _.df_microbiome_super1, cols=vif_dropped_vars, keep=[], debug=False).df_microbiome_super1
+        d = d >> apply(remove_cols, _.df_microbiome_pathways2, cols=vif_dropped_vars, keep=[], debug=False).df_microbiome_pathways2
+        d = d >> apply(remove_cols, _.df_microbiome_super2, cols=vif_dropped_vars, keep=[], debug=False).df_microbiome_super2
 
-    print("Apply by-domain VIF again, it doest not hurt ----------------------------------------------------------------------------------------------------------------------------")
-    d = drop_many_by_vif(d, "df_microbiome_pathways1", storages, to_be_updated)
-    d = drop_many_by_vif(d, "df_microbiome_super1", storages, to_be_updated)
-    d = drop_many_by_vif(d, "df_microbiome_pathways2", storages, to_be_updated)
-    d = drop_many_by_vif(d, "df_microbiome_super2", storages, to_be_updated)
+    if vifdomain:
+        print("Apply by-domain VIF again, it doest not hurt ----------------------------------------------------------------------------------------------------------------------------")
+        d = drop_many_by_vif(d, "df_microbiome_pathways1", storages, to_be_updated)
+        d = drop_many_by_vif(d, "df_microbiome_super1", storages, to_be_updated)
+        d = drop_many_by_vif(d, "df_microbiome_pathways2", storages, to_be_updated)
+        d = drop_many_by_vif(d, "df_microbiome_super2", storages, to_be_updated)
 
     d = ch(d, storages, to_be_updated)
     # d.show()
@@ -85,7 +87,8 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
     print("Load OSF data -----------------------------------------------------------------------------------------------------------------------------------------------------------")
     d = d >> apply(file2df, path + "germina-osf-request---davi121023.csv").df_osf_full
     osf_except_dropped_vars = ["id_estudo"]
-    for v in sorted(set(osf_except_target_vars).difference(vif_dropped_vars)):
+    seq = set(osf_except_target_vars).difference(vif_dropped_vars) if vifdomain else osf_except_target_vars
+    for v in sorted(seq):
         for i in range(7):
             sub = f"{v}_t{i}"
             if sub in d.df_osf_full:
@@ -156,7 +159,7 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
     print(f"X {d.X.shape} ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.X, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
     print("Separate y from dataset -------------------------------------------------------------------------------------------------------------------------------------------------")
-    d = d >> apply(lambda df_dataset, target_var: df_dataset[target_var]).y
+    d = d >> apply(lambda df_dataset, target_var: df_dataset[target_var] // 5).y
     d = ch(d, storages, to_be_updated)
     print(f"y {d.y.shape} ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.y, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
