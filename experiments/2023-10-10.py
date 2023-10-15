@@ -8,6 +8,7 @@ from hdict.dataset.pandas_handling import file2df
 from lightgbm import LGBMClassifier as LGBMc
 from pandas import DataFrame
 from shelchemy import sopen
+from shelchemy.scheduler import Scheduler
 from sklearn import clone
 from sklearn.ensemble import ExtraTreesClassifier as ETc
 from sklearn.ensemble import HistGradientBoostingClassifier as HGBc, RandomForestRegressor as RFr
@@ -18,27 +19,28 @@ from sklearn.inspection import permutation_importance
 from sklearn.model_selection import StratifiedKFold, permutation_test_score
 from xgboost import XGBClassifier as XGBc
 
-from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri
+from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.dataset import join, osf_except_target_vars, vif_dropped_vars
 from germina.nan import only_abundant, remove_cols
 from germina.runner import drop_many_by_vif, ch
 
 __ = enable_iterative_imputer
-dct = handle_command_line(argv, vifall=False, nans=False)
-vifall, nans = dct["vifall"], dct["nans"]
+dct = handle_command_line(argv, vifall=False, nans=False, sched=False)
+vifall, nans, sched = dct["vifall"], dct["nans"], dct["sched"]
 pprint(dct)
 print()
 
 path = "data/"
-loc, rem = True, True
-sync = False
-# bayley_average_t4
-trees = 10  # for classifier (RF, HistGradientBoostingClassifier, etc.)
-d = hdict(target_var="ibq_reg_cat_t3", index="id_estudo", join="inner", shuffle=True, n_jobs=-1, return_name=False, random_state=0, max_iter=trees, n_estimators=trees,
-          n_permutations=10000,  # for p-value
-          imputrees=100,  # RF trees for missing values imputer
-          n_repeats=1000  # for permutation importance
-          )
+trees = 10  # for classifier (RFc, HGBc, etc.)
+d = hdict(
+    n_permutations=10,  # for p-value
+    n_repeats=10,  # for permutation importance
+    imputrees=10,  # RF trees for missing values imputer
+    random_state=0,
+    target_var="ibq_reg_cat_t3",  # bayley_average_t4
+    index="id_estudo", join="inner", shuffle=True, n_jobs=-1, return_name=False, max_iter=trees, n_estimators=trees,
+)
+pprint({"trees": trees} | dict(d), sort_dicts=False)
 
 with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_storage, sopen(remote_cache_uri) as remote_storage:
     storages = {
@@ -128,7 +130,6 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
         d["df"] = _.df_after_vif
         d = ch(d, storages, to_be_updated)
 
-
     print(d.df.index, "falta ainda checar se ainda aparece id_estudo em X (ou ao menos como ultima coluna de df)")
     if d:
         raise Exception(f"")
@@ -172,25 +173,27 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
 
     print("Induce classifier -------------------------------------------------------------------------------------------------------------------------------------------------------")
     d = d >> apply(StratifiedKFold).cv
-    for constructor in [HGBc, RFc, XGBc, LGBMc, ETc]:
-        print(f"{constructor} ################################################################################################################################################################")
-        d = d >> apply(constructor).alg
-        d = ch(d, storages, to_be_updated)
-
-        print()
-        for m in ["balanced_accuracy", "precision", "recall"]:
-            d["scoring"] = m
-            rets = [f"{m}_scores", f"{m}_permscores", f"{m}_pval"]
-            d = d >> apply(permutation_test_score, _.alg)(*rets)
+    constructors = [HGBc, RFc, XGBc, LGBMc, ETc]
+    with sopen(schedule_uri) as db:
+        for constructor in (Scheduler(db, timeout=20) << constructors) if sched else constructors:
+            print(f"{constructor} ################################################################################################################################################################")
+            d = d >> apply(constructor).alg
             d = ch(d, storages, to_be_updated)
-            print(f"\t{m}\t(p-value):\t{d[rets[0]]:.4f}\t({d[rets[2]]:.4f})")
 
-            # Importances
-            d = d >> apply(lambda alg, X, y: clone(alg).fit(X, y)).estimator
-            d = d >> apply(permutation_importance).importances
-            d = ch(d, storages, to_be_updated)
-            r = d.importances
-            for i in r.importances_mean.argsort()[::-1]:
-                if r.importances_mean[i] - r.importances_std[i] > 0:
-                    print(f"importance   \t                 \t{r.importances_mean[i]:.6f}\t{r.importances_std[i]:.6f}\t{m:22}\t{d.target_var:20}\t{d.columns[i]}")
             print()
+            for m in ["balanced_accuracy", "precision", "recall"]:
+                d["scoring"] = m
+                rets = [f"{m}_scores", f"{m}_permscores", f"{m}_pval"]
+                d = d >> apply(permutation_test_score, _.alg)(*rets)
+                d = ch(d, storages, to_be_updated)
+                print(f"\t{m}\t(p-value):\t{d[rets[0]]:.4f}\t({d[rets[2]]:.4f})")
+
+                # Importances
+                d = d >> apply(lambda alg, X, y: clone(alg).fit(X, y)).estimator
+                d = d >> apply(permutation_importance).importances
+                d = ch(d, storages, to_be_updated)
+                r = d.importances
+                for i in r.importances_mean.argsort()[::-1]:
+                    if r.importances_mean[i] - r.importances_std[i] > 0:
+                        print(f"importance   \t                 \t{r.importances_mean[i]:.6f}\t{r.importances_std[i]:.6f}\t{m:22}\t{d.target_var:20}\t{d.columns[i]}")
+                print()
