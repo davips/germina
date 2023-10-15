@@ -184,15 +184,15 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
     d = d >> apply(StratifiedKFold).cv
     hoshes = d.hoshes.copy()
     del hoshes["n_jobs"]
-    taskmark = (reduce(mul, hoshes.values())).ansi
-    constructors = zip([HGBc, RFc, XGBc, LGBMc, ETc], repeat(taskmark))
+    taskmark = (reduce(mul, hoshes.values()))
+    constructors = {"HGBc": HGBc, "RFc": RFc, "XGBc": XGBc, "LGBMc": LGBMc, "ETc": ETc}
+    tasks = zip(repeat(taskmark), constructors.keys())
     with sopen(schedule_uri) as db:
-        for constructor in (Scheduler(db, timeout=20) << constructors) if sched else constructors:
-            print(f"{constructor} ################################################################################################################################################################")
-            d = d >> apply(constructor[0]).alg
+        for h, k in (Scheduler(db, timeout=20) << tasks) if sched else tasks:
+            constructor = constructors[k]
+            d = d >> apply(constructor).alg
             d = ch(d, storages, to_be_updated)
 
-            print()
             for m in ["balanced_accuracy", "precision", "recall"]:
                 d["scoring"] = m
                 rets = [f"{m}_scores", f"{m}_permscores", f"{m}_pval"]
