@@ -139,10 +139,6 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
         d["df"] = _.df_after_vif
         d = ch(d, storages, to_be_updated)
 
-    print(d.df.index, "falta ainda checar se ainda aparece id_estudo em X (ou ao menos como ultima coluna de df)")
-    if d:
-        raise Exception(f"")
-
     print("Separate quintiles 2,3,4 and NaN-labeled rows for IterativeImputer ------------------------------------------------------------------------------------------------------")
     d = d >> apply(lambda df, target_var: df[df[target_var].isna() | (df[target_var] > 1) & (df[target_var] < 5)]).df_for_imputer
     d = d >> apply(remove_cols, df=_.df_for_imputer, cols=[d.target_var], keep=[]).df_for_imputer
