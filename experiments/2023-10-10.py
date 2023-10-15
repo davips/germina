@@ -5,7 +5,7 @@ from hdict import apply, hdict, _
 from hdict.dataset.pandas_handling import file2df
 from shelchemy import sopen
 from sklearn import clone
-from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
+from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier, RandomForestRegressor
 from sklearn.model_selection import StratifiedKFold, permutation_test_score
 
 from germina.config import local_cache_uri, remote_cache_uri
@@ -49,7 +49,7 @@ with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
     d = drop_many_by_vif(d, "df_microbiome_super2", loc, rem, local, remote, sync)
 
     d = ch(d, loc, rem, local, remote, sync)
-    d.show()
+    # d.show()
 
     print("Join microbiome CSV data ----------------------------------")
     d["df"] = _.df_microbiome_pathways1
@@ -71,10 +71,9 @@ with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
     d["undropped_osf_vars"] = osf_except_dropped_vars
     d = d >> apply(lambda df_osf_full, undropped_osf_vars: df_osf_full[undropped_osf_vars]).df_undropped_osf
     d = ch(d, loc, rem, local, remote, sync)
-    d.show()
 
     print("Join OSF data ----------------------------------")
-    d = d >> apply(join, other=_.df_undropped_osf).df
+    d = d >> apply(join, other=_.df_undropped_osf).df_before_vif
     d = ch(d, loc, rem, local, remote, sync)
     print("Joined OSF ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.df, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
@@ -82,13 +81,15 @@ with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
 
     print("Overall removal of NaNs and VIF application ----------------------------------")
     # pprint([d.hosh, d.hoshes])
-    d = drop_many_by_vif(d, "df", loc, rem, local, remote, sync)  # está removendo rows e cols
+    d = drop_many_by_vif(d, "df_before_vif", loc, rem, local, remote, sync)  # está removendo rows e cols
     d = ch(d, loc, rem, local, remote, sync)
-    d.show()
+    # d.show()
+    # d["df"] = d.df_before_vif
 
     print("Join target ----------------------------------")
-    d = d >> apply(lambda df_undropped_osf, target_var: df_undropped_osf[[target_var, "id_estudo"]].reindex(sorted([target_var, "id_estudo"]), axis=1)).df_target
+    d = d >> apply(lambda df_osf_full, target_var: df_osf_full[[target_var, "id_estudo"]].reindex(sorted([target_var, "id_estudo"]), axis=1)).df_target
     d = d >> apply(join, other=_.df_target).df
+    d = d >> apply(join, df=_.df_before_vif, other=_.df_target).df_before_vif
     d = ch(d, loc, rem, local, remote, sync)
     print(f"Joined target {d.target_var} ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.df, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
@@ -96,8 +97,7 @@ with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
     d = d >> apply(lambda df: df.columns.to_list()).columns
     d = ch(d, loc, rem, local, remote, sync)
     print(d.df.columns)
-    d = d >> apply(lambda df_osf_full, columns: df_osf_full[columns + ["id_estudo"]]).df
-    d = d >> apply(lambda df, index: df.set_index(index)).df
+    d = d >> apply(lambda df_before_vif, columns: df_before_vif[columns]).df
     d = ch(d, loc, rem, local, remote, sync)
     print(f"Noncolinear dataset with NaNs again ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.df, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
@@ -107,15 +107,15 @@ with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
 
     print("Separate quintiles 2,3,4 and NaN-labeled rows for IterativeImputer ----------------------------------")
     d = d >> apply(lambda df, target_var: df[df[target_var].isna() | (df[target_var] > 1) & (df[target_var] < 5)]).df_for_imputer
-    d = d >> apply(remove_cols, df=_.df_for_imputer, cols=[d.target], keep=[]).df_for_imputer
+    d = d >> apply(remove_cols, df=_.df_for_imputer, cols=[d.target_var], keep=[]).df_for_imputer
     d = ch(d, loc, rem, local, remote, sync)
     print(f"df_for_imputer ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.df_for_imputer, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
     print("Model imputation ----------------------------------")
-    d = d >> apply(RandomForestClassifier, n_estimators=_.imputrees).imputalg
+    d = d >> apply(RandomForestRegressor, n_estimators=_.imputrees).imputalg
     d = d >> apply(lambda imputalg, df_for_imputer: IterativeImputer(estimator=clone(imputalg)).fit(X=df_for_imputer)).imputer
     d = ch(d, loc, rem, local, remote, sync)
-    d.show()
+    # d.show()
 
     print("Build dataset with quintiles 1,5 and exclude NaN-labeled rows ----------------------------------")
     d = d >> apply(lambda df, target_var: df[df[target_var].notna() & ((df[target_var] == 1) | (df[target_var] == 5))]).df_dataset
@@ -123,13 +123,13 @@ with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
     print(f"df_dataset ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.df_dataset, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
     print("Separate X from dataset and fill missing values using imputer ----------------------------------")
-    d = d >> apply(remove_cols, df=_.df_dataset, cols=[d.target], keep=[]).df_dataset_except_target
+    d = d >> apply(remove_cols, df=_.df_dataset, cols=[d.target_var], keep=[]).df_dataset_except_target
     d = d >> apply(lambda imputer, df_dataset_except_target: imputer.transform(X=df_dataset_except_target)).X
     d = ch(d, loc, rem, local, remote, sync)
     print(f"X ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.X, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
     print("Separate y from dataset ----------------------------------")
-    d = d >> apply(lambda df_dataset, target: df_dataset[target]).y
+    d = d >> apply(lambda df_dataset, target_var: df_dataset[target_var]).y
     d = ch(d, loc, rem, local, remote, sync)
     print(f"X ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.y, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
