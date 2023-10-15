@@ -102,11 +102,12 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
 
     # print("Format problematic attributes.")   todo ?
 
-    print("Overall removal of NaNs and VIF application -----------------------------------------------------------------------------------------------------------------------------")
     d["df_after_vif"] = d.df_before_vif
-    if vifall:
-        d = drop_many_by_vif(d, "df_after_vif", storages, to_be_updated)  # está removendo rows e cols
     d = ch(d, storages, to_be_updated)
+    if vifall:
+        print("Overall removal of NaNs and VIF application -----------------------------------------------------------------------------------------------------------------------------")
+        d = drop_many_by_vif(d, "df_after_vif", storages, to_be_updated)  # está removendo rows e cols
+        d = ch(d, storages, to_be_updated)
 
     print("Join target -------------------------------------------------------------------------------------------------------------------------------------------------------------")
     d = d >> apply(lambda df_osf_full, target_var: df_osf_full[[target_var, "id_estudo"]].reindex(sorted([target_var, "id_estudo"]), axis=1)).df_target
