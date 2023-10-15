@@ -183,6 +183,8 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
     tasks = zip(repeat(taskmark), constructors.keys())
     with sopen(schedule_uri) as db:
         for h, k in (Scheduler(db, timeout=20) << tasks) if sched else tasks:
+            if not sched:
+                print(f"{h.ansi} {k} ################################################################################################################################################################")
             constructor = constructors[k]
             d = d >> apply(constructor).alg
             d = ch(d, storages, to_be_updated)
