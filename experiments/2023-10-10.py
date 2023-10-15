@@ -203,3 +203,5 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
                     if r.importances_mean[i] - r.importances_std[i] > 0:
                         print(f"importance   \t                 \t{r.importances_mean[i]:.6f}\t{r.importances_std[i]:.6f}\t{m:22}\t{d.target_var:20}\t{d.columns[i]}")
                 print()
+
+print("All finished")
