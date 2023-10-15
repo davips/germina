@@ -396,8 +396,9 @@ microbiome_super2_dropped = [
     "Generation_of_Precursor_Metabolites_and_Energy_t2",
     "Macromolecule_Modification_t2"
 ]
+later_dropped = ["LPSSYN-PWY", "LIPASYN-PWY", "LH_temporal_theta_t2", "LH_temporal_high_alpha_t2", "LH_temporal_delta_t2", "LH_parietal_theta_t2", "LH_parietal_low_alpha_t2", "LH_parietal_high_alpha_t2", "LH_lateral_frontal_theta_t2", "LH_lateral_frontal_high_alpha_t2", "LH_lateral_frontal_delta_t2", "LH_lateral_frontal_beta_t2", "Gamma_t2", "GLYCOLYSIS-TCA-GLYOX-BYPASS_t2", "GLYCOL-GLYOXDEG-PWY_t2", "GLYCOL-GLYOXDEG-PWY", "GLYCOCAT-PWY_t2", "GLYCOCAT-PWY", "GLUDEG-I-PWY_t2", "GLUDEG-I-PWY", "GLUCOSE1PMETAB-PWY_t2", "GALACTUROCAT-PWY_t2", "GALACT-GLUCUROCAT-PWY_t2", "Frontocentral_theta_t2", "Frontocentral_low_alpha_t2", "Frontocentral_high_alpha_t2", "Frontocentral_delta_t2", "Frontocentral_beta_t2", "FOLSYN-PWY_t2", "FASYN-INITIAL-PWY_t2", "FASYN-INITIAL-PWY", "DTDPRHAMSYN-PWY_t2", "DTDPRHAMSYN-PWY", "DHGLUCONATE-PYR-CAT-PWY", "DENITRIFICATION-PWY_t2", "DENITRIFICATION-PWY", "CRNFORCAT-PWY_t2", "CRNFORCAT-PWY", "COBALSYN-PWY_t2", "COA-PWY_t2", "COA-PWY", "CITRULBIO-PWY_t2", "CENTFERM-PWY_t2", "CATECHOL-ORTHO-CLEAVAGE-PWY_t2", "CARNMET-PWY_t2", "Biosynthesis_t2", "Biosynthesis_t1", "Bioluminescence_t2", "Bioluminescence_t1", "Beta_t2", "Activation_Inactivation_Interconversion_t2", "Activation_Inactivation_Interconversion_t1", "ARGDEG-PWY_t2", "ALLANTOINDEG-PWY_t2", "ALLANTOINDEG-PWY", "AEROBACTINSYN-PWY_t2", "AEROBACTINSYN-PWY", "3-HYDROXYPHENYLACETATE-DEGRADATION-PWY_t2", "3-HYDROXYPHENYLACETATE-DEGRADATION-PWY", "1CMET2-PWY_t2", "12DICHLORETHDEG-PWY"]
 
-metavars_no_target = """a08_t1
+osf_except_target_vars = """a08_t1
 a10_t1
 a10_t2
 a10_t3
@@ -1032,9 +1033,9 @@ waz_t3
 whz_t1
 whz_t2
 whz_t3""".split("\n")
-metavars_no_target = set(v.replace("_t1", "").replace("_t2", "").replace("_t3", "").replace("_t4", "") for v in metavars_no_target)
+osf_except_target_vars = set(v.replace("_t1", "").replace("_t2", "").replace("_t3", "").replace("_t4", "") for v in osf_except_target_vars)
 
-vif_dropped = microbiome_pathways1_dropped + microbiome_pathways2_dropped + microbiome_super1_dropped + microbiome_super2_dropped
+vif_dropped_vars = microbiome_pathways1_dropped + microbiome_pathways2_dropped + microbiome_super1_dropped + microbiome_super2_dropped + later_dropped
 
 """
 targets
