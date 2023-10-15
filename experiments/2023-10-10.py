@@ -75,28 +75,28 @@ with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
     print("Join OSF data ----------------------------------")
     d = d >> apply(join, other=_.df_undropped_osf).df_before_vif
     d = ch(d, loc, rem, local, remote, sync)
-    print("Joined OSF ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.df, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
+    print("Joined OSF ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.df_before_vif, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
     # print("Format problematic attributes.")   todo ?
 
     print("Overall removal of NaNs and VIF application ----------------------------------")
-    # pprint([d.hosh, d.hoshes])
-    d = drop_many_by_vif(d, "df_before_vif", loc, rem, local, remote, sync)  # está removendo rows e cols
+    d["df_after_vif"] = d.df_before_vif
+    d = drop_many_by_vif(d, "df_after_vif", loc, rem, local, remote, sync)  # está removendo rows e cols
     d = ch(d, loc, rem, local, remote, sync)
-    # d.show()
-    # d["df"] = d.df_before_vif
 
     print("Join target ----------------------------------")
     d = d >> apply(lambda df_osf_full, target_var: df_osf_full[[target_var, "id_estudo"]].reindex(sorted([target_var, "id_estudo"]), axis=1)).df_target
-    d = d >> apply(join, other=_.df_target).df
+    d = d >> apply(join, df=_.df_after_vif, other=_.df_target).df_after_vif
     d = d >> apply(join, df=_.df_before_vif, other=_.df_target).df_before_vif
     d = ch(d, loc, rem, local, remote, sync)
-    print(f"Joined target {d.target_var} ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.df, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
+    print(f"Joined target {d.target_var} with df_before_vif ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.df_before_vif, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
+    print(f"Joined target {d.target_var} with df_after_vif ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.df_after_vif, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
-    print("Restart now by using only noncolinear columns to recover NaNs ----------------------------------------------------")
-    d = d >> apply(lambda df: df.columns.to_list()).columns
+    print("Restart now to recover NaNs ----------------------------------------------------")
+    d = d >> apply(lambda df_after_vif: df_after_vif.columns.to_list()).columns
     d = ch(d, loc, rem, local, remote, sync)
-    print(d.df.columns)
+    print(d.columns)
+    print(d.df_before_vif.columns.to_list())
     d = d >> apply(lambda df_before_vif, columns: df_before_vif[columns]).df
     d = ch(d, loc, rem, local, remote, sync)
     print(f"Noncolinear dataset with NaNs again ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.df, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
