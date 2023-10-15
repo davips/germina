@@ -19,10 +19,10 @@ path = "data/"
 loc, rem = True, True
 sync = False
 # bayley_average_t4
-trees = 100
+trees = 1000
 d = hdict(target_var="ibq_reg_cat_t3", index="id_estudo", join="inner", shuffle=True, n_jobs=-1, return_name=False, random_state=0, max_iter=trees, n_estimators=trees,
-          n_permutations=1,
-          imputrees=10)
+          n_permutations=1000,
+          imputrees=20)
 
 with sopen(local_cache_uri) as local, sopen(remote_cache_uri) as remote:
     print("Load microbiome CSV data ----------------------------------")
