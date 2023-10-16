@@ -69,7 +69,6 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
         d = d >> apply(remove_cols, _.df_microbiome_pathways2, cols=vif_dropped_vars, keep=[], debug=False).df_microbiome_pathways2
         d = d >> apply(remove_cols, _.df_microbiome_super2, cols=vif_dropped_vars, keep=[], debug=False).df_microbiome_super2
 
-    if vifdomain:
         print("Apply by-domain VIF again, it doest not hurt ----------------------------------------------------------------------------------------------------------------------------")
         d = drop_many_by_vif(d, "df_microbiome_pathways1", storages, to_be_updated)
         d = drop_many_by_vif(d, "df_microbiome_super1", storages, to_be_updated)
@@ -128,8 +127,8 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
     print(f"Joined target {d.target_var} with df_before_vif ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.df_before_vif, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
     print(f"Joined target {d.target_var} with df_after_vif ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.df_after_vif, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
-    if nans:
-        print("Restart now to recover NaNs ---------------------------------------------------------------------------------------------------------------------------------------------")
+    if nans and (vifall or vifdomain):
+        print("Restart now to recover NaNs removed by VIF ---------------------------------------------------------------------------------------------------------------------------------------------")
         d = d >> apply(lambda df_after_vif: df_after_vif.columns.to_list()).columns
         d = ch(d, storages, to_be_updated)
         d = d >> apply(lambda df_before_vif, columns: df_before_vif[columns]).df
