@@ -1,3 +1,4 @@
+from datetime import datetime
 from functools import reduce
 from itertools import repeat
 from operator import mul, add
@@ -29,6 +30,7 @@ from germina.runner import drop_many_by_vif, ch
 
 __ = enable_iterative_imputer
 dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vifdomain=False, vifall=False, nans=False, sched=False)
+print(datetime.now())
 pprint(dct, sort_dicts=False)
 print()
 path = "data/"
@@ -52,6 +54,7 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
     to_be_updated = None  # "near"
 
     print("Load microbiome CSV data ------------------------------------------------------------------------------------------------------------------------------------------------")
+    print(datetime.now())
     d = d >> apply(file2df, path + "data_microbiome___2023-07-04___vias_metabolicas_valor_absoluto_T1_n525.csv").df_microbiome_pathways1
     d = d >> apply(only_abundant, _.df_microbiome_pathways1).df_microbiome_pathways1
 
@@ -64,12 +67,14 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
 
     if vifdomain:
         print("Remove previously known vars selected through by-domain VIF -------------------------------------------------------------------------------------------------------------")
+        print(datetime.now())
         d = d >> apply(remove_cols, _.df_microbiome_pathways1, cols=vif_dropped_vars, keep=[], debug=False).df_microbiome_pathways1
         d = d >> apply(remove_cols, _.df_microbiome_super1, cols=vif_dropped_vars, keep=[], debug=False).df_microbiome_super1
         d = d >> apply(remove_cols, _.df_microbiome_pathways2, cols=vif_dropped_vars, keep=[], debug=False).df_microbiome_pathways2
         d = d >> apply(remove_cols, _.df_microbiome_super2, cols=vif_dropped_vars, keep=[], debug=False).df_microbiome_super2
 
         print("Apply by-domain VIF again, it doest not hurt ----------------------------------------------------------------------------------------------------------------------------")
+        print(datetime.now())
         d = drop_many_by_vif(d, "df_microbiome_pathways1", storages, to_be_updated)
         d = drop_many_by_vif(d, "df_microbiome_super1", storages, to_be_updated)
         d = drop_many_by_vif(d, "df_microbiome_pathways2", storages, to_be_updated)
@@ -79,6 +84,7 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
     # d.show()
 
     print("Join microbiome CSV data ------------------------------------------------------------------------------------------------------------------------------------------------")
+    print(datetime.now())
     d["df"] = _.df_microbiome_pathways1
     d = d >> apply(join, other=_.df_microbiome_super1).df
     d = d >> apply(join, other=_.df_microbiome_pathways2).df
@@ -87,6 +93,7 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
     print("Joined ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.df, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
     print("Load OSF data -----------------------------------------------------------------------------------------------------------------------------------------------------------")
+    print(datetime.now())
     d = d >> apply(file2df, path + "germina-osf-request---davi121023.csv").df_osf_full
     osf_except_dropped_vars = ["id_estudo"]
     seq = set(osf_except_target_vars).difference(vif_dropped_vars) if vifdomain else osf_except_target_vars
@@ -101,6 +108,7 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
     d = ch(d, storages, to_be_updated)
 
     print("Join OSF data -----------------------------------------------------------------------------------------------------------------------------------------------------------")
+    print(datetime.now())
     csv_dup_vars = []
     for v in sorted(d.df.columns):
         if v in d.df_undropped_osf:
@@ -116,10 +124,12 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
     d = ch(d, storages, to_be_updated)
     if vifall:
         print("Overall removal of NaNs and VIF application -----------------------------------------------------------------------------------------------------------------------------")
+        print(datetime.now())
         d = drop_many_by_vif(d, "df_after_vif", storages, to_be_updated)  # está removendo rows e cols
         d = ch(d, storages, to_be_updated)
 
     print("Join target -------------------------------------------------------------------------------------------------------------------------------------------------------------")
+    print(datetime.now())
     d = d >> apply(lambda df_osf_full, target_var: df_osf_full[[target_var, "id_estudo"]].reindex(sorted([target_var, "id_estudo"]), axis=1)).df_target
     d = d >> apply(join, df=_.df_after_vif, other=_.df_target).df_after_vif
     d = d >> apply(join, df=_.df_before_vif, other=_.df_target).df_before_vif
@@ -129,6 +139,7 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
 
     if nans and (vifall or vifdomain):
         print("Restart now to recover NaNs removed by VIF ---------------------------------------------------------------------------------------------------------------------------------------------")
+        print(datetime.now())
         d = d >> apply(lambda df_after_vif: df_after_vif.columns.to_list()).columns
         d = ch(d, storages, to_be_updated)
         d = d >> apply(lambda df_before_vif, columns: df_before_vif[columns]).df
@@ -139,34 +150,40 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
         d = ch(d, storages, to_be_updated)
 
     print("Separate quintiles 2,3,4 and NaN-labeled rows for IterativeImputer ------------------------------------------------------------------------------------------------------")
+    print(datetime.now())
     d = d >> apply(lambda df, target_var: df[df[target_var].isna() | (df[target_var] > 1) & (df[target_var] < 5)]).df_for_imputer
     d = d >> apply(remove_cols, df=_.df_for_imputer, cols=[d.target_var], keep=[]).df_for_imputer
     d = ch(d, storages, to_be_updated)
     print(f"df_for_imputer ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.df_for_imputer, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
     print("Model imputation --------------------------------------------------------------------------------------------------------------------------------------------------------")
+    print(datetime.now())
     d = d >> apply(RFr, n_estimators=_.imputrees).imputalg
     d = d >> apply(lambda imputalg, df_for_imputer: IterativeImputer(estimator=clone(imputalg)).fit(X=df_for_imputer)).imputer
     d = ch(d, storages, to_be_updated)
     # d.show()
 
     print("Build dataset with quintiles 1,5 and exclude NaN-labeled rows -----------------------------------------------------------------------------------------------------------")
+    print(datetime.now())
     d = d >> apply(lambda df, target_var: df[df[target_var].notna() & ((df[target_var] == 1) | (df[target_var] == 5))]).df_dataset
     d = ch(d, storages, to_be_updated)
     print(f"df_dataset ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.df_dataset, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
     print("Separate X from dataset and fill missing values using imputer -----------------------------------------------------------------------------------------------------------")
+    print(datetime.now())
     d = d >> apply(remove_cols, df=_.df_dataset, cols=[d.target_var], keep=[]).df_dataset_except_target
     d = d >> apply(lambda imputer, df_dataset_except_target: DataFrame(imputer.transform(X=df_dataset_except_target), columns=df_dataset_except_target.columns)).X
     d = ch(d, storages, to_be_updated)
     print(f"X {d.X.shape} ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.X, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
     print("Separate y from dataset -------------------------------------------------------------------------------------------------------------------------------------------------")
+    print(datetime.now())
     d = d >> apply(lambda df_dataset, target_var: df_dataset[target_var] // 5).y
     d = ch(d, storages, to_be_updated)
     print(f"y {d.y.shape} ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.y, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
     print("Calculate class balance -------------------------------------------------------------------------------------------------------------------------------------------------")
+    print(datetime.now())
     d = d >> apply(lambda X: X.shape).Xshape
     d = d >> apply(lambda y: y.shape).yshape
     d = d >> apply(lambda y: np.unique(y, return_counts=True))("unique_labels", "counts")
@@ -176,12 +193,14 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
     print(f"{d.counts=}\t{d.proportions=}")
 
     print("Induce classifier -------------------------------------------------------------------------------------------------------------------------------------------------------")
+    print(datetime.now())
     d = d >> apply(StratifiedKFold).cv
     taskmark = d.hosh - (d.hoshes["n_jobs"] * b"n_jobs")
     constructors = {"HGBc": HGBc, "RFc": RFc, "XGBc": XGBc, "LGBMc": LGBMc, "ETc": ETc}
     tasks = zip(repeat(taskmark), constructors.keys())
     with sopen(schedule_uri) as db:
         for h, k in (Scheduler(db, timeout=20) << tasks) if sched else tasks:
+            print(datetime.now())
             if not sched:
                 print(f"{h.ansi} {k} ################################################################################################################################################################")
             constructor = constructors[k]
