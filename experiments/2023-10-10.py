@@ -199,7 +199,7 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
     constructors = {"HGBc": HGBc, "RFc": RFc, "XGBc": XGBc, "LGBMc": LGBMc, "ETc": ETc}
     tasks = zip(repeat(taskmark), constructors.keys())
     with sopen(schedule_uri) as db:
-        for h, k in (Scheduler(db, timeout=20) << tasks) if sched else tasks:
+        for h, k in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
             print(datetime.now())
             if not sched:
                 print(f"{h.ansi} {k} ################################################################################################################################################################")
