@@ -30,10 +30,10 @@ from germina.dataset import join, ensemble_predict
 from germina.nan import remove_cols, bina, loga, remove_nan_rows_cols, only_abundant, hasNaN
 
 
-def ch(d, storages, to_be_updated=None):
+def ch(d, storages, to_be_updated=""):
     for storage in storages.values():
         d = d >> cache(storage)
-    if to_be_updated is not None:
+    if to_be_updated != "":
         d = d >> cache(storages[to_be_updated])
     d.evaluate()
     return d

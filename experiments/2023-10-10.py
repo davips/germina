@@ -29,7 +29,7 @@ from germina.nan import only_abundant, remove_cols
 from germina.runner import drop_many_by_vif, ch
 
 __ = enable_iterative_imputer
-dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vifdomain=False, vifall=False, nans=False, sched=False)
+dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vifdomain=False, vifall=False, nans=False, sched=False, up="")
 print(datetime.now())
 pprint(dct, sort_dicts=False)
 print()
@@ -43,7 +43,7 @@ d = hdict(
     max_iter=dct["trees"], n_estimators=dct["trees"],
     index="id_estudo", join="inner", shuffle=True, n_jobs=-1, return_name=False
 )
-vifdomain, vifall, nans, sched = dct["vifdomain"], dct["vifall"], dct["nans"], dct["sched"]
+vifdomain, vifall, nans, sched, to_be_updated = dct["vifdomain"], dct["vifall"], dct["nans"], dct["sched"], dct["up"]
 
 with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_storage, sopen(remote_cache_uri) as remote_storage:
     storages = {
@@ -51,7 +51,6 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
         "near": near_storage,
         "local": local_storage,
     }
-    to_be_updated = None  # "near"
 
     print("Load microbiome CSV data ------------------------------------------------------------------------------------------------------------------------------------------------")
     print(datetime.now())
