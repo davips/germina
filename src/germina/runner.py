@@ -3,6 +3,7 @@ from contextlib import nullcontext
 from pprint import pprint
 
 import numpy as np
+import pandas as pd
 from hdict import _, apply, cache
 from hdict import field
 from hdict import hdict
@@ -26,8 +27,44 @@ from statsmodels.stats.outliers_influence import variance_inflation_factor
 from xgboost import XGBClassifier as XGBc
 
 from germina.config import remote_cache_uri, local_cache_uri, schedule_uri
-from germina.dataset import join, ensemble_predict
-from germina.nan import remove_cols, bina, loga, remove_nan_rows_cols, only_abundant, hasNaN
+from germina.dataset import join, ensemble_predict, concat
+from germina.nan import remove_cols, bina, loga, remove_nan_rows_cols, only_abundant, hasNaN, remove_nan_cols_rows
+
+
+def setindex(df, old_indexname="estudo_id"):
+    if df.index is not None and df.index.name != "estudo_id":
+        df = df.reset_index()
+        df.rename(columns={old_indexname: "estudo_id"}, inplace=True)
+        df.set_index("estudo_id", inplace=True)
+    return df
+
+
+def sgid2estudoid(df: DataFrame, path="data", filename="anthonieta---ChecklistHyperscanning-Idade.csv"):
+    translator_df = file2df(f"{path}/{filename}", return_name=False)
+    print(translator_df.columns)
+    if "IDs" in df.columns:
+        df = df.assign(ID=df["IDs"].to_list())
+        df.drop("IDs", axis=1, inplace=True)
+    if "ID:" in df.columns:
+        df = df.assign(ID=df["ID:"].to_list())
+        df.drop("ID:", axis=1, inplace=True)
+        print(df)
+    df = pd.merge(df, translator_df[["ID", "id_estudo"]], on="ID", how="inner")
+    df.set_index("id_estudo", inplace=True)
+    df.drop("ID", axis=1, inplace=True)
+    df = setindex(df)
+    return df
+
+
+def bestid(df, path="data", filename="anthonieta---ChecklistHyperscanning-Idade.csv"):
+    translator_df = file2df(f"{path}/{filename}", return_name=False)
+    df = pd.merge(df, translator_df[["MelhorTparaEEGtradicional", "id_estudo"]], on="id_estudo", how="left")
+    df.set_index("id_estudo", inplace=True)
+    df.apply(lambda x: print(x), axis=1)
+    df.drop("MelhorTparaEEGtradicional", axis=1, inplace=True)
+    exit()
+    # todo
+    return df
 
 
 def ch(d, storages, to_be_updated=""):
@@ -39,9 +76,11 @@ def ch(d, storages, to_be_updated=""):
     return d
 
 
-def drop_many_by_vif(d, dffield, storages, to_be_updated):
+def drop_many_by_vif(d, dffield, storages, to_be_updated, keepcols, keeprows):
+    d = d >> apply(lambda df: df.loc[keeprows], d[dffield]).dfkeep
     if hasNaN(d[dffield], debug=False) > 1:
-        d = d >> apply(remove_nan_rows_cols, field(dffield), keep=[])(dffield)
+        d = d >> apply(remove_nan_rows_cols, field(dffield), keep=[], cols_at_a_time=2)(dffield)
+    d = d >> apply(lambda df: df.astype(float), field(dffield))(dffield)
     lstfield = f"{dffield}_dropped"
     d[lstfield] = old = []
     while True:
@@ -51,7 +90,9 @@ def drop_many_by_vif(d, dffield, storages, to_be_updated):
         if d[lstfield] == old:
             break
         old = d[lstfield]
-    d = d >> apply(remove_cols, field(dffield), field(lstfield), keep=[], debug=False)(dffield)
+    d = d >> apply(lambda df, dfkeep: dfkeep.loc[dfkeep.index.difference(df.index)], field(dffield)).dfkeep
+    d = d >> apply(concat, field(dffield), other=_.dfkeep)(dffield)
+    d = d >> apply(remove_cols, field(dffield), field(lstfield), keep=keepcols, debug=False)(dffield)
     d = ch(d, storages, to_be_updated)
     return d
 

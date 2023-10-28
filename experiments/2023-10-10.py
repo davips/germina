@@ -24,7 +24,7 @@ from sklearn.model_selection import StratifiedKFold, permutation_test_score
 from xgboost import XGBClassifier as XGBc
 
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
-from germina.dataset import join, osf_except_target_vars, vif_dropped_vars
+from germina.dataset import join, osf_except_target_vars__no_t, vif_dropped_vars
 from germina.nan import only_abundant, remove_cols
 from germina.runner import drop_many_by_vif, ch
 
@@ -95,7 +95,7 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
     print(datetime.now())
     d = d >> apply(file2df, path + "germina-osf-request---davi121023.csv").df_osf_full
     osf_except_dropped_vars = ["id_estudo"]
-    seq = set(osf_except_target_vars).difference(vif_dropped_vars) if vifdomain else osf_except_target_vars
+    seq = set(osf_except_target_vars__no_t).difference(vif_dropped_vars) if vifdomain else osf_except_target_vars__no_t
     for v in sorted(seq):
         for i in range(7):
             sub = f"{v}_t{i}"

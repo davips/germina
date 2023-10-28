@@ -1,13 +1,27 @@
+import pandas as pd
 from pandas import DataFrame
 from scipy.stats import mode
 
 
 def join(df: DataFrame, index, other, join):
+    from germina.runner import setindex
+    if df.index.name != index:
+        df = setindex(df, index)
+        df.index = df.index.astype(int)
+    if other.index.name != index:
+        other = setindex(other, index)
+        other.index = other.index.astype(int)
+    res = df.join([other], how=join, sort=True)
+    res = res.reindex(sorted(res.columns), axis=1)
+    return res
+
+
+def concat(df: DataFrame, index, other):
     if df.index.name != index:
         df = df.set_index(index)
     if other.index.name != index:
         other = other.set_index(index)
-    res = df.join([other], how=join, sort=True)
+    res = pd.concat([df, other])
     return res.reindex(sorted(res.columns), axis=1)
 
 
@@ -396,7 +410,8 @@ microbiome_super2_dropped = [
     "Generation_of_Precursor_Metabolites_and_Energy_t2",
     "Macromolecule_Modification_t2"
 ]
-later_dropped = ["LPSSYN-PWY", "LIPASYN-PWY", "LH_temporal_theta_t2", "LH_temporal_high_alpha_t2", "LH_temporal_delta_t2", "LH_parietal_theta_t2", "LH_parietal_low_alpha_t2", "LH_parietal_high_alpha_t2", "LH_lateral_frontal_theta_t2", "LH_lateral_frontal_high_alpha_t2", "LH_lateral_frontal_delta_t2", "LH_lateral_frontal_beta_t2", "Gamma_t2", "GLYCOLYSIS-TCA-GLYOX-BYPASS_t2", "GLYCOL-GLYOXDEG-PWY_t2", "GLYCOL-GLYOXDEG-PWY", "GLYCOCAT-PWY_t2", "GLYCOCAT-PWY", "GLUDEG-I-PWY_t2", "GLUDEG-I-PWY", "GLUCOSE1PMETAB-PWY_t2", "GALACTUROCAT-PWY_t2", "GALACT-GLUCUROCAT-PWY_t2", "Frontocentral_theta_t2", "Frontocentral_low_alpha_t2", "Frontocentral_high_alpha_t2", "Frontocentral_delta_t2", "Frontocentral_beta_t2", "FOLSYN-PWY_t2", "FASYN-INITIAL-PWY_t2", "FASYN-INITIAL-PWY", "DTDPRHAMSYN-PWY_t2", "DTDPRHAMSYN-PWY", "DHGLUCONATE-PYR-CAT-PWY", "DENITRIFICATION-PWY_t2", "DENITRIFICATION-PWY", "CRNFORCAT-PWY_t2", "CRNFORCAT-PWY", "COBALSYN-PWY_t2", "COA-PWY_t2", "COA-PWY", "CITRULBIO-PWY_t2", "CENTFERM-PWY_t2", "CATECHOL-ORTHO-CLEAVAGE-PWY_t2", "CARNMET-PWY_t2", "Biosynthesis_t2", "Biosynthesis_t1", "Bioluminescence_t2", "Bioluminescence_t1", "Beta_t2", "Activation_Inactivation_Interconversion_t2", "Activation_Inactivation_Interconversion_t1", "ARGDEG-PWY_t2", "ALLANTOINDEG-PWY_t2", "ALLANTOINDEG-PWY", "AEROBACTINSYN-PWY_t2", "AEROBACTINSYN-PWY", "3-HYDROXYPHENYLACETATE-DEGRADATION-PWY_t2", "3-HYDROXYPHENYLACETATE-DEGRADATION-PWY", "1CMET2-PWY_t2", "12DICHLORETHDEG-PWY"]
+later_dropped = ["LPSSYN-PWY", "LIPASYN-PWY", "LH_temporal_theta_t2", "LH_temporal_high_alpha_t2", "LH_temporal_delta_t2", "LH_parietal_theta_t2", "LH_parietal_low_alpha_t2", "LH_parietal_high_alpha_t2", "LH_lateral_frontal_theta_t2", "LH_lateral_frontal_high_alpha_t2", "LH_lateral_frontal_delta_t2", "LH_lateral_frontal_beta_t2", "Gamma_t2", "GLYCOLYSIS-TCA-GLYOX-BYPASS_t2", "GLYCOL-GLYOXDEG-PWY_t2", "GLYCOL-GLYOXDEG-PWY", "GLYCOCAT-PWY_t2", "GLYCOCAT-PWY", "GLUDEG-I-PWY_t2", "GLUDEG-I-PWY", "GLUCOSE1PMETAB-PWY_t2", "GALACTUROCAT-PWY_t2", "GALACT-GLUCUROCAT-PWY_t2", "Frontocentral_theta_t2", "Frontocentral_low_alpha_t2", "Frontocentral_high_alpha_t2", "Frontocentral_delta_t2", "Frontocentral_beta_t2", "FOLSYN-PWY_t2", "FASYN-INITIAL-PWY_t2", "FASYN-INITIAL-PWY", "DTDPRHAMSYN-PWY_t2", "DTDPRHAMSYN-PWY", "DHGLUCONATE-PYR-CAT-PWY", "DENITRIFICATION-PWY_t2", "DENITRIFICATION-PWY", "CRNFORCAT-PWY_t2", "CRNFORCAT-PWY", "COBALSYN-PWY_t2", "COA-PWY_t2", "COA-PWY", "CITRULBIO-PWY_t2",
+                 "CENTFERM-PWY_t2", "CATECHOL-ORTHO-CLEAVAGE-PWY_t2", "CARNMET-PWY_t2", "Biosynthesis_t2", "Biosynthesis_t1", "Bioluminescence_t2", "Bioluminescence_t1", "Beta_t2", "Activation_Inactivation_Interconversion_t2", "Activation_Inactivation_Interconversion_t1", "ARGDEG-PWY_t2", "ALLANTOINDEG-PWY_t2", "ALLANTOINDEG-PWY", "AEROBACTINSYN-PWY_t2", "AEROBACTINSYN-PWY", "3-HYDROXYPHENYLACETATE-DEGRADATION-PWY_t2", "3-HYDROXYPHENYLACETATE-DEGRADATION-PWY", "1CMET2-PWY_t2", "12DICHLORETHDEG-PWY"]
 
 osf_except_target_vars = """a08_t1
 a10_t1
@@ -1033,7 +1048,7 @@ waz_t3
 whz_t1
 whz_t2
 whz_t3""".split("\n")
-osf_except_target_vars = set(v.replace("_t1", "").replace("_t2", "").replace("_t3", "").replace("_t4", "") for v in osf_except_target_vars)
+osf_except_target_vars__no_t = set(v.replace("_t1", "").replace("_t2", "").replace("_t3", "").replace("_t4", "") for v in osf_except_target_vars)
 
 vif_dropped_vars = microbiome_pathways1_dropped + microbiome_pathways2_dropped + microbiome_super1_dropped + microbiome_super2_dropped + later_dropped
 
@@ -1064,3 +1079,20 @@ other
 
 hyperscanning_complete_*
 """
+
+eeg_vars = ("Beta_t1,Beta_t2,Beta_t3,Frontocentral_beta_t1,Frontocentral_beta_t2,RH_lateral_frontal_beta_t1,RH_lateral_frontal_beta_t2,LH_lateral_frontal_beta_t1,LH_lateral_frontal_beta_t2,"
+            "RH_parietal_beta_t1,RH_parietal_beta_t2,LH_parietal_beta_t1,LH_parietal_beta_t2,RH_temporal_beta_t1,RH_temporal_beta_t2,LH_temporal_beta_t1,LH_temporal_beta_t2,Occipital_beta_t1,"
+            "Occipital_beta_t2,Delta_t1,Delta_t2,Delta_t3,Frontocentral_delta_t1,Frontocentral_delta_t2,RH_lateral_frontal_delta_t1,RH_lateral_frontal_delta_t2,LH_lateral_frontal_delta_t1,"
+            "LH_lateral_frontal_delta_t2,RH_parietal_delta_t1,RH_parietal_delta_t2,LH_parietal_delta_t1,LH_parietal_delta_t2,RH_temporal_delta_t1,RH_temporal_delta_t2,LH_temporal_delta_t1,"
+            "LH_temporal_delta_t2,Occipital_delta_t1,Occipital_delta_t2,Frontocentral_high_alpha_t1,Frontocentral_high_alpha_t2,Frontocentral_low_alpha_t1,Frontocentral_low_alpha_t2,"
+            "Frontocentral_theta_t1,Frontocentral_theta_t2,Gamma_t1,Gamma_t2,Gamma_t3,Frontocentral_gamma_t1,Frontocentral_gamma_t2,RH_lateral_frontal_gamma_t1,RH_lateral_frontal_gamma_t2,"
+            "LH_lateral_frontal_gamma_t1,LH_lateral_frontal_gamma_t2,RH_parietal_gamma_t1,RH_parietal_gamma_t2,LH_parietal_gamma_t1,LH_parietal_gamma_t2,RH_temporal_gamma_t1,RH_temporal_gamma_t2,"
+            "LH_temporal_gamma_t1,LH_temporal_gamma_t2,Occipital_gamma_t1,Occipital_gamma_t2,HighAlpha_t1,HighAlpha_t2,HighAlpha_t3,LH_lateral_frontal_high_alpha_t1,LH_lateral_frontal_high_alpha_t2,"
+            "LH_lateral_frontal_low_alpha_t1,LH_lateral_frontal_low_alpha_t2,LH_lateral_frontal_theta_t1,LH_lateral_frontal_theta_t2,LH_parietal_high_alpha_t1,LH_parietal_high_alpha_t2,"
+            "LH_parietal_low_alpha_t1,LH_parietal_low_alpha_t2,LH_parietal_theta_t1,LH_parietal_theta_t2,LH_temporal_high_alpha_t1,LH_temporal_high_alpha_t2,LH_temporal_low_alpha_t1,"
+            "LH_temporal_low_alpha_t2,LH_temporal_theta_t1,LH_temporal_theta_t2,LowAlpha_t1,LowAlpha_t2,LowAlpha_t3,mspss_tot_t1,mspss_tot_t3,Occipital_high_alpha_t1,Occipital_high_alpha_t2,"
+            "Occipital_low_alpha_t1,Occipital_low_alpha_t2,Occipital_theta_t1,Occipital_theta_t2,RH_lateral_frontal_high_alpha_t1,RH_lateral_frontal_high_alpha_t2,RH_lateral_frontal_low_alpha_t1,"
+            "RH_lateral_frontal_low_alpha_t2,RH_lateral_frontal_theta_t1,RH_lateral_frontal_theta_t2,RH_parietal_high_alpha_t1,RH_parietal_high_alpha_t2,RH_parietal_low_alpha_t1,"
+            "RH_parietal_low_alpha_t2,RH_parietal_theta_t1,RH_parietal_theta_t2,RH_temporal_high_alpha_t1,RH_temporal_high_alpha_t2,RH_temporal_low_alpha_t1,RH_temporal_low_alpha_t2,"
+            "RH_temporal_theta_t1,RH_temporal_theta_t2,Theta_t1,Theta_t2,Theta_t3").split(",")
+eeg_vars__no_t = set(v.replace("_t1", "").replace("_t2", "").replace("_t3", "").replace("_t4", "") for v in eeg_vars)
