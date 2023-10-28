@@ -74,6 +74,7 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
     d = ch(d, storages, storage_to_be_updated)
     print(d.df)
 
+
 X = d.df.drop(["EBF_3m"], axis=1)
 X.columns = [col.replace("[", "").replace("]", "").replace("<", "").replace(" ", "_") for col in X.columns]
 y = pd.get_dummies(d.df["EBF_3m"])["EBF"].astype(int)
