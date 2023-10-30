@@ -67,38 +67,34 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
         "local": local_storage,
     }
 
-    d = load_from_csv(d, storages, storage_to_be_updated, path, vif, "t_3-4_pathways_filtered", "pathways34", transpose=True, old_indexname="Pathways")
-    d = load_from_csv(d, storages, storage_to_be_updated, path, vif, "t_3-4_species_filtered", "species34", transpose=True, old_indexname="Species")
-    d = load_from_csv(d, storages, storage_to_be_updated, path, False, "target_EBF", "ebf", False)
+    for arq, field, oldidx in [("t_3-4_pathways_filtered", "pathways34", "Pathways"),
+                               ("t_3-4_species_filtered", "species34", "Species"),
+                               ("t_5-7_pathways_filtered", "pathways57", "Pathways"),
+                               ("t_5-7_species_filtered", "species57", "Species"),
+                               ("t_8-9_pathways_filtered", "pathways89", "Pathways"),
+                               ("t_8-9_species_filtered", "species89", "Species")]:
+        print(field, "=================================================================================")
+        d = load_from_csv(d, storages, storage_to_be_updated, path, vif, arq, field, transpose=True, old_indexname=oldidx)
+        d = load_from_csv(d, storages, storage_to_be_updated, path, False, "target_EBF", "ebf", False)
 
-    d = d >> apply(join, df=_.ebf, other=_.pathways34).df
-    d = ch(d, storages, storage_to_be_updated)
+        d = d >> apply(join, df=_.ebf, other=_[field]).df
+        d = ch(d, storages, storage_to_be_updated)
 
-    d = clean_for_dalex(d, storages, storage_to_be_updated)
-    d = get_balance(d, storages, storage_to_be_updated)
-# n = 500
-# m = 100
-# X, y = d.X.iloc[:n, :m], d.y.iloc[:n]
-X, y = d.X, d.y
+        d = clean_for_dalex(d, storages, storage_to_be_updated)
+        d = get_balance(d, storages, storage_to_be_updated)
 
-####################################################################
+        params = {"max_depth": 5, "objective": "binary:logistic", "eval_metric": "auc"}
+        loo = LeaveOneOut()
+        for i, (idxtr, idxts) in enumerate(loo.split(d.X)):
+            d = d >> apply(train_xgb, params, idxtr=idxtr).classifier
+            d = ch(d, storages, storage_to_be_updated)
 
-params = {
-    "max_depth": 5,
-    "objective": "binary:logistic",
-    "eval_metric": "auc"
-}
+            d = d >> apply(build_explainer, idxtr=idxtr).explainer
+            d = ch(d, storages, storage_to_be_updated)
 
-loo = LeaveOneOut()
-for i, (idxtr, idxts) in enumerate(loo.split(X)):
-    d = d >> apply(train_xgb, params, idxtr=idxtr).classifier
-    d = ch(d, storages, storage_to_be_updated)
+            d = d >> apply(explain_modelparts).modelparts
+            d = ch(d, storages, storage_to_be_updated)
 
-    d = d >> apply(build_explainer, idxtr=idxtr).explainer
-    d = ch(d, storages, storage_to_be_updated)
-
-    d = d >> apply(explain_modelparts).modelparts
-    d = ch(d, storages, storage_to_be_updated)
-
-    d = d >> apply(explain_predictparts, idxts=idxts).predictparts
-    d = ch(d, storages, storage_to_be_updated)
+            d = d >> apply(explain_predictparts, idxts=idxts).predictparts
+            d = ch(d, storages, storage_to_be_updated)
+        print()
