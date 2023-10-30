@@ -67,8 +67,8 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
         "local": local_storage,
     }
 
-    d = load_from_csv(d, storages, storage_to_be_updated, path, False, "t_3-4_pathways_filtered", "pathways34", transpose=True, old_indexname="Pathways")
-    d = load_from_csv(d, storages, storage_to_be_updated, path, False, "t_3-4_species_filtered", "species34", transpose=True, old_indexname="Species")
+    d = load_from_csv(d, storages, storage_to_be_updated, path, vif, "t_3-4_pathways_filtered", "pathways34", transpose=True, old_indexname="Pathways")
+    d = load_from_csv(d, storages, storage_to_be_updated, path, vif, "t_3-4_species_filtered", "species34", transpose=True, old_indexname="Species")
     d = load_from_csv(d, storages, storage_to_be_updated, path, False, "target_EBF", "ebf", False)
 
     d = d >> apply(join, df=_.ebf, other=_.pathways34).df

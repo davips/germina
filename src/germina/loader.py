@@ -116,7 +116,7 @@ def get_balance(d, storages, storage_to_be_updated):
 
 def build_explainer(classifier, X, y, idxtr):
     print(datetime.now(), "build_explainer")
-    return dx.Explainer(classifier, X[idxtr], y[idxtr])
+    return dx.Explainer(classifier, X.iloc[idxtr], y.iloc[idxtr])
 
 
 def explain_modelparts(explainer):
