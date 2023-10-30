@@ -98,6 +98,7 @@ def clean_for_dalex(d, storages, storage_to_be_updated):
 
 
 def train_xgb(params, X, y, idxtr):
+    print(datetime.now(), "train_xgb")
     return xgb.train(params, xgb.DMatrix(X.iloc[idxtr], label=y.iloc[idxtr]))
 
 
