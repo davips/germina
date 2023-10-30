@@ -123,14 +123,11 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
                 d = d >> apply(explain_modelparts).modelparts
                 d = ch(d, storages, storage_to_be_updated)
 
-                d = d >> apply(explain_predictparts, idxts=idxts).predictparts
-                d = ch(d, storages, storage_to_be_updated)
-
                 # from dalex.model_explanations import VariableImportance
                 # modelparts: VariableImportance = d.modelparts
                 # pprint(modelparts.result[["variable", "contribution"]].to_dict())
 
-                d.modelparts.plot(show=False).show()
-                exit()
+                # d.modelparts.plot(show=False).show()
+                # exit()
 
             print()
