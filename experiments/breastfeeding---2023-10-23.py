@@ -68,6 +68,7 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
         loo = LeaveOneOut()
         runs = list(loo.split(d.X))
         tasks = zip(repeat((field, f"{vif=}")), range(len(d.X)))
+        # tasks = zip(repeat((field, f"{vif=}")), range(2))
         for (f, v), i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
             idxtr, idxts = runs[i]
             print(f"\t{i}\t{f}\t{v}\tts:{idxts}\t", datetime.now(), f"\t{100 * i / len(d.X):1.1f} %\t-----------------------------------")
@@ -83,14 +84,17 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
             d = d >> apply(explain_predictparts, idxts=idxts).predictparts
             d = ch(d, storages, storage_to_be_updated)
 
+            # from dalex.model_explanations import VariableImportance
             # modelparts: VariableImportance = d.modelparts
             # pprint(modelparts.result[["variable", "contribution"]].to_dict())
 
+            # from dalex.model_explanations import VariableImportance
             # predictparts: VariableImportance = d.predictparts
             # varcontrib = dict(list(sorted(zip(predictparts.result["contribution"], predictparts.result["variable"]), key=lambda x: x[0]))[:5])
             # pprint(varcontrib)
 
             # d.modelparts.plot(show=False).show()
             # d.predictparts.plot(min_max=[0, 1], show=False).show()
+            # exit()
 
         print()

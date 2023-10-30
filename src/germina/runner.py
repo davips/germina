@@ -86,7 +86,6 @@ def drop_many_by_vif(d, dffield, storages, to_be_updated, keepcols, keeprows):
     while True:
         d = d >> apply(drop_by_vif, df=field(dffield), dropped=_[lstfield])(lstfield)
         d = ch(d, storages, to_be_updated)
-        # print(d.ids[lstfield], d[lstfield])
         if d[lstfield] == old:
             break
         old = d[lstfield]
