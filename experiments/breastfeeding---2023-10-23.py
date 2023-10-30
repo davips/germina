@@ -3,6 +3,7 @@ import dalex as dx
 
 import pandas as pd
 import numpy as np
+from dalex.model_explanations import VariableImportance
 
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
@@ -86,6 +87,7 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
         params = {"max_depth": 5, "objective": "binary:logistic", "eval_metric": "auc"}
         loo = LeaveOneOut()
         for i, (idxtr, idxts) in enumerate(loo.split(d.X)):
+            print(f"\t{100 * i / len(d.X):1.1f} %\t", i, field, "--------------------------")
             d = d >> apply(train_xgb, params, idxtr=idxtr).classifier
             d = ch(d, storages, storage_to_be_updated)
 
@@ -97,4 +99,15 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
 
             d = d >> apply(explain_predictparts, idxts=idxts).predictparts
             d = ch(d, storages, storage_to_be_updated)
+
+            # modelparts: VariableImportance = d.modelparts
+            # pprint(modelparts.result[["variable", "contribution"]].to_dict())
+
+            # predictparts: VariableImportance = d.predictparts
+            # varcontrib = dict(list(sorted(zip(predictparts.result["contribution"], predictparts.result["variable"]), key=lambda x: x[0]))[:5])
+            # pprint(varcontrib)
+
+            # d.modelparts.plot(show=False).show()
+            # d.predictparts.plot(min_max=[0, 1], show=False).show()
+
         print()
