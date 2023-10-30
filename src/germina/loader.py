@@ -5,6 +5,7 @@ from pprint import pprint
 
 import numpy as np
 import pandas as pd
+from germina.dataset import join
 from hdict import apply, _
 from hdict.dataset.pandas_handling import file2df
 from pandas import DataFrame
@@ -91,6 +92,8 @@ def clean_for_dalex(d, storages, storage_to_be_updated):
     d = d >> apply(lambda df: df.drop(["EBF_3m"], axis=1)).X
     d = d >> apply(lambda X: [col.replace("[", "").replace("]", "").replace("<", "").replace(" ", "_") for col in X.columns]).Xcols
     d = d >> apply(lambda X, Xcols: X.rename(columns=dict(zip(X.columns, Xcols)))).X
+    # d = d >> apply(lambda X: pd.get_dummies(X["delivery_mode"])["vaginal"].astype(int)).delivery_mode
+    # d = d >> apply(join, df=_.X, other=_.delivery_mode).X
     d = d >> apply(lambda df: pd.get_dummies(df["EBF_3m"])["EBF"].astype(int)).y
     d = ch(d, storages, storage_to_be_updated)
     print("Scaled ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d.X.shape, d.y.shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")

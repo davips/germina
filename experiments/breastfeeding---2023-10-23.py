@@ -56,45 +56,81 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
                                ("t_8-9_species_filtered", "species89", "Species")]:
         print(field, "=================================================================================")
         d = load_from_csv(d, storages, storage_to_be_updated, path, vif, arq, field, transpose=True, old_indexname=oldidx)
-        d = load_from_csv(d, storages, storage_to_be_updated, path, False, "target_EBF", "ebf", False)
+        d = load_from_csv(d, storages, storage_to_be_updated, path, False, "EBF_parto", "ebf", False)
 
         d = d >> apply(join, df=_.ebf, other=_[field]).df
         d = ch(d, storages, storage_to_be_updated)
 
         d = clean_for_dalex(d, storages, storage_to_be_updated)
-        d = get_balance(d, storages, storage_to_be_updated)
+        d = d >> apply(lambda X: X.copy(deep=True)).X0
+        d = d >> apply(lambda y: y.copy(deep=True)).y0
+        d = ch(d, storages, storage_to_be_updated)
 
-        params = {"max_depth": 5, "objective": "binary:logistic", "eval_metric": "auc"}
-        loo = LeaveOneOut()
-        runs = list(loo.split(d.X))
-        tasks = zip(repeat((field, f"{vif=}")), range(len(d.X)))
-        # tasks = zip(repeat((field, f"{vif=}")), range(2))
-        for (f, v), i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
-            idxtr, idxts = runs[i]
-            print(f"\t{i}\t{f}\t{v}\tts:{idxts}\t", datetime.now(), f"\t{100 * i / len(d.X):1.1f} %\t-----------------------------------")
-            d = d >> apply(train_xgb, params, idxtr=idxtr).classifier
+        for parto in ["c_section", "vaginal"]:
+            print(parto)
+            d["parto"] = parto
+            d = d >> apply(lambda X0, parto: X0[X0["delivery_mode"] == parto]).X
+            d = d >> apply(lambda X: X.drop("delivery_mode", axis=1)).X
+            d = d >> apply(lambda X0, y0, parto: y0[X0["delivery_mode"] == parto]).y
             d = ch(d, storages, storage_to_be_updated)
+            d = get_balance(d, storages, storage_to_be_updated)
 
-            d = d >> apply(build_explainer, idxtr=idxtr).explainer
-            d = ch(d, storages, storage_to_be_updated)
+            params = {"max_depth": 5, "objective": "binary:logistic", "eval_metric": "auc"}
+            loo = LeaveOneOut()
+            runs = list(loo.split(d.X))
 
-            d = d >> apply(explain_modelparts).modelparts
-            d = ch(d, storages, storage_to_be_updated)
+            # # LOO
+            # tasks = zip(repeat((field, parto, f"{vif=}")), range(len(d.X)))
+            # for (fi, pa, vi), i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
+            #     idxtr, idxts = runs[i]
+            #     print(f"\t{i}\t{fi}\t{pa}\t{vi}\tts:{idxts}\t", datetime.now(), f"\t{100 * i / len(d.X):1.1f} %\t-----------------------------------")
+            #     d = d >> apply(train_xgb, params, idxtr=idxtr).classifier
+            #     d = ch(d, storages, storage_to_be_updated)
+            #
+            #     d = d >> apply(build_explainer, idxtr=idxtr).explainer
+            #     d = ch(d, storages, storage_to_be_updated)
+            #
+            #     d = d >> apply(explain_modelparts).modelparts
+            #     d = ch(d, storages, storage_to_be_updated)
+            #
+            #     d = d >> apply(explain_predictparts, idxts=idxts).predictparts
+            #     d = ch(d, storages, storage_to_be_updated)
+            #
+            #     # from dalex.model_explanations import VariableImportance
+            #     # modelparts: VariableImportance = d.modelparts
+            #     # pprint(modelparts.result[["variable", "contribution"]].to_dict())
+            #
+            #     # from dalex.model_explanations import VariableImportance
+            #     # predictparts: VariableImportance = d.predictparts
+            #     # varcontrib = dict(list(sorted(zip(predictparts.result["contribution"], predictparts.result["variable"]), key=lambda x: x[0]))[:5])
+            #     # pprint(varcontrib)
+            #
+            #     # d.modelparts.plot(show=False).show()
+            #     # d.predictparts.plot(min_max=[0, 1], show=False).show()
+            #     # exit()
 
-            d = d >> apply(explain_predictparts, idxts=idxts).predictparts
-            d = ch(d, storages, storage_to_be_updated)
+            # Entire dataset
+            tasks = [(field, parto, f"{vif=}")]
+            idxtr = range(len(d.X))
+            for fi, pa, vi in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
+                print(f"\t{fi}\t{pa}\t{vi}\t", datetime.now(), f"\t-----------------------------------")
+                d = d >> apply(train_xgb, params, idxtr=idxtr).classifier
+                d = ch(d, storages, storage_to_be_updated)
 
-            # from dalex.model_explanations import VariableImportance
-            # modelparts: VariableImportance = d.modelparts
-            # pprint(modelparts.result[["variable", "contribution"]].to_dict())
+                d = d >> apply(build_explainer, idxtr=idxtr).explainer
+                d = ch(d, storages, storage_to_be_updated)
 
-            # from dalex.model_explanations import VariableImportance
-            # predictparts: VariableImportance = d.predictparts
-            # varcontrib = dict(list(sorted(zip(predictparts.result["contribution"], predictparts.result["variable"]), key=lambda x: x[0]))[:5])
-            # pprint(varcontrib)
+                d = d >> apply(explain_modelparts).modelparts
+                d = ch(d, storages, storage_to_be_updated)
 
-            # d.modelparts.plot(show=False).show()
-            # d.predictparts.plot(min_max=[0, 1], show=False).show()
-            # exit()
+                d = d >> apply(explain_predictparts, idxts=idxts).predictparts
+                d = ch(d, storages, storage_to_be_updated)
 
-        print()
+                # from dalex.model_explanations import VariableImportance
+                # modelparts: VariableImportance = d.modelparts
+                # pprint(modelparts.result[["variable", "contribution"]].to_dict())
+
+                d.modelparts.plot(show=False).show()
+                exit()
+
+            print()
