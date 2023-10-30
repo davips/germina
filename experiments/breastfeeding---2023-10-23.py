@@ -1,43 +1,24 @@
-from datetime import datetime
-import dalex as dx
-
-import pandas as pd
-import numpy as np
-from dalex.model_explanations import VariableImportance
-
-from sklearn.neural_network import MLPClassifier
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.impute import SimpleImputer
-from sklearn.pipeline import Pipeline
-from sklearn.compose import ColumnTransformer
-
-import xgboost as xgb
-
 import warnings
+from datetime import datetime
+from itertools import repeat
+
+from shelchemy.scheduler import Scheduler
 
 warnings.filterwarnings('ignore')
 from pprint import pprint
 from sys import argv
 
-import numpy as np
 from argvsucks import handle_command_line
 from germina.runner import ch
 from hdict import hdict, apply, _
-from pandas import DataFrame
 from shelchemy import sopen
 from sklearn.experimental import enable_iterative_imputer
 
-from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri
-from germina.dataset import osf_except_target_vars__no_t, eeg_vars__no_t, join
-from germina.loader import load_from_osf, load_from_synapse, load_from_csv, clean_for_dalex, get_balance, train_xgb, build_explainer, explain_modelparts, explain_predictparts
-import dalex as dx
+from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
+from germina.dataset import join
+from germina.loader import load_from_csv, clean_for_dalex, get_balance, train_xgb, build_explainer, explain_modelparts, explain_predictparts
 
-import numpy as np
-import pandas as pd
-
-from lightgbm import LGBMRegressor
-from sklearn.model_selection import train_test_split, LeaveOneOut
-from sklearn.model_selection import RandomizedSearchCV
+from sklearn.model_selection import LeaveOneOut
 
 import warnings
 
@@ -60,8 +41,7 @@ d = hdict(
     osf_filename="germina-osf-request---davi121023"
 )
 vif, nans, sched, storage_to_be_updated = dct["vif"], dct["nans"], dct["sched"], dct["up"]
-
-with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_storage, sopen(remote_cache_uri) as remote_storage):
+with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_storage, sopen(remote_cache_uri) as remote_storage, sopen(schedule_uri) as db):
     storages = {
         "remote": remote_storage,
         "near": near_storage,
@@ -86,8 +66,11 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
 
         params = {"max_depth": 5, "objective": "binary:logistic", "eval_metric": "auc"}
         loo = LeaveOneOut()
-        for i, (idxtr, idxts) in enumerate(loo.split(d.X)):
-            print(f"\t{100 * i / len(d.X):1.1f} %\t", i, field, "--------------------------")
+        runs = loo.split(d.X)
+        tasks = zip(repeat(field), range(len(d.X)))
+        for f, i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
+            idxtr, idxts = next(runs)
+            print(f"\tts:{idxts}\t", datetime.now(), f"\t{100 * i / len(d.X):1.1f} %\t-----------------------------------")
             d = d >> apply(train_xgb, params, idxtr=idxtr).classifier
             d = ch(d, storages, storage_to_be_updated)
 
