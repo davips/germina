@@ -98,7 +98,7 @@ def clean_for_dalex(d, storages, storage_to_be_updated):
 
 
 def train_xgb(params, X, y, idxtr):
-    return xgb.train(params, xgb.DMatrix(X[idxtr], label=y[idxtr]))
+    return xgb.train(params, xgb.DMatrix(X.iloc[idxtr], label=y.iloc[idxtr]))
 
 
 def get_balance(d, storages, storage_to_be_updated):
