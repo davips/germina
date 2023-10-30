@@ -7,20 +7,21 @@ def join(df: DataFrame, index, other, join):
     from germina.runner import setindex
     if df.index.name != index:
         df = setindex(df, index)
-        df.index = df.index.astype(int)
+    df.index = df.index.astype(int)
     if other.index.name != index:
         other = setindex(other, index)
-        other.index = other.index.astype(int)
+    other.index = other.index.astype(int)
     res = df.join([other], how=join, sort=True)
     res = res.reindex(sorted(res.columns), axis=1)
     return res
 
 
 def concat(df: DataFrame, index, other):
+    from germina.runner import setindex
     if df.index.name != index:
-        df = df.set_index(index)
+        df = setindex(df, index)
     if other.index.name != index:
-        other = other.set_index(index)
+        other = setindex(other, index)
     res = pd.concat([df, other])
     return res.reindex(sorted(res.columns), axis=1)
 

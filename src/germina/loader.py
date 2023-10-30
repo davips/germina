@@ -1,5 +1,10 @@
+import dalex as dx
+import xgboost as xgb
 from datetime import datetime
+from pprint import pprint
 
+import numpy as np
+import pandas as pd
 from hdict import apply, _
 from hdict.dataset.pandas_handling import file2df
 from pandas import DataFrame
@@ -13,6 +18,8 @@ def load_from_csv(d, storages, storage_to_be_updated, path, vif, filename, field
     d = d >> apply(file2df, path + filename + ".csv", transpose=transpose, index=True)(field)
     d = ch(d, storages, storage_to_be_updated)
     print(f"Loaded '{field}' data from '{filename}.csv' ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d[field].shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
+    d = d >> apply(setindex, _[field], old_indexname=old_indexname)(field)
+    d = ch(d, storages, storage_to_be_updated)
     if vif:
         print(f"Apply VIF to '{field}' ----------------------------------------------------------------------------------------------------------------------------")
         print(datetime.now())
@@ -20,8 +27,6 @@ def load_from_csv(d, storages, storage_to_be_updated, path, vif, filename, field
         d = ch(d, storages, storage_to_be_updated)
         print("after VIF ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d[field].shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
     print()
-    d = d >> apply(setindex, _[field], old_indexname=old_indexname)(field)
-    d = ch(d, storages, storage_to_be_updated)
     return d
 
 
@@ -79,3 +84,46 @@ def apply_std(d, storages, storage_to_be_updated, path, vif, field):
     d = ch(d, storages, storage_to_be_updated)
     print("Scaled ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d[field].shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
     return d
+
+
+def clean_for_dalex(d, storages, storage_to_be_updated):
+    print(datetime.now())
+    d = d >> apply(lambda df: df.drop(["EBF_3m"], axis=1)).X
+    d = d >> apply(lambda X: [col.replace("[", "").replace("]", "").replace("<", "").replace(" ", "_") for col in X.columns]).Xcols
+    d = d >> apply(lambda X, Xcols: X.rename(columns=dict(zip(X.columns, Xcols)))).X
+    d = d >> apply(lambda df: pd.get_dummies(df["EBF_3m"])["EBF"].astype(int)).y
+    d = ch(d, storages, storage_to_be_updated)
+    print("Scaled ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d.X.shape, d.y.shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
+    return d
+
+
+def train_xgb(params, X, y, idxtr):
+    return xgb.train(params, xgb.DMatrix(X[idxtr], label=y[idxtr]))
+
+
+def get_balance(d, storages, storage_to_be_updated):
+    print("Calculate class balance -------------------------------------------------------------------------------------------------------------------------------------------------")
+    print(datetime.now())
+    d = d >> apply(lambda X: X.shape).Xshape
+    d = d >> apply(lambda y: y.shape).yshape
+    d = d >> apply(lambda y: np.unique(y, return_counts=True))("unique_labels", "counts")
+    d = d >> apply(lambda y, counts: counts / len(y)).proportions
+    d = ch(d, storages, storage_to_be_updated)
+    print("X, y:", d.Xshape, d.yshape)
+    print(f"{d.counts=}\t{d.proportions=}")
+    return d
+
+
+def build_explainer(classifier, X, y, idxtr):
+    print(datetime.now(), "build_explainer")
+    return dx.Explainer(classifier, X[idxtr], y[idxtr])
+
+
+def explain_modelparts(explainer):
+    print(datetime.now(), "explain_modelparts")
+    return explainer.model_parts()  # .plot(show=False).show()
+
+
+def explain_predictparts(explainer, X, idxts):
+    print(datetime.now(), "explain_predictparts")
+    return explainer.predict_parts(X.iloc[idxts])  # .plot(min_max=[0, 1], show=False).show()

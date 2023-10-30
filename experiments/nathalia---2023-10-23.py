@@ -28,14 +28,14 @@ from sklearn.experimental import enable_iterative_imputer
 
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri
 from germina.dataset import osf_except_target_vars__no_t, eeg_vars__no_t, join
-from germina.loader import load_from_osf, load_from_synapse, load_from_csv
+from germina.loader import load_from_osf, load_from_synapse, load_from_csv, clean_for_dalex, get_balance, train_xgb, build_explainer, explain_modelparts, explain_predictparts
 import dalex as dx
 
 import numpy as np
 import pandas as pd
 
 from lightgbm import LGBMRegressor
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, LeaveOneOut
 from sklearn.model_selection import RandomizedSearchCV
 
 import warnings
@@ -70,14 +70,17 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
     d = load_from_csv(d, storages, storage_to_be_updated, path, False, "t_3-4_pathways_filtered", "pathways34", transpose=True, old_indexname="Pathways")
     d = load_from_csv(d, storages, storage_to_be_updated, path, False, "t_3-4_species_filtered", "species34", transpose=True, old_indexname="Species")
     d = load_from_csv(d, storages, storage_to_be_updated, path, False, "target_EBF", "ebf", False)
+
     d = d >> apply(join, df=_.ebf, other=_.pathways34).df
     d = ch(d, storages, storage_to_be_updated)
-    print(d.df)
 
+    d = clean_for_dalex(d, storages, storage_to_be_updated)
+    d = get_balance(d, storages, storage_to_be_updated)
+# n = 500
+# m = 100
+# X, y = d.X.iloc[:n, :m], d.y.iloc[:n]
+X, y = d.X, d.y
 
-X = d.df.drop(["EBF_3m"], axis=1)
-X.columns = [col.replace("[", "").replace("]", "").replace("<", "").replace(" ", "_") for col in X.columns]
-y = pd.get_dummies(d.df["EBF_3m"])["EBF"].astype(int)
 ####################################################################
 
 params = {
@@ -86,37 +89,16 @@ params = {
     "eval_metric": "auc"
 }
 
-train = xgb.DMatrix(X, label=y)
-classifier = xgb.train(params, train, verbose_eval=1)
-exp = dx.Explainer(classifier, X, y)
-exp.predict(X)
-# exp.model_parts().plot(show=False).show()
-exp.predict_parts(X.iloc[33, :]).plot(min_max=[0, 1], show=False).show()
+loo = LeaveOneOut()
+for i, (idxtr, idxts) in enumerate(loo.split(X)):
+    d = d >> apply(train_xgb, params, idxtr=idxtr).classifier
+    d = ch(d, storages, storage_to_be_updated)
 
-####################################################################
-exit()
-numerical_features = ['age', 'fare', 'sibsp', 'parch']
-numerical_transformer = Pipeline(
-    steps=[
-        ('imputer', SimpleImputer(strategy='median')),
-        ('scaler', StandardScaler())
-    ]
-)
+    d = d >> apply(build_explainer, idxtr=idxtr).explainer
+    d = ch(d, storages, storage_to_be_updated)
 
-categorical_features = ['gender', 'class', 'embarked']
-categorical_transformer = Pipeline(
-    steps=[
-        ('imputer', SimpleImputer(strategy='constant', fill_value='missing')),
-        ('onehot', OneHotEncoder(handle_unknown='ignore'))
-    ]
-)
+    d = d >> apply(explain_modelparts).modelparts
+    d = ch(d, storages, storage_to_be_updated)
 
-preprocessor = ColumnTransformer(
-    transformers=[
-        ('num', numerical_transformer, numerical_features),
-        ('cat', categorical_transformer, categorical_features)
-    ]
-)
-
-clf = Pipeline(steps=[('preprocessor', preprocessor),
-                      ('classifier', xgb.XGBClassifier())])
+    d = d >> apply(explain_predictparts, idxts=idxts).predictparts
+    d = ch(d, storages, storage_to_be_updated)

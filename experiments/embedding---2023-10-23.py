@@ -53,3 +53,11 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
     pprint(d.eegosf.to_dict()["Beta_t1"])
     pprint(d.eegosf_left.to_dict()["Beta_t1"])
     # print(d.eegosf_selected)
+
+    # print(d.eegosf)
+    # df:DataFrame=d.eegosf
+    # df.to_csv("/tmp/eegosf.csv")
+
+    print(d.eegosf_selected)
+    df:DataFrame=d.eegosf_selected
+    df.to_csv("/tmp/eegosf_selected.csv")

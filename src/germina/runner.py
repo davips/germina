@@ -31,24 +31,24 @@ from germina.dataset import join, ensemble_predict, concat
 from germina.nan import remove_cols, bina, loga, remove_nan_rows_cols, only_abundant, hasNaN, remove_nan_cols_rows
 
 
-def setindex(df, old_indexname="estudo_id"):
-    if df.index is not None and df.index.name != "estudo_id":
+def setindex(df, old_indexname="id_estudo"):
+    if df.index is not None and df.index.name != "id_estudo":
         df = df.reset_index()
-        df.rename(columns={old_indexname: "estudo_id"}, inplace=True)
-        df.set_index("estudo_id", inplace=True)
+        df.rename(columns={old_indexname: "id_estudo"}, inplace=True)
+        df.set_index("id_estudo", inplace=True)
     return df
 
 
 def sgid2estudoid(df: DataFrame, path="data", filename="anthonieta---ChecklistHyperscanning-Idade.csv"):
     translator_df = file2df(f"{path}/{filename}", return_name=False)
-    print(translator_df.columns)
+    if df.index.name in["IDs", "ID:"]:
+        df = df.reset_index()
     if "IDs" in df.columns:
         df = df.assign(ID=df["IDs"].to_list())
         df.drop("IDs", axis=1, inplace=True)
     if "ID:" in df.columns:
         df = df.assign(ID=df["ID:"].to_list())
         df.drop("ID:", axis=1, inplace=True)
-        print(df)
     df = pd.merge(df, translator_df[["ID", "id_estudo"]], on="ID", how="inner")
     df.set_index("id_estudo", inplace=True)
     df.drop("ID", axis=1, inplace=True)
