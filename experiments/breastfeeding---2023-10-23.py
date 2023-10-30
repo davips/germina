@@ -66,11 +66,11 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
 
         params = {"max_depth": 5, "objective": "binary:logistic", "eval_metric": "auc"}
         loo = LeaveOneOut()
-        runs = loo.split(d.X)
+        runs = list(loo.split(d.X))
         tasks = zip(repeat((field, f"{vif=}")), range(len(d.X)))
         for (f, v), i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
-            idxtr, idxts = next(runs)
-            print(f"\t{f}\t{v}\tts:{idxts}\t", datetime.now(), f"\t{100 * i / len(d.X):1.1f} %\t-----------------------------------")
+            idxtr, idxts = runs[i]
+            print(f"\t{i}\t{f}\t{v}\tts:{idxts}\t", datetime.now(), f"\t{100 * i / len(d.X):1.1f} %\t-----------------------------------")
             d = d >> apply(train_xgb, params, idxtr=idxtr).classifier
             d = ch(d, storages, storage_to_be_updated)
 
