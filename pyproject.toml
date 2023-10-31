@@ -8,7 +8,7 @@ packages = [{include = "germina", from = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.11.2"
-hdict = "^2.230721.4"
+hdict = "^2.230721.5"
 matplotlib = "^3.7.1"
 datasets = "^2.11.0"
 pymysql = "^1.0.3"

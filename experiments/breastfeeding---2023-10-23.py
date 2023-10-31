@@ -2,6 +2,7 @@ import warnings
 from datetime import datetime
 from itertools import repeat
 
+from pandas import DataFrame
 from shelchemy.scheduler import Scheduler
 from sklearn import clone
 from sklearn.inspection import permutation_importance
@@ -19,15 +20,15 @@ from sklearn.experimental import enable_iterative_imputer
 
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.dataset import join
-from germina.loader import load_from_csv, clean_for_dalex, get_balance, train_xgb, build_explainer, explain_modelparts, explain_predictparts
+from germina.loader import load_from_csv, clean_for_dalex, get_balance, train_xgb, build_explainer, explain_modelparts, explain_predictparts, importances
 
-from sklearn.model_selection import LeaveOneOut, permutation_test_score
+from sklearn.model_selection import LeaveOneOut, permutation_test_score, StratifiedKFold
 
 import warnings
 
 warnings.filterwarnings('ignore')
 __ = enable_iterative_imputer
-dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="")
+dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="", measures=list)
 print(datetime.now())
 pprint(dct, sort_dicts=False)
 print()
@@ -35,14 +36,19 @@ path = "data/paper-breastfeeding/"
 d = hdict(
     n_permutations=dct["pvalruns"],
     n_repeats=dct["importanceruns"],
-    imputrees=dct["imputertrees"],
+    imputation_trees=dct["imputertrees"],
     random_state=dct["seed"],
-    target_var=dct["target"],  # "ibq_reg_cat_t3", bayley_average_t4
+    target_var=dct["target"],
+    measures=dct["measures"],
     max_iter=dct["trees"], n_estimators=dct["trees"],
     n_splits=5,
-    index="id_estudo", join="inner", shuffle=True, n_jobs=-1, return_name=False,
+    shuffle=True,
+    index="id_estudo", join="inner", n_jobs=-1, return_name=False,
     osf_filename="germina-osf-request---davi121023"
 )
+cfg = hdict(d)
+for noncfg in ["index", "join", "n_jobs", "return_name", "osf_filename"]:
+    del cfg[noncfg]
 vif, nans, sched, storage_to_be_updated = dct["vif"], dct["nans"], dct["sched"], dct["up"]
 with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_storage, sopen(remote_cache_uri) as remote_storage, sopen(schedule_uri) as db):
     storages = {
@@ -51,12 +57,21 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
         "local": local_storage,
     }
 
+    d = d >> apply(StratifiedKFold).cv
+    res = {}
+    res_importances = {}
+    for measure in d.measures:
+        res[measure] = {"description": [], "score": [], "p-value": []}
+        res_importances[measure] = {"description": [], "variable": [], "importance-mean": [], "importance-stdev": []}
+    d["res_importances"] = res_importances
+
     for arq, field, oldidx in [("t_3-4_pathways_filtered", "pathways34", "Pathways"),
                                ("t_3-4_species_filtered", "species34", "Species"),
                                ("t_5-7_pathways_filtered", "pathways57", "Pathways"),
                                ("t_5-7_species_filtered", "species57", "Species"),
                                ("t_8-9_pathways_filtered", "pathways89", "Pathways"),
                                ("t_8-9_species_filtered", "species89", "Species")]:
+        d["field"] = field
         print(field, "=================================================================================")
         d = load_from_csv(d, storages, storage_to_be_updated, path, vif, arq, field, transpose=True, old_indexname=oldidx)
         d = load_from_csv(d, storages, storage_to_be_updated, path, False, "EBF_parto", "ebf", False)
@@ -113,18 +128,21 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
             #     # exit()
 
             # Entire dataset
-            tasks = [(field, parto, f"{vif=}")]
+            cfg["field"], cfg["parto"] = field, parto
+            tasks = [(cfg.hosh, field, parto, f"{vif=}")]
             idxtr = range(len(d.X))
-            for fi, pa, vi in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
-                print(f"\t{fi}\t{pa}\t{vi}\t", datetime.now(), f"\t-----------------------------------")
-                d = d >> apply(train_xgb, params, idxtr=idxtr).classifier
-                d = ch(d, storages, storage_to_be_updated)
+            for h, fi, pa, vi in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
+                print(f"\t{h.ansi}\t{fi}\t{pa}\t{vi}\t", datetime.now(), f"\t-----------------------------------")
 
-                d = d >> apply(build_explainer, idxtr=idxtr).explainer
-                d = ch(d, storages, storage_to_be_updated)
-
-                d = d >> apply(explain_modelparts).modelparts
-                d = ch(d, storages, storage_to_be_updated)
+                # # todo: esse xgb não tem o nr de trees ajustado
+                # d = d >> apply(train_xgb, params, idxtr=idxtr).classifier
+                # d = ch(d, storages, storage_to_be_updated)
+                #
+                # d = d >> apply(build_explainer, idxtr=idxtr).explainer
+                # d = ch(d, storages, storage_to_be_updated)
+                #
+                # d = d >> apply(explain_modelparts).modelparts
+                # d = ch(d, storages, storage_to_be_updated)
 
                 #  CSV
                 # from dalex.model_explanations import VariableImportance
@@ -140,22 +158,37 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
                 # exit()
 
                 d = d >> apply(XGBClassifier).alg
-                for m in ["balanced_accuracy"]:
+                for m in d.measures:
                     d["scoring"] = m
                     rets = [f"{m}_scores", f"{m}_permscores", f"{m}_pval"]
                     d = d >> apply(permutation_test_score, _.alg)(*rets)
                     d = ch(d, storages, storage_to_be_updated)
+                    res[m]["description"].append(f"{field}-{parto}-{m}")
+                    res[m]["score"].append(d[rets[0]])
+                    res[m]["p-value"].append(d[rets[2]])
                     print(f"{m:20} (p-value):\t{d[rets[0]]:.4f} ({d[rets[2]]:.4f})")
 
                     # Importances
                     d = d >> apply(lambda alg, X, y: clone(alg).fit(X, y)).estimator
                     d = d >> apply(permutation_importance).importances
                     d = ch(d, storages, storage_to_be_updated)
-                    r = d.importances
-                    for i in r.importances_mean.argsort()[::-1]:
-                        if r.importances_mean[i] - r.importances_std[i] > 0:
-                            print(f"importance   \t                 \t{r.importances_mean[i]:.6f}\t{r.importances_std[i]:.6f}\t{m:22}\t{d.target_var:20}\t{d.X.columns[i]}")
-                    print()
+                    d = d >> apply(importances).res_importances
 
             print()
 print("Finished!")
+
+for m in d.measures:
+    df = DataFrame(res[m])
+    df[["field", "delivery_mode", "measure"]] = df["description"].str.split('-', expand=True)
+    del df["description"]
+    df.sort_values("p-value", inplace=True)
+    # df[["field", "delivery_mode", "measure", "score", "p-value"]] = df['AB'].str.split(' ', n=1, expand=True)
+    print(df)
+    df.to_csv(f"/tmp/breastfeed-paper-scores-pvalues-{m}.csv")
+
+    df = DataFrame(d.res_importances[m])
+    df[["field", "delivery_mode", "measure"]] = df["description"].str.split('-', expand=True)
+    del df["description"]
+    df.sort_values("importance-mean", ascending=False, inplace=True)
+    print(df)
+    df.to_csv(f"/tmp/breastfeed-paper-importances-{m}.csv")
