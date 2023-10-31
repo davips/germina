@@ -3,6 +3,9 @@ from datetime import datetime
 from itertools import repeat
 
 from shelchemy.scheduler import Scheduler
+from sklearn import clone
+from sklearn.inspection import permutation_importance
+from xgboost import XGBClassifier
 
 warnings.filterwarnings('ignore')
 from pprint import pprint
@@ -18,7 +21,7 @@ from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, sc
 from germina.dataset import join
 from germina.loader import load_from_csv, clean_for_dalex, get_balance, train_xgb, build_explainer, explain_modelparts, explain_predictparts
 
-from sklearn.model_selection import LeaveOneOut
+from sklearn.model_selection import LeaveOneOut, permutation_test_score
 
 import warnings
 
@@ -123,11 +126,36 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
                 d = d >> apply(explain_modelparts).modelparts
                 d = ch(d, storages, storage_to_be_updated)
 
+                #  CSV
                 # from dalex.model_explanations import VariableImportance
                 # modelparts: VariableImportance = d.modelparts
-                # pprint(modelparts.result[["variable", "contribution"]].to_dict())
+                # # vardroploss = dict(list(sorted(zip(modelparts.result["dropout_loss"], modelparts.result["variable"]), key=lambda x: x[0])))
+                # df = modelparts.result[["dropout_loss", "variable"]].sort_values("dropout_loss", ascending=False)
+                # tgtarq = f"/tmp/breastfeed-paper-{fi}-{pa}-{vi.split('=')[1]}.csv"
+                # print(tgtarq)
+                # df.to_csv(tgtarq)
+                # pprint(df)
 
                 # d.modelparts.plot(show=False).show()
                 # exit()
 
+                d = d >> apply(XGBClassifier).alg
+                for m in ["balanced_accuracy"]:
+                    d["scoring"] = m
+                    rets = [f"{m}_scores", f"{m}_permscores", f"{m}_pval"]
+                    d = d >> apply(permutation_test_score, _.alg)(*rets)
+                    d = ch(d, storages, storage_to_be_updated)
+                    print(f"{m:20} (p-value):\t{d[rets[0]]:.4f} ({d[rets[2]]:.4f})")
+
+                    # Importances
+                    d = d >> apply(lambda alg, X, y: clone(alg).fit(X, y)).estimator
+                    d = d >> apply(permutation_importance).importances
+                    d = ch(d, storages, storage_to_be_updated)
+                    r = d.importances
+                    for i in r.importances_mean.argsort()[::-1]:
+                        if r.importances_mean[i] - r.importances_std[i] > 0:
+                            print(f"importance   \t                 \t{r.importances_mean[i]:.6f}\t{r.importances_std[i]:.6f}\t{m:22}\t{d.target_var:20}\t{d.X.columns[i]}")
+                    print()
+
             print()
+print("Finished!")
