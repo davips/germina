@@ -131,7 +131,7 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
             cfg["field"], cfg["parto"] = field, parto
             tasks = [(cfg.hosh, field, parto, f"{vif=}")]
             idxtr = range(len(d.X))
-            for h, fi, pa, vi in (Scheduler(db, timeout=12) << tasks) if sched else tasks:
+            for h, fi, pa, vi in (Scheduler(db, timeout=50) << tasks) if sched else tasks:
                 print(f"\t{h.ansi}\t{fi}\t{pa}\t{vi}\t", datetime.now(), f"\t-----------------------------------")
 
                 # # todo: esse xgb não tem o nr de trees ajustado
