@@ -25,7 +25,7 @@ def load_from_csv(d, storages, storage_to_be_updated, path, vif, filename, field
         d = d >> apply(lambda df, vs: df[vs], _[field], vars)(field)
         d = ch(d, storages, storage_to_be_updated)
         if verbose:
-            print(f"Selected '{vars}' ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d[field].shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
+            print(f"Selected '{len(vars)} {vars}' ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d[field].shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
     d = d >> apply(setindex, _[field], old_indexname=old_indexname)(field)
     d = ch(d, storages, storage_to_be_updated)
     if vif:

@@ -79,10 +79,12 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
 
     print(datetime.now(), f"Model imputation {d.n_estimators=} {d.imputation_trees=}--------------------------------------------------------------------------------------------------------------------------------------------------------")
     d = d >> apply(RFr, n_estimators=_.imputation_trees).imputation_alg
-
-    imputer = IterativeImputer(estimator=clone(d.imputation_alg)).fit(X=d.single_large)
-    # d = d >> apply(lambda imputation_alg, single_large: IterativeImputer(estimator=clone(imputation_alg)).fit(X=single_large)).imputer
-
+    d = load_from_csv(d, storages, storage_to_be_updated, path, vif, d.osf_filename, "ys", transpose=False, vars=d.targets, verbose=False)
+    d = d >> apply(join, df=_.single_large, other=_.ys).single_large__target
+    d = d >> apply(lambda imputation_alg, single_large__target: DataFrame(IterativeImputer(estimator=clone(imputation_alg)).fit_transform(X=single_large__target), index=single_large__target.index, columns=single_large__target.columns)).single_large__target_nomissing
+    d = ch(d, storages, storage_to_be_updated)
+    d = d >> apply(lambda single_large, single_large__target_nomissing: single_large__target_nomissing[single_large.columns]).single_large__nomissing
+    d = d >> apply(lambda imputation_alg, single_large__nomissing: IterativeImputer(estimator=clone(imputation_alg)).fit(X=single_large__nomissing)).imputer
     d = ch(d, storages, storage_to_be_updated)
 
     print(datetime.now(), f"Impute missing values for single EEG small -----------------------------------------------------------------------------------------------------------")
