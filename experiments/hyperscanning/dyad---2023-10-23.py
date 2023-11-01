@@ -33,7 +33,7 @@ from germina.loader import load_from_csv, get_balance, importances, load_from_sy
 from germina.runner import ch
 
 __ = enable_iterative_imputer
-dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="", measures=list, targets=list, only_both=False)
+dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="", measures=list, targets=list)
 print(datetime.now())
 pprint(dct, sort_dicts=False)
 print()
@@ -45,7 +45,7 @@ d = hdict(
     random_state=dct["seed"],
     target=dct["target"],
     measures=dct["measures"], targets=dct["targets"],
-    max_iter=dct["trees"], n_estimators=dct["trees"], only_both=dct["only_both"],
+    max_iter=dct["trees"], n_estimators=dct["trees"],
     n_splits=5,
     shuffle=True,
     index="id_estudo", join="inner", n_jobs=-1, return_name=False,
@@ -79,35 +79,24 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
         res_importances[measure] = {"description": [], "variable": [], "importance-mean": [], "importance-stdev": []}
     d["res_importances"] = res_importances
 
-    if d.only_both:
-        d = load_from_synapse(d, storages, storage_to_be_updated, path, vif, "synapse/EEG-september-nosensorvars-nomother-nobaby", "Xdyadic")
-        d = load_from_synapse(d, storages, storage_to_be_updated, path, vif, "timedelta", "Xtime")
-        d = d >> apply(lambda Xdyadic: Xdyadic.dropna()).Xdyadic
-        d = d >> apply(join, df=_.Xdyadic, other=_.Xtime).Xdyadic_time
-        print(f"Joined timedelta with dyadic  ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ {d.Xdyadic_time.shape} ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
+    d = load_from_synapse(d, storages, storage_to_be_updated, path, vif, "synapse/EEG-september-nosensorvars-nomother-nobaby", "Xdyadic")
+    # d = load_from_synapse(d, storages, storage_to_be_updated, path, vif, "synapse/EEG-september-nosensorvars", "Xdyadic")
+    d = load_from_synapse(d, storages, storage_to_be_updated, path, vif, "timedelta", "Xtime")
+    d = d >> apply(lambda Xdyadic: Xdyadic.dropna()).Xdyadic
+    d = d >> apply(join,df=_.Xdyadic, other=_.Xtime).Xdyadic_time
+    print(f"Joined timedelta with dyadic  ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ {d.Xdyadic_time.shape} ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
 
-        d = d >> apply(lambda Xdyadic_time: Xdyadic_time.dropna()).Xdyadic_time
-        d = ch(d, storages, storage_to_be_updated)
-        print(f"Removed NaNs  ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ {d.Xdyadic_time.shape} ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
+    d = d >> apply(lambda Xdyadic_time: Xdyadic_time.dropna()).Xdyadic_time
+    d = ch(d, storages, storage_to_be_updated)
+    print(f"Removed NaNs  ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ {d.Xdyadic_time.shape} ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
 
-        d = load_from_csv(d, storages, storage_to_be_updated, path, vif, d.osf_filename, "single", transpose=False, vars=eeg_t2_vars + (["risco_class"] if d.only_both else []))
-        d = ch(d, storages, storage_to_be_updated)
+    d = load_from_csv(d, storages, storage_to_be_updated, path, vif, d.osf_filename, "single", transpose=False, vars=eeg_t2_vars+["risco_class"])
+    d = ch(d, storages, storage_to_be_updated)
 
-        print("Separate subset from dataset 'EEG single'  --------------------------------------------------------------------------------------------------------------------------------------------------------")
-        d = d >> apply(lambda single, Xdyadic_time: single.loc[Xdyadic_time.index]).single_small
-        d = d >> apply(lambda single, Xdyadic_time: single.loc[~single.index.isin(Xdyadic_time.index)]).single_large
-        d = ch(d, storages, storage_to_be_updated)
-    else:
-        d = load_from_synapse(d, storages, storage_to_be_updated, path, vif, "synapse/EEG-september-nosensorvars", "Xdyadic")
-        d = d >> apply(lambda Xdyadic: Xdyadic.dropna()).Xdyadic
-        print(f"Removed NaNs  ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ {d.Xdyadic.shape} ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
-        d = load_from_csv(d, storages, storage_to_be_updated, path, vif, d.osf_filename, "single", transpose=False, vars=eeg_t2_vars)
-        d = ch(d, storages, storage_to_be_updated)
-
-        print("Separate subset from dataset 'EEG single'  --------------------------------------------------------------------------------------------------------------------------------------------------------")
-        d = d >> apply(lambda single, Xdyadic: single.loc[Xdyadic.index]).single_small
-        d = d >> apply(lambda single, Xdyadic: single.loc[~single.index.isin(Xdyadic.index)]).single_large
-        d = ch(d, storages, storage_to_be_updated)
+    print("Separate subset from dataset 'EEG single'  --------------------------------------------------------------------------------------------------------------------------------------------------------")
+    d = d >> apply(lambda single, Xdyadic_time: single.loc[Xdyadic_time.index]).single_small
+    d = d >> apply(lambda single, Xdyadic_time: single.loc[~single.index.isin(Xdyadic_time.index)]).single_large
+    d = ch(d, storages, storage_to_be_updated)
 
     print(datetime.now(), f"Model imputation {d.n_estimators=} {d.imputation_trees=}--------------------------------------------------------------------------------------------------------------------------------------------------------")
     d = d >> apply(RFr, n_estimators=_.imputation_trees).imputation_alg
@@ -115,11 +104,10 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
     d = ch(d, storages, storage_to_be_updated)
     print(f"X {d.Xsingle.shape} ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.Xsingle, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
-    if d.only_both:
-        d["risco_class"] = d.Xsingle[["risco_class"]]
-        d = d >> apply(join, df=_.Xdyadic_time, other=_.risco_class).Xdyadic_time_risk
-        d = ch(d, storages, storage_to_be_updated)
-        print(f"Joined dyadic_time with risco_class  ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ {d.Xdyadic_time_risk.shape} ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
+    d["risco_class"] = d.Xsingle[["risco_class"]]
+    d = d >> apply(join,df=_.Xdyadic_time, other=_.risco_class).Xdyadic_time_risk
+    d = ch(d, storages, storage_to_be_updated)
+    print(f"Joined dyadic_time with risco_class  ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ {d.Xdyadic_time_risk.shape} ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
 
     tasks = [(cfg.hosh * tgt.encode(), f"{vif=}", tgt) for tgt in d.targets]
     for h, vi, target in (Scheduler(db, timeout=50) << tasks) if False and sched else tasks:
@@ -127,16 +115,12 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
         #     print(f"\t{h.ansi}\t{vi}\t{target}\t", datetime.now(), f"\t-----------------------------------")
 
         d = load_from_csv(d, storages, storage_to_be_updated, path, vif, d.osf_filename, "y", transpose=False, vars=[target], verbose=False)
-        if d.only_both:
-            d = d >> apply(lambda y, Xdyadic_time_risk: y.loc[Xdyadic_time_risk.index].dropna()).y
-        else:
-            d = d >> apply(lambda y, Xdyadic: y.loc[Xdyadic.index].dropna()).y
-
+        d = d >> apply(lambda y, Xdyadic_time_risk: y.loc[Xdyadic_time_risk.index].dropna()).y
         if "r2" not in d.measures:
             d = d >> apply(lambda y: (y > y.median()).astype(int)).y
             d = ch(d, storages, storage_to_be_updated)
 
-        for Xvar in ["Xdyadic_time_risk" if d.only_both else "Xdyadic", "Xsingle"]:
+        for Xvar in ["Xdyadic_time_risk", "Xsingle"]:
             d = d >> apply(lambda X, y: X.loc[X.index.isin(y.index)], _[Xvar]).X
 
             if "r2" not in d.measures:
