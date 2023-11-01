@@ -73,7 +73,7 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
                                ("t_8-9_species_filtered", "species89", "Species")]:
         d["field"] = field
         print(field, "=================================================================================")
-        d = load_from_csv(d, storages, storage_to_be_updated, path, vif, arq, field, transpose=True, old_indexname=oldidx)
+        d = load_from_csv(d, storages, storage_to_be_updated, path, vif, arq, field, transpose=True, old_indexname="oldidx")
         d = load_from_csv(d, storages, storage_to_be_updated, path, False, "EBF_parto", "ebf", False)
 
         d = d >> apply(join, df=_.ebf, other=_[field]).df
@@ -132,7 +132,8 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
             tasks = [(cfg.hosh, field, parto, f"{vif=}")]
             idxtr = range(len(d.X))
             for h, fi, pa, vi in (Scheduler(db, timeout=50) << tasks) if sched else tasks:
-                print(f"\t{h.ansi}\t{fi}\t{pa}\t{vi}\t", datetime.now(), f"\t-----------------------------------")
+                if not sched:
+                    print(f"\t{h.ansi}\t{fi}\t{pa}\t{vi}\t", datetime.now(), f"\t-----------------------------------")
 
                 # # todo: esse xgb não tem o nr de trees ajustado
                 # d = d >> apply(train_xgb, params, idxtr=idxtr).classifier
@@ -177,18 +178,19 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
             print()
 print("Finished!")
 
-for m in d.measures:
-    df = DataFrame(res[m])
-    df[["field", "delivery_mode", "measure"]] = df["description"].str.split('-', expand=True)
-    del df["description"]
-    df.sort_values("p-value", inplace=True)
-    # df[["field", "delivery_mode", "measure", "score", "p-value"]] = df['AB'].str.split(' ', n=1, expand=True)
-    print(df)
-    df.to_csv(f"/tmp/breastfeed-paper-scores-pvalues-{m}.csv")
+if not sched:
+    for m in d.measures:
+        df = DataFrame(res[m])
+        df[["field", "delivery_mode", "measure"]] = df["description"].str.split('-', expand=True)
+        del df["description"]
+        df.sort_values("p-value", inplace=True)
+        # df[["field", "delivery_mode", "measure", "score", "p-value"]] = df['AB'].str.split(' ', n=1, expand=True)
+        print(df)
+        df.to_csv(f"/tmp/breastfeed-paper-scores-pvalues-{m}.csv")
 
-    df = DataFrame(d.res_importances[m])
-    df[["field", "delivery_mode", "measure"]] = df["description"].str.split('-', expand=True)
-    del df["description"]
-    df.sort_values("importance-mean", ascending=False, inplace=True)
-    print(df)
-    df.to_csv(f"/tmp/breastfeed-paper-importances-{m}.csv")
+        df = DataFrame(d.res_importances[m])
+        df[["field", "delivery_mode", "measure"]] = df["description"].str.split('-', expand=True)
+        del df["description"]
+        df.sort_values("importance-mean", ascending=False, inplace=True)
+        print(df)
+        df.to_csv(f"/tmp/breastfeed-paper-importances-{m}.csv")

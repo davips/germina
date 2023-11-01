@@ -14,20 +14,31 @@ from sklearn.preprocessing import StandardScaler
 from germina.runner import drop_many_by_vif, ch, sgid2estudoid, setindex
 
 
-def load_from_csv(d, storages, storage_to_be_updated, path, vif, filename, field, transpose, old_indexname="id_estudo"):
-    print(datetime.now())
+def load_from_csv(d, storages, storage_to_be_updated, path, vif, filename, field, transpose, old_indexname="id_estudo", vars=None, verbose=True):
+    if verbose:
+        print(datetime.now())
     d = d >> apply(file2df, path + filename + ".csv", transpose=transpose, index=True)(field)
     d = ch(d, storages, storage_to_be_updated)
-    print(f"Loaded '{field}' data from '{filename}.csv' ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d[field].shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
+    if verbose:
+        print(f"Loaded '{field}' data from '{filename}.csv' ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d[field].shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
+    if vars:
+        d = d >> apply(lambda df, vs: df[vs], _[field], vars)(field)
+        d = ch(d, storages, storage_to_be_updated)
+        if verbose:
+            print(f"Selected '{vars}' ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d[field].shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
     d = d >> apply(setindex, _[field], old_indexname=old_indexname)(field)
     d = ch(d, storages, storage_to_be_updated)
     if vif:
-        print(f"Apply VIF to '{field}' ----------------------------------------------------------------------------------------------------------------------------")
-        print(datetime.now())
+        if verbose:
+            print(f"Apply VIF to '{field}' ----------------------------------------------------------------------------------------------------------------------------")
+        if verbose:
+            print(datetime.now())
         d = drop_many_by_vif(d, field, storages, storage_to_be_updated, [], [])
         d = ch(d, storages, storage_to_be_updated)
-        print("after VIF ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d[field].shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
-    print()
+        if verbose:
+            print("after VIF ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d[field].shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
+    if verbose:
+        print()
     return d
 
 
@@ -106,15 +117,12 @@ def train_xgb(params, X, y, idxtr):
 
 
 def get_balance(d, storages, storage_to_be_updated):
-    print("Calculate class balance -------------------------------------------------------------------------------------------------------------------------------------------------")
-    print(datetime.now())
     d = d >> apply(lambda X: X.shape).Xshape
     d = d >> apply(lambda y: y.shape).yshape
     d = d >> apply(lambda y: np.unique(y, return_counts=True))("unique_labels", "counts")
     d = d >> apply(lambda y, counts: counts / len(y)).proportions
     d = ch(d, storages, storage_to_be_updated)
-    print("X, y:", d.Xshape, d.yshape)
-    print(f"{d.counts=}\t{d.proportions=}")
+    print(datetime.now(), "X, y:", d.Xshape, d.yshape, f"{d.counts=}\t{d.proportions=}")
     return d
 
 

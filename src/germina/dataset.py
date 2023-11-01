@@ -1097,3 +1097,10 @@ eeg_vars = ("Beta_t1,Beta_t2,Beta_t3,Frontocentral_beta_t1,Frontocentral_beta_t2
             "RH_parietal_low_alpha_t2,RH_parietal_theta_t1,RH_parietal_theta_t2,RH_temporal_high_alpha_t1,RH_temporal_high_alpha_t2,RH_temporal_low_alpha_t1,RH_temporal_low_alpha_t2,"
             "RH_temporal_theta_t1,RH_temporal_theta_t2,Theta_t1,Theta_t2,Theta_t3").split(",")
 eeg_vars__no_t = set(v.replace("_t1", "").replace("_t2", "").replace("_t3", "").replace("_t4", "") for v in eeg_vars)
+
+eeg_t2_vars =("Beta_t2,Delta_t2,Frontocentral_beta_t2,Frontocentral_delta_t2,Frontocentral_gamma_t2,Frontocentral_high_alpha_t2,Frontocentral_low_alpha_t2,Frontocentral_theta_t2,Gamma_t2,HighAlpha_t2,"
+              "LH_lateral_frontal_beta_t2,LH_lateral_frontal_delta_t2,LH_lateral_frontal_gamma_t2,LH_lateral_frontal_high_alpha_t2,LH_lateral_frontal_low_alpha_t2,LH_lateral_frontal_theta_t2,LH_parietal_beta_t2,"
+              "LH_parietal_delta_t2,LH_parietal_gamma_t2,LH_parietal_high_alpha_t2,LH_parietal_low_alpha_t2,LH_parietal_theta_t2,LH_temporal_beta_t2,LH_temporal_delta_t2,LH_temporal_gamma_t2,LH_temporal_high_alpha_t2,"
+              "LH_temporal_low_alpha_t2,LH_temporal_theta_t2,LowAlpha_t2,Occipital_beta_t2,Occipital_delta_t2,Occipital_gamma_t2,Occipital_high_alpha_t2,Occipital_low_alpha_t2,Occipital_theta_t2,RH_lateral_frontal_beta_t2,"
+              "RH_lateral_frontal_delta_t2,RH_lateral_frontal_gamma_t2,RH_lateral_frontal_high_alpha_t2,RH_lateral_frontal_low_alpha_t2,RH_lateral_frontal_theta_t2,RH_parietal_beta_t2,RH_parietal_delta_t2,RH_parietal_gamma_t2,"
+              "RH_parietal_high_alpha_t2,RH_parietal_low_alpha_t2,RH_parietal_theta_t2,RH_temporal_beta_t2,RH_temporal_delta_t2,RH_temporal_gamma_t2,RH_temporal_high_alpha_t2,RH_temporal_low_alpha_t2,Theta_t2").split(",")
