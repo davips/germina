@@ -33,7 +33,7 @@ from germina.loader import load_from_csv, get_balance, importances, load_from_sy
 from germina.runner import ch
 
 __ = enable_iterative_imputer
-dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="", measures=list, targets=list)
+dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="", measures=list, targets=list, swap=False)
 print(datetime.now())
 pprint(dct, sort_dicts=False)
 print()
@@ -50,10 +50,10 @@ d = hdict(
     shuffle=True,
     index="id_estudo", join="inner", n_jobs=-1, return_name=False,
     osf_filename="germina-osf-request---davi121023",
-    verbose=False
+    verbose=False, swap=dct["swap"]
 )
 cfg = hdict(d)
-for noncfg in ["index", "join", "n_jobs", "return_name", "osf_filename", "verbose"]:
+for noncfg in ["index", "join", "n_jobs", "return_name", "osf_filename", "verbose", "swap"]:
     del cfg[noncfg]
 vif, nans, sched, storage_to_be_updated = dct["vif"], dct["nans"], dct["sched"], dct["up"]
 
@@ -120,7 +120,7 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
             d = d >> apply(lambda y: (y > y.median()).astype(int)).y
             d = ch(d, storages, storage_to_be_updated)
 
-        for Xvar in ["Xdyadic_time_risk", "Xsingle"]:
+        for Xvar in (["Xdyadic_time_risk", "Xsingle"] if d.swap else ["Xsingle", "Xdyadic_time_risk"]):
             d = d >> apply(lambda X, y: X.loc[X.index.isin(y.index)], _[Xvar]).X
 
             if "r2" not in d.measures:
