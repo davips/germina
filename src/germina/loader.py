@@ -5,6 +5,9 @@ from pprint import pprint
 
 import numpy as np
 import pandas as pd
+from sklearn import clone
+from sklearn.impute import IterativeImputer
+
 from germina.dataset import join
 from hdict import apply, _
 from hdict.dataset.pandas_handling import file2df
@@ -154,3 +157,9 @@ def importances(res_importances, importances, field, parto, scoring, X):
     cpy = res_importances.copy()
     cpy[scoring] = newscoring
     return cpy
+
+
+def impute(imputation_alg, single_large, single_small):
+    print("\n", datetime.now(), f"Impute missing values for single EEG small -----------------------------------------------------------------------------------------------------------")
+    imputer = IterativeImputer(estimator=clone(imputation_alg)).fit(X=single_large)
+    return DataFrame(imputer.transform(X=single_small), index=single_small.index, columns=single_small.columns)

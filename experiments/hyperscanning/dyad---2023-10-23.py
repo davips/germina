@@ -21,7 +21,7 @@ from shelchemy import sopen
 
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.dataset import join, osf_except_target_vars__no_t, eeg_t2_vars
-from germina.loader import load_from_csv, clean_for_dalex, get_balance, train_xgb, build_explainer, explain_modelparts, explain_predictparts, importances, load_from_osf, load_from_synapse
+from germina.loader import load_from_csv, clean_for_dalex, get_balance, train_xgb, build_explainer, explain_modelparts, explain_predictparts, importances, load_from_osf, load_from_synapse, impute
 
 from sklearn.model_selection import LeaveOneOut, permutation_test_score, StratifiedKFold, KFold
 import warnings
@@ -79,14 +79,9 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
 
     print(datetime.now(), f"Model imputation {d.n_estimators=} {d.imputation_trees=}--------------------------------------------------------------------------------------------------------------------------------------------------------")
     d = d >> apply(RFr, n_estimators=_.imputation_trees).imputation_alg
-
-    imputer = IterativeImputer(estimator=clone(d.imputation_alg)).fit(X=d.single_large)
     # d = d >> apply(lambda imputation_alg, single_large: IterativeImputer(estimator=clone(imputation_alg)).fit(X=single_large)).imputer
 
-    d = ch(d, storages, storage_to_be_updated)
-
-    print(datetime.now(), f"Impute missing values for single EEG small -----------------------------------------------------------------------------------------------------------")
-    d = d >> apply(lambda imputer, single_small: DataFrame(imputer.transform(X=single_small), index=single_small.index, columns=single_small.columns)).Xsingle
+    d = d >> apply(impute).Xsingle
     d = ch(d, storages, storage_to_be_updated)
     print(f"X {d.Xsingle.shape} ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.Xsingle, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
