@@ -99,19 +99,21 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
 
         d = load_from_csv(d, storages, storage_to_be_updated, path, vif, d.osf_filename, "y", transpose=False, vars=[target], verbose=False)
         d = d >> apply(lambda y, Xdyadic: y.loc[Xdyadic.index].dropna()).y
-        if d.measures == ["r2"]:
+        if d.measures != ["r2"]:
             d = d >> apply(lambda y: (y > y.median()).astype(int)).y
             d = ch(d, storages, storage_to_be_updated)
 
         for Xvar in ["Xsingle", "Xdyadic"]:
             d = d >> apply(lambda X, y: X.loc[X.index.isin(y.index)], _[Xvar]).X
-            d = get_balance(d, storages, storage_to_be_updated)
+            if d.measures != ["r2"]:
+                d = get_balance(d, storages, storage_to_be_updated)
 
             d = d >> apply(KFold).cv
-            if d.measures == ["r2"]:
-                constructors = {"RFr": RFr}
-            else:
+            if d.measures != ["r2"]:
                 constructors = {"RFc": RFc}
+            else:
+                constructors = {"RFr": RFr}
+
             for k, constructor in constructors.items():
                 d = d >> apply(constructor).alg
                 d = ch(d, storages, storage_to_be_updated)
