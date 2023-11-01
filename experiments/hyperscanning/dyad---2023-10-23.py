@@ -4,20 +4,26 @@ from pprint import pprint
 from sys import argv
 
 from argvsucks import handle_command_line
+from catboost import CatBoostRegressor as CatBr
+from catboost import CatBoostClassifier as CatBc
 from hdict import hdict, apply, _
-from lightgbm import LGBMClassifier as LGBMc
+from lightgbm import LGBMClassifier as LGBMc, LGBMRegressor as LGBMr
 from pandas import DataFrame
 from shelchemy import sopen
 from shelchemy.scheduler import Scheduler
 from sklearn import clone
 from sklearn.ensemble import ExtraTreesClassifier as ETc
+from sklearn.ensemble import ExtraTreesRegressor as ETr
 from sklearn.ensemble import HistGradientBoostingClassifier as HGBc
+from sklearn.ensemble import HistGradientBoostingRegressor as HGBr
 from sklearn.ensemble import RandomForestClassifier as RFc
 from sklearn.ensemble import RandomForestRegressor as RFr
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.inspection import permutation_importance
 from sklearn.model_selection import permutation_test_score, StratifiedKFold, KFold
-from xgboost import XGBClassifier as XGBc
+from sklearn.tree import DecisionTreeRegressor as DTr
+from sklearn.tree import DecisionTreeClassifier as DTc
+from xgboost import XGBClassifier as XGBc, XGBRegressor as XGBr
 
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.dataset import eeg_t2_vars
@@ -42,7 +48,8 @@ d = hdict(
     n_splits=5,
     shuffle=True,
     index="id_estudo", join="inner", n_jobs=-1, return_name=False,
-    osf_filename="germina-osf-request---davi121023"
+    osf_filename="germina-osf-request---davi121023",
+    verbose=False
 )
 cfg = hdict(d)
 for noncfg in ["index", "join", "n_jobs", "return_name", "osf_filename"]:
@@ -95,20 +102,20 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
 
         d = load_from_csv(d, storages, storage_to_be_updated, path, vif, d.osf_filename, "y", transpose=False, vars=[target], verbose=False)
         d = d >> apply(lambda y, Xdyadic: y.loc[Xdyadic.index].dropna()).y
-        if d.measures != ["r2"]:
+        if "r2" not in d.measures:
             d = d >> apply(lambda y: (y > y.median()).astype(int)).y
             d = ch(d, storages, storage_to_be_updated)
 
         for Xvar in ["Xsingle", "Xdyadic"]:
             d = d >> apply(lambda X, y: X.loc[X.index.isin(y.index)], _[Xvar]).X
-            if d.measures != ["r2"]:
+
+            if "r2" not in d.measures:
                 d = get_balance(d, storages, storage_to_be_updated)
+                constructors = {"RFc": RFc, "XGBc": XGBc, "LGBMc": LGBMc, "CatBc": CatBc, "DTc": DTc, "HGBc": HGBc, "ETc": ETc}
+            else:
+                constructors = {"RFr": RFr, "XGBr": XGBr, "LGBMr": LGBMr, "CatBr": CatBr, "DTr": DTr, "HGBr": HGBr, "ETr": ETr}
 
             d = d >> apply(KFold).cv
-            if d.measures != ["r2"]:
-                constructors = {"HGBc": HGBc, "RFc": RFc, "XGBc": XGBc, "LGBMc": LGBMc, "ETc": ETc}
-            else:
-                constructors = {"RFr": RFr}
 
             tasks = [(cfg.hosh * cons.encode(), f"{vif=}", target, cons, Xvar) for cons in constructors]
             for h2, vi2, __, k, __ in (Scheduler(db, timeout=50) << tasks) if sched else tasks:
