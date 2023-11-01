@@ -88,14 +88,12 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
 
     print(datetime.now(), f"Model imputation {d.n_estimators=} {d.imputation_trees=}--------------------------------------------------------------------------------------------------------------------------------------------------------")
     d = d >> apply(RFr, n_estimators=_.imputation_trees).imputation_alg
-    # d = d >> apply(lambda imputation_alg, single_large: IterativeImputer(estimator=clone(imputation_alg)).fit(X=single_large)).imputer
-
     d = d >> apply(impute).Xsingle
     d = ch(d, storages, storage_to_be_updated)
     print(f"X {d.Xsingle.shape} ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.Xsingle, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
-    tasks = zip(repeat((cfg.hosh, f"{vif=}")), d.targets)
-    for (h, vi), target in (Scheduler(db, timeout=50) << tasks) if sched else tasks:
+    tasks = [(cfg.hosh * tgt.encode(), f"{vif=}", tgt) for tgt in d.targets]
+    for h, vi, target in (Scheduler(db, timeout=50) << tasks) if sched else tasks:
         if not sched:
             print(f"\t{h.ansi}\t{vi}\t{target}\t", datetime.now(), f"\t-----------------------------------")
 
@@ -132,7 +130,7 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
                     d = d >> apply(lambda alg, X, y: clone(alg).fit(X, y)).estimator
                     d = d >> apply(permutation_importance).importances
                     d = ch(d, storages, storage_to_be_updated)
-                    d = d >> apply(importances, descr1=_.target, descr2=_.Xvar).res_importances
+                    d = d >> apply(importances, descr1=target, descr2=Xvar).res_importances
                     d = ch(d, storages, storage_to_be_updated)
 
                     print()
