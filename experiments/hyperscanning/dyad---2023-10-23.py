@@ -1,4 +1,5 @@
 import warnings
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
 from datetime import datetime
 from pprint import pprint
@@ -82,14 +83,14 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
         d = load_from_synapse(d, storages, storage_to_be_updated, path, vif, "synapse/EEG-september-nosensorvars-nomother-nobaby", "Xdyadic")
         d = load_from_synapse(d, storages, storage_to_be_updated, path, vif, "timedelta", "Xtime")
         d = d >> apply(lambda Xdyadic: Xdyadic.dropna()).Xdyadic
-        d = d >> apply(join,df=_.Xdyadic, other=_.Xtime).Xdyadic_time
+        d = d >> apply(join, df=_.Xdyadic, other=_.Xtime).Xdyadic_time
         print(f"Joined timedelta with dyadic  ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ {d.Xdyadic_time.shape} ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
 
         d = d >> apply(lambda Xdyadic_time: Xdyadic_time.dropna()).Xdyadic_time
         d = ch(d, storages, storage_to_be_updated)
         print(f"Removed NaNs  ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ {d.Xdyadic_time.shape} ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
 
-        d = load_from_csv(d, storages, storage_to_be_updated, path, vif, d.osf_filename, "single", transpose=False, vars=eeg_t2_vars+["risco_class"])
+        d = load_from_csv(d, storages, storage_to_be_updated, path, vif, d.osf_filename, "single", transpose=False, vars=eeg_t2_vars + (["risco_class"] if d.only_both else []))
         d = ch(d, storages, storage_to_be_updated)
 
         print("Separate subset from dataset 'EEG single'  --------------------------------------------------------------------------------------------------------------------------------------------------------")
@@ -116,7 +117,7 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
 
     if d.only_both:
         d["risco_class"] = d.Xsingle[["risco_class"]]
-        d = d >> apply(join,df=_.Xdyadic_time, other=_.risco_class).Xdyadic_time_risk
+        d = d >> apply(join, df=_.Xdyadic_time, other=_.risco_class).Xdyadic_time_risk
         d = ch(d, storages, storage_to_be_updated)
         print(f"Joined dyadic_time with risco_class  ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ {d.Xdyadic_time_risk.shape} ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
 
