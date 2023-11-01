@@ -89,9 +89,9 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
     print(f"X {d.Xsingle.shape} ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.Xsingle, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
     tasks = [(cfg.hosh * tgt.encode(), f"{vif=}", tgt) for tgt in d.targets]
-    for h, vi, target in (Scheduler(db, timeout=50) << tasks) if sched else tasks:
-        if not sched:
-            print(f"\t{h.ansi}\t{vi}\t{target}\t", datetime.now(), f"\t-----------------------------------")
+    for h, vi, target in (Scheduler(db, timeout=50) << tasks) if False and sched else tasks:
+        # if not sched:
+        #     print(f"\t{h.ansi}\t{vi}\t{target}\t", datetime.now(), f"\t-----------------------------------")
 
         d = load_from_csv(d, storages, storage_to_be_updated, path, vif, d.osf_filename, "y", transpose=False, vars=[target], verbose=False)
         d = d >> apply(lambda y, Xdyadic: y.loc[Xdyadic.index].dropna()).y
