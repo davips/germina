@@ -173,7 +173,7 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
                     d = d >> apply(lambda alg, X, y: clone(alg).fit(X, y)).estimator
                     d = d >> apply(permutation_importance).importances
                     d = ch(d, storages, storage_to_be_updated)
-                    d = d >> apply(importances).res_importances
+                    d = d >> apply(importances, descr1=_.field, descr2=_.parto).res_importances
 
             print()
 print("Finished!")
@@ -184,13 +184,12 @@ if not sched:
         df[["field", "delivery_mode", "measure"]] = df["description"].str.split('-', expand=True)
         del df["description"]
         df.sort_values("p-value", inplace=True)
-        # df[["field", "delivery_mode", "measure", "score", "p-value"]] = df['AB'].str.split(' ', n=1, expand=True)
         print(df)
-        df.to_csv(f"/tmp/breastfeed-paper-scores-pvalues-{m}.csv")
+        df.to_csv(f"/tmp/breastfeed-paper-scores-pvalues-{vif}-{m}.csv")
 
         df = DataFrame(d.res_importances[m])
         df[["field", "delivery_mode", "measure"]] = df["description"].str.split('-', expand=True)
         del df["description"]
         df.sort_values("importance-mean", ascending=False, inplace=True)
         print(df)
-        df.to_csv(f"/tmp/breastfeed-paper-importances-{m}.csv")
+        df.to_csv(f"/tmp/breastfeed-paper-importances-{vif}-{m}.csv")
