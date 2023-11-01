@@ -1,32 +1,28 @@
-from sklearn.ensemble import RandomForestClassifier as RFc
 import warnings
 from datetime import datetime
-from itertools import repeat
-
-from germina.nan import remove_cols
-from pandas import DataFrame
-from shelchemy.scheduler import Scheduler
-from sklearn import clone
-from sklearn.experimental import enable_iterative_imputer
-from sklearn.impute import IterativeImputer
-from sklearn.inspection import permutation_importance
-from xgboost import XGBClassifier
-
 from pprint import pprint
 from sys import argv
 
 from argvsucks import handle_command_line
-from germina.runner import ch
 from hdict import hdict, apply, _
+from lightgbm import LGBMClassifier as LGBMc
+from pandas import DataFrame
 from shelchemy import sopen
+from shelchemy.scheduler import Scheduler
+from sklearn import clone
+from sklearn.ensemble import ExtraTreesClassifier as ETc
+from sklearn.ensemble import HistGradientBoostingClassifier as HGBc
+from sklearn.ensemble import RandomForestClassifier as RFc
+from sklearn.ensemble import RandomForestRegressor as RFr
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.inspection import permutation_importance
+from sklearn.model_selection import permutation_test_score, StratifiedKFold, KFold
+from xgboost import XGBClassifier as XGBc
 
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
-from germina.dataset import join, osf_except_target_vars__no_t, eeg_t2_vars
-from germina.loader import load_from_csv, clean_for_dalex, get_balance, train_xgb, build_explainer, explain_modelparts, explain_predictparts, importances, load_from_osf, load_from_synapse, impute
-
-from sklearn.model_selection import LeaveOneOut, permutation_test_score, StratifiedKFold, KFold
-import warnings
-from sklearn.ensemble import RandomForestRegressor as RFr
+from germina.dataset import eeg_t2_vars
+from germina.loader import load_from_csv, get_balance, importances, load_from_synapse, impute
+from germina.runner import ch
 
 warnings.filterwarnings('ignore')
 __ = enable_iterative_imputer
@@ -110,12 +106,15 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
 
             d = d >> apply(KFold).cv
             if d.measures != ["r2"]:
-                constructors = {"RFc": RFc}
+                constructors = {"HGBc": HGBc, "RFc": RFc, "XGBc": XGBc, "LGBMc": LGBMc, "ETc": ETc}
             else:
                 constructors = {"RFr": RFr}
 
-            for k, constructor in constructors.items():
-                d = d >> apply(constructor).alg
+            tasks = [(cfg.hosh * cons.encode(), f"{vif=}", target, cons, Xvar) for cons in constructors]
+            for h2, vi2, _, k, _ in (Scheduler(db, timeout=50) << tasks) if sched else tasks:
+                if not sched:
+                    print(f"\t{h2.ansi}\t{vi2}\t{target}\t{Xvar}\t{k}\t", datetime.now(), f"\t-----------------------------------")
+                d = d >> apply(constructors[k]).alg
                 d = ch(d, storages, storage_to_be_updated)
 
                 for m in d.measures:
