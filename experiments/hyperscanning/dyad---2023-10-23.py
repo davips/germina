@@ -119,22 +119,20 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
         if "r2" not in d.measures:
             d = d >> apply(lambda y: (y > y.median()).astype(int)).y
             d = ch(d, storages, storage_to_be_updated)
+            d = get_balance(d, storages, storage_to_be_updated)
+            constructors = {"RFc": RFc, "DTc": DTc, "HGBc": HGBc, "ETc": ETc, "LGBMc": LGBMc, "XGBc": XGBc, "CatBc": CatBc}
+        else:
+            constructors = {"RFr": RFr, "DTr": DTr, "HGBr": HGBr, "ETr": ETr, "LGBMr": LGBMr, "XGBr": XGBr, "CatBr": CatBr}
 
-        for Xvar in (["Xdyadic_time_risk", "Xsingle"] if d.swap else ["Xsingle", "Xdyadic_time_risk"]):
-            d = d >> apply(lambda X, y: X.loc[X.index.isin(y.index)], _[Xvar]).X
-
-            if "r2" not in d.measures:
-                d = get_balance(d, storages, storage_to_be_updated)
-                constructors = {"RFc": RFc, "DTc": DTc, "HGBc": HGBc, "ETc": ETc, "LGBMc": LGBMc, "XGBc": XGBc, "CatBc": CatBc}
-            else:
-                constructors = {"RFr": RFr, "DTr": DTr, "HGBr": HGBr, "ETr": ETr, "LGBMr": LGBMr, "XGBr": XGBr, "CatBr": CatBr}
-
-            d = d >> apply(KFold).cv
-
-            tasks = [(cfg.hosh * cons.encode() * target.encode(), f"{vif=}", target, cons, Xvar) for cons in constructors]
-            for h2, vi2, __, k, __ in (Scheduler(db, timeout=50) << tasks) if sched else tasks:
+        tasks = [(cfg.hosh * cons.encode() * target.encode(), f"{vif=}", target, cons) for cons in constructors]
+        for h2, vi2, __, k in (Scheduler(db, timeout=50) << tasks) if sched else tasks:
+            for Xvar in (["Xdyadic_time_risk", "Xsingle"] if d.swap else ["Xsingle", "Xdyadic_time_risk"]):
                 if not sched:
                     print(f"\t{h2.ansi}\t{vi2}\t{target}\t{Xvar}\t{k}\t", datetime.now(), f"\t-----------------------------------")
+
+                d = d >> apply(lambda X, y: X.loc[X.index.isin(y.index)], _[Xvar]).X
+                d = d >> apply(KFold).cv
+
                 d = d >> apply(constructors[k]).alg
                 d = ch(d, storages, storage_to_be_updated)
 
