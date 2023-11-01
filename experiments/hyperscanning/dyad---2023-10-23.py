@@ -111,7 +111,7 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
                 constructors = {"RFr": RFr}
 
             tasks = [(cfg.hosh * cons.encode(), f"{vif=}", target, cons, Xvar) for cons in constructors]
-            for h2, vi2, _, k, _ in (Scheduler(db, timeout=50) << tasks) if sched else tasks:
+            for h2, vi2, __, k, __ in (Scheduler(db, timeout=50) << tasks) if sched else tasks:
                 if not sched:
                     print(f"\t{h2.ansi}\t{vi2}\t{target}\t{Xvar}\t{k}\t", datetime.now(), f"\t-----------------------------------")
                 d = d >> apply(constructors[k]).alg
