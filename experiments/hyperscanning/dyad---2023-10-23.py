@@ -1,4 +1,5 @@
 import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 from datetime import datetime
 from pprint import pprint
 from sys import argv
@@ -26,11 +27,10 @@ from sklearn.tree import DecisionTreeClassifier as DTc
 from xgboost import XGBClassifier as XGBc, XGBRegressor as XGBr
 
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
-from germina.dataset import eeg_t2_vars
+from germina.dataset import eeg_t2_vars, join
 from germina.loader import load_from_csv, get_balance, importances, load_from_synapse, impute
 from germina.runner import ch
 
-warnings.filterwarnings('ignore')
 __ = enable_iterative_imputer
 dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="", measures=list, targets=list)
 print(datetime.now())
@@ -78,15 +78,23 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
         res_importances[measure] = {"description": [], "variable": [], "importance-mean": [], "importance-stdev": []}
     d["res_importances"] = res_importances
 
-    d = load_from_synapse(d, storages, storage_to_be_updated, path, vif, "synapse/EEG-september-nosensorvars", "Xdyadic")
+    d = load_from_synapse(d, storages, storage_to_be_updated, path, vif, "synapse/EEG-september-nosensorvars-nomother-nobaby", "Xdyadic")
+    # d = load_from_synapse(d, storages, storage_to_be_updated, path, vif, "synapse/EEG-september-nosensorvars", "Xdyadic")
+    d = load_from_synapse(d, storages, storage_to_be_updated, path, vif, "timedelta", "Xtime")
     d = d >> apply(lambda Xdyadic: Xdyadic.dropna()).Xdyadic
-    print(f"Removed NaNs  ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ {d.Xdyadic.shape} ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
-    d = load_from_csv(d, storages, storage_to_be_updated, path, vif, d.osf_filename, "single", transpose=False, vars=eeg_t2_vars)
+    d = d >> apply(join,df=_.Xdyadic, other=_.Xtime).Xdyadic_time
+    print(f"Joined timedelta with dyadic  ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ {d.Xdyadic_time.shape} ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
+
+    d = d >> apply(lambda Xdyadic_time: Xdyadic_time.dropna()).Xdyadic_time
+    d = ch(d, storages, storage_to_be_updated)
+    print(f"Removed NaNs  ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ {d.Xdyadic_time.shape} ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
+
+    d = load_from_csv(d, storages, storage_to_be_updated, path, vif, d.osf_filename, "single", transpose=False, vars=eeg_t2_vars+["risco_class"])
     d = ch(d, storages, storage_to_be_updated)
 
     print("Separate subset from dataset 'EEG single'  --------------------------------------------------------------------------------------------------------------------------------------------------------")
-    d = d >> apply(lambda single, Xdyadic: single.loc[Xdyadic.index]).single_small
-    d = d >> apply(lambda single, Xdyadic: single.loc[~single.index.isin(Xdyadic.index)]).single_large
+    d = d >> apply(lambda single, Xdyadic_time: single.loc[Xdyadic_time.index]).single_small
+    d = d >> apply(lambda single, Xdyadic_time: single.loc[~single.index.isin(Xdyadic_time.index)]).single_large
     d = ch(d, storages, storage_to_be_updated)
 
     print(datetime.now(), f"Model imputation {d.n_estimators=} {d.imputation_trees=}--------------------------------------------------------------------------------------------------------------------------------------------------------")
@@ -95,25 +103,30 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
     d = ch(d, storages, storage_to_be_updated)
     print(f"X {d.Xsingle.shape} ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.Xsingle, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
+    d["risco_class"] = d.Xsingle[["risco_class"]]
+    d = d >> apply(join,df=_.Xdyadic_time, other=_.risco_class).Xdyadic_time_risk
+    d = ch(d, storages, storage_to_be_updated)
+    print(f"Joined dyadic_time with risco_class  ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ {d.Xdyadic_time_risk.shape} ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
+
     tasks = [(cfg.hosh * tgt.encode(), f"{vif=}", tgt) for tgt in d.targets]
     for h, vi, target in (Scheduler(db, timeout=50) << tasks) if False and sched else tasks:
         # if not sched:
         #     print(f"\t{h.ansi}\t{vi}\t{target}\t", datetime.now(), f"\t-----------------------------------")
 
         d = load_from_csv(d, storages, storage_to_be_updated, path, vif, d.osf_filename, "y", transpose=False, vars=[target], verbose=False)
-        d = d >> apply(lambda y, Xdyadic: y.loc[Xdyadic.index].dropna()).y
+        d = d >> apply(lambda y, Xdyadic_time_risk: y.loc[Xdyadic_time_risk.index].dropna()).y
         if "r2" not in d.measures:
             d = d >> apply(lambda y: (y > y.median()).astype(int)).y
             d = ch(d, storages, storage_to_be_updated)
 
-        for Xvar in ["Xsingle", "Xdyadic"]:
+        for Xvar in ["Xsingle", "Xdyadic_time_risk"]:
             d = d >> apply(lambda X, y: X.loc[X.index.isin(y.index)], _[Xvar]).X
 
             if "r2" not in d.measures:
                 d = get_balance(d, storages, storage_to_be_updated)
-                constructors = {"RFc": RFc, "XGBc": XGBc, "LGBMc": LGBMc, "CatBc": CatBc, "DTc": DTc, "HGBc": HGBc, "ETc": ETc}
+                constructors = {"RFc": RFc, "DTc": DTc, "HGBc": HGBc, "ETc": ETc, "LGBMc": LGBMc, "XGBc": XGBc, "CatBc": CatBc}
             else:
-                constructors = {"RFr": RFr, "XGBr": XGBr, "LGBMr": LGBMr, "CatBr": CatBr, "DTr": DTr, "HGBr": HGBr, "ETr": ETr}
+                constructors = {"RFr": RFr, "DTr": DTr, "HGBr": HGBr, "ETr": ETr, "LGBMr": LGBMr, "XGBr": XGBr, "CatBr": CatBr}
 
             d = d >> apply(KFold).cv
 
@@ -152,11 +165,11 @@ if not sched:
         del df["description"]
         df.sort_values("p-value", inplace=True)
         print(df)
-        df.to_csv(f"/tmp/dyad-paper-scores-pvalues-{vif}-{m}.csv")
+        df.to_csv(f"/tmp/dyad-paper--{h.id}--scores-pvalues-{vif}-{m}.csv")
 
         df = DataFrame(d.res_importances[m])
         df[["target", "eeg_type", "measure"]] = df["description"].str.split('-', expand=True)
         del df["description"]
         df.sort_values("importance-mean", ascending=False, inplace=True)
         print(df)
-        df.to_csv(f"/tmp/dyad-paper-importances-{vif}-{m}.csv")
+        df.to_csv(f"/tmp/dyad-paper--{h.id}--importances-{vif}-{m}.csv")
