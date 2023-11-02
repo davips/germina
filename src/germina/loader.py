@@ -144,13 +144,13 @@ def explain_predictparts(explainer, X, idxts):
     return explainer.predict_parts(X.iloc[idxts])  # .plot(min_max=[0, 1], show=False).show()
 
 
-def importances(res_importances, importances, descr1, descr2, scoring, X):
+def importances(res_importances, importances, descr1, descr2, scoring, X, alg_name):
     newscoring = {}
     for k, lst in res_importances[scoring].items():
         newscoring[k] = lst.copy()
     for i in importances.importances_mean.argsort()[::-1]:
         if importances.importances_mean[i] - importances.importances_std[i] > 0:
-            newscoring["description"].append(f"{descr1}-{descr2}-{scoring}")
+            newscoring["description"].append(f"{descr1}-{descr2}-{scoring}-{alg_name}")
             newscoring["variable"].append(X.columns[i])
             newscoring["importance-mean"].append(importances.importances_mean[i])
             newscoring["importance-stdev"].append(importances.importances_std[i])

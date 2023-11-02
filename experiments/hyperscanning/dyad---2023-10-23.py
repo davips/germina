@@ -83,14 +83,14 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
     # d = load_from_synapse(d, storages, storage_to_be_updated, path, vif, "synapse/EEG-september-nosensorvars", "Xdyadic")
     d = load_from_synapse(d, storages, storage_to_be_updated, path, vif, "timedelta", "Xtime")
     d = d >> apply(lambda Xdyadic: Xdyadic.dropna()).Xdyadic
-    d = d >> apply(join,df=_.Xdyadic, other=_.Xtime).Xdyadic_time
+    d = d >> apply(join, df=_.Xdyadic, other=_.Xtime).Xdyadic_time
     print(f"Joined timedelta with dyadic  ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ {d.Xdyadic_time.shape} ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
 
     d = d >> apply(lambda Xdyadic_time: Xdyadic_time.dropna()).Xdyadic_time
     d = ch(d, storages, storage_to_be_updated)
     print(f"Removed NaNs  ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ {d.Xdyadic_time.shape} ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
 
-    d = load_from_csv(d, storages, storage_to_be_updated, path, vif, d.osf_filename, "single", transpose=False, vars=eeg_t2_vars+["risco_class"])
+    d = load_from_csv(d, storages, storage_to_be_updated, path, vif, d.osf_filename, "single", transpose=False, vars=eeg_t2_vars + ["risco_class"])
     d = ch(d, storages, storage_to_be_updated)
 
     print("Separate subset from dataset 'EEG single'  --------------------------------------------------------------------------------------------------------------------------------------------------------")
@@ -105,7 +105,7 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
     print(f"X {d.Xsingle.shape} ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.Xsingle, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
     d["risco_class"] = d.Xsingle[["risco_class"]]
-    d = d >> apply(join,df=_.Xdyadic_time, other=_.risco_class).Xdyadic_time_risk
+    d = d >> apply(join, df=_.Xdyadic_time, other=_.risco_class).Xdyadic_time_risk
     d = ch(d, storages, storage_to_be_updated)
     print(f"Joined dyadic_time with risco_class  ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ {d.Xdyadic_time_risk.shape} ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
 
@@ -125,6 +125,7 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
 
         tasks = [(cfg.hosh * cons.encode() * target.encode(), f"{vif=}", target, cons) for cons in constructors]
         for h2, vi2, __, k in (Scheduler(db, timeout=50) << tasks) if sched else tasks:
+            d["alg_name"] = k
             for Xvar in (["Xdyadic_time_risk", "Xsingle"] if d.swap else ["Xsingle", "Xdyadic_time_risk"]):
                 if not sched:
                     print(f"\t{h2.ansi}\t{vi2}\t{target}\t{Xvar}\t{k}\t", datetime.now(), f"\t-----------------------------------")
@@ -144,7 +145,7 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
                     rets = [f"{m}_scores", f"{m}_permscores", f"{m}_pval"]
                     d = d >> apply(permutation_test_score, _.alg)(*rets)
                     d = ch(d, storages, storage_to_be_updated)
-                    res[m]["description"].append(f"{target}-{Xvar}-{m}")
+                    res[m]["description"].append(f"{target}-{Xvar}-{m}-{k}")
                     res[m]["score"].append(d[rets[0]])
                     res[m]["p-value"].append(d[rets[2]])
                     print(f"{m:20} (p-value):\t{d[rets[0]]:.4f} ({d[rets[2]]:.4f})")
@@ -163,15 +164,15 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
 if not sched:
     for m in d.measures:
         df = DataFrame(res[m])
-        df[["target", "eeg_type", "measure"]] = df["description"].str.split('-', expand=True)
+        df[["target", "eeg_type", "measure", "algorithm"]] = df["description"].str.split('-', expand=True)
         del df["description"]
         df.sort_values("p-value", inplace=True)
         print(df)
-        df.to_csv(f"/tmp/dyad-paper--{h.id}--scores-pvalues-{vif}-{m}.csv")
+        df.to_csv(f"/tmp/dyad-paper--{cfg.id}--scores-pvalues-{vif}-{m}.csv")
 
         df = DataFrame(d.res_importances[m])
-        df[["target", "eeg_type", "measure"]] = df["description"].str.split('-', expand=True)
+        df[["target", "eeg_type", "measure", "algorithm"]] = df["description"].str.split('-', expand=True)
         del df["description"]
         df.sort_values("importance-mean", ascending=False, inplace=True)
         print(df)
-        df.to_csv(f"/tmp/dyad-paper--{h.id}--importances-{vif}-{m}.csv")
+        df.to_csv(f"/tmp/dyad-paper--{cfg.id}--importances-{vif}-{m}.csv")
