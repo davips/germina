@@ -119,7 +119,6 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
         if "r2" not in d.measures:
             d = d >> apply(lambda y: (y > y.median()).astype(int)).y
             d = ch(d, storages, storage_to_be_updated)
-            d = get_balance(d, storages, storage_to_be_updated)
             constructors = {"RFc": RFc, "DTc": DTc, "HGBc": HGBc, "ETc": ETc, "LGBMc": LGBMc, "XGBc": XGBc, "CatBc": CatBc}
         else:
             constructors = {"RFr": RFr, "DTr": DTr, "HGBr": HGBr, "ETr": ETr, "LGBMr": LGBMr, "XGBr": XGBr, "CatBr": CatBr}
@@ -132,6 +131,10 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
 
                 d = d >> apply(lambda X, y: X.loc[X.index.isin(y.index)], _[Xvar]).X
                 d = d >> apply(KFold).cv
+
+                if "r2" not in d.measures:
+                    d = get_balance(d, storages, storage_to_be_updated)
+                    d = ch(d, storages, storage_to_be_updated)
 
                 d = d >> apply(constructors[k]).alg
                 d = ch(d, storages, storage_to_be_updated)
