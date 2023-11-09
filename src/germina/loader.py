@@ -163,3 +163,15 @@ def impute(imputation_alg, single_large, single_small):
     print("\n", datetime.now(), f"Impute missing values for single EEG small -----------------------------------------------------------------------------------------------------------")
     imputer = IterativeImputer(estimator=clone(imputation_alg)).fit(X=single_large)
     return DataFrame(imputer.transform(X=single_small), index=single_small.index, columns=single_small.columns)
+
+
+def percentile_split(df: DataFrame, col=None, out=None):
+    df2 = df.copy()
+    if None in [col, out]:
+        if col is not out:
+            raise Exception(f"Both `col`, `out` must be either `None` or something else.")
+        col = out = df.columns[0]
+    df2.loc[df[col] < df[col].quantile(2 / 5), out] = 0
+    df2.loc[df[col] > df[col].quantile(3 / 5), out] = 1
+    df2.drop(df2[(df2[col] != 0) & (df2[col] != 1)].index, inplace=True)
+    return df2

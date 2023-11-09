@@ -1,4 +1,5 @@
 import warnings
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
 from datetime import datetime
 from pprint import pprint
@@ -28,7 +29,7 @@ from xgboost import XGBClassifier as XGBc, XGBRegressor as XGBr
 
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.dataset import eeg_t2_vars, join
-from germina.loader import load_from_csv, get_balance, importances, load_from_synapse, impute
+from germina.loader import load_from_csv, get_balance, importances, load_from_synapse, impute, percentile_split
 from germina.runner import ch
 
 __ = enable_iterative_imputer
@@ -82,7 +83,7 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
     # d = load_from_synapse(d, storages, storage_to_be_updated, path, vif, "synapse/EEG-september-nosensorvars", "Xdyadic")
     d = load_from_synapse(d, storages, storage_to_be_updated, path, vif, "timedelta", "Xtime")
     d = d >> apply(lambda Xdyadic: Xdyadic.dropna()).Xdyadic
-    d = d >> apply(join,df=_.Xdyadic, other=_.Xtime).Xdyadic_time
+    d = d >> apply(join, df=_.Xdyadic, other=_.Xtime).Xdyadic_time
     print(f"Joined timedelta with dyadic  ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ {d.Xdyadic_time.shape} ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
 
     d = d >> apply(lambda Xdyadic_time: Xdyadic_time.dropna()).Xdyadic_time
@@ -104,7 +105,7 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
     print(f"X {d.Xsingle.shape} ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d.Xsingle, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
 
     d["risco_class"] = d.Xsingle[["risco_class"]]
-    d = d >> apply(join,df=_.Xdyadic_time, other=_.risco_class).Xdyadic_time_risk
+    d = d >> apply(join, df=_.Xdyadic_time, other=_.risco_class).Xdyadic_time_risk
     d = ch(d, storages, storage_to_be_updated)
     print(f"Joined dyadic_time with risco_class  ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ {d.Xdyadic_time_risk.shape} ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
 
@@ -116,7 +117,8 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
         d = load_from_csv(d, storages, storage_to_be_updated, path, vif, d.osf_filename, "y", transpose=False, vars=[target], verbose=False)
         d = d >> apply(lambda y, Xdyadic_time_risk: y.loc[Xdyadic_time_risk.index].dropna()).y
         if "r2" not in d.measures:
-            d = d >> apply(lambda y: (y > y.median()).astype(int)).y
+            # d = d >> apply(lambda y: (y > y.median()).astype(int)).y
+            d = d >> apply(percentile_split, df=_.y).y
             d = ch(d, storages, storage_to_be_updated)
 
         for Xvar in ["Xsingle", "Xdyadic_time_risk"]:
@@ -124,9 +126,11 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
 
             if "r2" not in d.measures:
                 d = get_balance(d, storages, storage_to_be_updated)
-                constructors = {"RFc": RFc, "DTc": DTc, "HGBc": HGBc, "ETc": ETc, "LGBMc": LGBMc, "XGBc": XGBc, "CatBc": CatBc}
+                # constructors = {"RFc": RFc, "DTc": DTc, "HGBc": HGBc, "ETc": ETc, "LGBMc": LGBMc, "XGBc": XGBc, "CatBc": CatBc}
+                constructors = {"XGBc": XGBc}
             else:
-                constructors = {"RFr": RFr, "DTr": DTr, "HGBr": HGBr, "ETr": ETr, "LGBMr": LGBMr, "XGBr": XGBr, "CatBr": CatBr}
+                # constructors = {"RFr": RFr, "DTr": DTr, "HGBr": HGBr, "ETr": ETr, "LGBMr": LGBMr, "XGBr": XGBr, "CatBr": CatBr}
+                constructors = {"CatBr": CatBr}
 
             d = d >> apply(KFold).cv
 
