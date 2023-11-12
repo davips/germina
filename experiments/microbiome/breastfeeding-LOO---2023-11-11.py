@@ -119,9 +119,9 @@ if __name__ == '__main__':
 
                     # LOO importances
                     importances_mean, importances_std = [], []
-                    tasks = zip(repeat((field, parto, f"{vif=}")), range(len(runs)))
+                    tasks = zip(repeat((field, parto, f"{vif=}", m, f"trees={d.n_estimators}")), range(len(runs)))
                     contribs_accumulator = None
-                    for (fi, pa, vi), i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
+                    for (fi, pa, vi, _), i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
                         d["idxtr", "idxts"] = runs[i]
                         print(f"\t{i}\t{fi}\t{pa}\t{vi}\tts:{d.idxts}\t", datetime.now(), f"\t{100 * i / len(d.X):1.1f} %\t-----------------------------------")
 
