@@ -137,7 +137,7 @@ if __name__ == '__main__':
                                 # d.modelparts.plot(show=False).show()
 
                                 d = d >> apply(dx.Explainer.predict_parts, _.explainer, new_observation=_.Xts, type="shap", processes=_.n_jobs).predictparts
-                                # d = ch(d, storages, storage_to_be_updated)
+                                d = ch(d, storages, storage_to_be_updated)
                                 # d.predictparts.plot(min_max=[0, 1], show=False).show()
                                 # predictparts: VariableImportance = d.predictparts
 
@@ -151,7 +151,7 @@ if __name__ == '__main__':
 
                     d["contribs_accumulator"] = contribs_accumulator
                     d = d >> apply(importances2, descr1=_.field, descr2=_.parto).res_importances
-                    # d = ch(d, storages, storage_to_be_updated)
+                    d = ch(d, storages, storage_to_be_updated)
                     # pprint(d.res_importances)
                     # d = ch(d, storages, storage_to_be_updated)
 
