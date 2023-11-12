@@ -73,7 +73,7 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
                                ("t_8-9_species_filtered", "species89", "Species")]:
         d["field"] = field
         print(field, "=================================================================================")
-        d = load_from_csv(d, storages, storage_to_be_updated, path, vif, arq, field, transpose=True, old_indexname="oldidx")
+        d = load_from_csv(d, storages, storage_to_be_updated, path, vif, arq, field, transpose=True, old_indexname=oldidx)
         d = load_from_csv(d, storages, storage_to_be_updated, path, False, "EBF_parto", "ebf", False)
 
         d = d >> apply(join, df=_.ebf, other=_[field]).df

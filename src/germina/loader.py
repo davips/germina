@@ -1,4 +1,3 @@
-import dalex as dx
 import xgboost as xgb
 from datetime import datetime
 from pprint import pprint
@@ -129,21 +128,6 @@ def get_balance(d, storages, storage_to_be_updated):
     return d
 
 
-def build_explainer(classifier, X, y, idxtr):
-    print(datetime.now(), "build_explainer")
-    return dx.Explainer(classifier, X.iloc[idxtr], y.iloc[idxtr])
-
-
-def explain_modelparts(explainer):
-    print(datetime.now(), "explain_modelparts")
-    return explainer.model_parts()  # .plot(show=False).show()
-
-
-def explain_predictparts(explainer, X, idxts):
-    print(datetime.now(), "explain_predictparts")
-    return explainer.predict_parts(X.iloc[idxts])  # .plot(min_max=[0, 1], show=False).show()
-
-
 def importances(res_importances, importances, descr1, descr2, scoring, X):
     newscoring = {}
     for k, lst in res_importances[scoring].items():
@@ -154,6 +138,25 @@ def importances(res_importances, importances, descr1, descr2, scoring, X):
             newscoring["variable"].append(X.columns[i])
             newscoring["importance-mean"].append(importances.importances_mean[i])
             newscoring["importance-stdev"].append(importances.importances_std[i])
+    cpy = res_importances.copy()
+    cpy[scoring] = newscoring
+    return cpy
+
+
+def importances2(res_importances, contribs_accumulator, descr1, descr2, scoring):
+    dctmean, dctstd = {}, {}
+    for k, v in contribs_accumulator.items():
+        dctmean[k] = np.mean(v)
+        dctstd[k] = np.std(v)
+    newscoring = {}
+    for k, lst in res_importances[scoring].items():
+        newscoring[k] = lst.copy()
+    for (k, m), s in zip(dctmean.items(), dctstd.values()):
+        if m - s > 0:  # reminder: without abs() → only positive contributions
+            newscoring["description"].append(f"{descr1}-{descr2}-{scoring}")
+            newscoring["variable"].append(k)
+            newscoring["importance-mean"].append(m)
+            newscoring["importance-stdev"].append(s)
     cpy = res_importances.copy()
     cpy[scoring] = newscoring
     return cpy
