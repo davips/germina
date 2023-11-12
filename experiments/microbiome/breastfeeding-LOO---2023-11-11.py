@@ -121,7 +121,7 @@ if __name__ == '__main__':
                     importances_mean, importances_std = [], []
                     tasks = zip(repeat((field, parto, f"{vif=}", m, f"trees={d.n_estimators}")), range(len(runs)))
                     contribs_accumulator = None
-                    for (fi, pa, vi, _, _), i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
+                    for (fi, pa, vi, __, __), i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
                         d["idxtr", "idxts"] = runs[i]
                         print(f"\t{i}\t{fi}\t{pa}\t{vi}\tts:{d.idxts}\t", datetime.now(), f"\t{100 * i / len(d.X):1.1f} %\t-----------------------------------")
 
@@ -136,7 +136,7 @@ if __name__ == '__main__':
                                 # d = ch(d, storages, storage_to_be_updated)
                                 # d.modelparts.plot(show=False).show()
 
-                                d = d >> apply(dx.Explainer.predict_parts, _.explainer, new_observation=_.Xts, type="shap", processes=_.n_jobs).predictparts
+                                d = d >> apply(dx.Explainer.predict_parts, _.explainer, new_observation=_.Xts, type="shap", processes=1).predictparts
                                 d = ch(d, storages, storage_to_be_updated)
                                 # d.predictparts.plot(min_max=[0, 1], show=False).show()
                                 # predictparts: VariableImportance = d.predictparts
