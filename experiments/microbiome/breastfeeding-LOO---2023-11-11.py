@@ -57,7 +57,7 @@ if __name__ == '__main__':
     for noncfg in ["index", "join", "n_jobs", "return_name", "osf_filename"]:
         del cfg[noncfg]
     vif, nans, sched, storage_to_be_updated = dct["vif"], dct["nans"], dct["sched"], dct["up"]
-    with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_storage, sopen(remote_cache_uri) as remote_storage, sopen(schedule_uri) as db):
+    with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_storage, sopen(remote_cache_uri) as remote_storage):
         storages = {
             "remote": remote_storage,
             "near": near_storage,
@@ -111,7 +111,7 @@ if __name__ == '__main__':
                     score_field, permscores_field, pval_field = f"{m}_score", f"{m}_permscores", f"{m}_pval"
 
                     tasks = [(field, parto, f"{vif=}", m, f"trees={d.n_estimators}")]
-                    for __, __, __, __, __ in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
+                    for __, __, __, __, __ in (Scheduler(schedule_uri, timeout=60) << tasks) if sched else tasks:
                         d = d >> apply(permutation_test_score, _.alg)(score_field, permscores_field, pval_field)
                         d = ch(d, storages, storage_to_be_updated)
                         res[m]["description"].append(f"{field}-{parto}-{m}")
@@ -124,7 +124,7 @@ if __name__ == '__main__':
                     importances_mean, importances_std = [], []
                     tasks = zip(repeat((field, parto, f"{vif=}", m, f"trees={d.n_estimators}")), range(len(runs)))
                     contribs_accumulator = None
-                    for (fi, pa, vi, __, __), i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
+                    for (fi, pa, vi, __, __), i in (Scheduler(schedule_uri, timeout=60) << tasks) if sched else tasks:
                         d["idxtr", "idxts"] = runs[i]
                         print(f"\t{i}\t{fi}\t{pa}\t{vi}\tts:{d.idxts}\t", datetime.now(), f"\t{100 * i / len(d.X):1.1f} %\t-----------------------------------")
 
