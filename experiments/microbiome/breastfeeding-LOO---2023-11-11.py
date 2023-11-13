@@ -1,7 +1,7 @@
-import numpy as np
-from dalex.model_explanations import VariableImportance
-
 if __name__ == '__main__':
+    import numpy as np
+    from dalex.model_explanations import VariableImportance
+    import pandas as pd
     from multiprocessing import freeze_support
     import dalex as dx
     import warnings
@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
     from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
     from germina.dataset import join
-    from germina.loader import load_from_csv, clean_for_dalex, get_balance, train_xgb, importances, importances2
+    from germina.loader import load_from_csv, clean_for_dalex, get_balance, train_xgb, importances, importances2, aaa, start_reses, ccc
 
     from sklearn.model_selection import LeaveOneOut, permutation_test_score, StratifiedKFold, cross_val_score
 
@@ -57,7 +57,7 @@ if __name__ == '__main__':
     for noncfg in ["index", "join", "n_jobs", "return_name", "osf_filename"]:
         del cfg[noncfg]
     vif, nans, sched, storage_to_be_updated = dct["vif"], dct["nans"], dct["sched"], dct["up"]
-    with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_storage, sopen(remote_cache_uri) as remote_storage):
+    with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_storage, sopen(remote_cache_uri) as remote_storage, sopen(schedule_uri) as db):
         storages = {
             "remote": remote_storage,
             "near": near_storage,
@@ -65,12 +65,11 @@ if __name__ == '__main__':
         }
 
         d = d >> apply(StratifiedKFold).cv
-        res = {}
-        res_importances = {}
+        d["res"] = {}
+        d["res_importances"] = {}
         for measure in d.measures:
-            res[measure] = {"description": [], "score": [], "p-value": []}
-            res_importances[measure] = {"description": [], "variable": [], "importance-mean": [], "importance-stdev": []}
-        d["res_importances"] = res_importances
+            d = d >> apply(start_reses, measure=measure)("res", "res_importances")
+            d = ch(d, storages, storage_to_be_updated)
 
         for arq, field, oldidx in [("t_3-4_pathways_filtered", "pathways34", "Pathways"),
                                    ("t_3-4_species_filtered", "species34", "Species"),
@@ -108,23 +107,24 @@ if __name__ == '__main__':
                 for m in d.measures:
                     # calcula baseline score e p-values
                     d["scoring"] = m
+                    d["field"] = field
                     score_field, permscores_field, pval_field = f"{m}_score", f"{m}_permscores", f"{m}_pval"
 
                     tasks = [(field, parto, f"{vif=}", m, f"trees={d.n_estimators}")]
-                    for __, __, __, __, __ in (Scheduler(schedule_uri, timeout=60, autopack_when_url=True) << tasks) if sched else tasks:
+                    for __, __, __, __, __ in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
                         d = d >> apply(permutation_test_score, _.alg)(score_field, permscores_field, pval_field)
                         d = ch(d, storages, storage_to_be_updated)
-                        res[m]["description"].append(f"{field}-{parto}-{m}")
-                        res[m]["score"].append(d[score_field])
-                        res[m]["p-value"].append(d[pval_field])
-                        print(f"{m:20} (p-value):\t{d[score_field]:.4f} ({d[pval_field]:.4f})")
-                        d["baseline_score"] = d[score_field]
+                        d = d >> apply(ccc, d_score=_[score_field], d_pval=_[pval_field]).res
+                        d = ch(d, storages, storage_to_be_updated)
+
+                    d = d >> apply(lambda res: res).res
+                    d = ch(d, storages, storage_to_be_updated)
 
                     # LOO importances
                     importances_mean, importances_std = [], []
                     tasks = zip(repeat((field, parto, f"{vif=}", m, f"trees={d.n_estimators}")), range(len(runs)))
-                    contribs_accumulator = None
-                    for (fi, pa, vi, __, __), i in (Scheduler(schedule_uri, timeout=60, autopack_when_url=True) << tasks) if sched else tasks:
+                    d["contribs_accumulator"] = None
+                    for (fi, pa, vi, __, __), i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
                         d["idxtr", "idxts"] = runs[i]
                         print(f"\t{i}\t{fi}\t{pa}\t{vi}\tts:{d.idxts}\t", datetime.now(), f"\t{100 * i / len(d.X):1.1f} %\t-----------------------------------")
 
@@ -143,37 +143,24 @@ if __name__ == '__main__':
                                 d = ch(d, storages, storage_to_be_updated)
                                 # d.predictparts.plot(min_max=[0, 1], show=False).show()
                                 # predictparts: VariableImportance = d.predictparts
+                                d = d >> apply(aaa).contribs_accumulator
+                                d = ch(d, storages, storage_to_be_updated)
 
-                                contribs = dict(zip(d.predictparts.result["variable"], d.predictparts.result["contribution"]))
-                                contribs = {k.split(" ")[0]: v for k, v in contribs.items()}
-                                if contribs_accumulator is None:
-                                    contribs_accumulator = {k: [v] for k, v in contribs.items()}
-                                else:
-                                    for k, v in contribs.items():
-                                        contribs_accumulator[k].append(v)
-
-                    if contribs_accumulator:
-                        d["contribs_accumulator"] = contribs_accumulator
-                        d = d >> apply(importances2, descr1=_.field, descr2=_.parto).res_importances
-                        d = ch(d, storages, storage_to_be_updated)
-                        # pprint(d.res_importances)
-                        # d = ch(d, storages, storage_to_be_updated)
+                    d = d >> apply(importances2, descr1=_.field, descr2=_.parto).res_importances
+                    d = ch(d, storages, storage_to_be_updated)
+                    # pprint(d.res_importances)
+                    # d = ch(d, storages, storage_to_be_updated)
 
                 print()
     print("Finished!")
 
     if not sched:
         for m in d.measures:
-            df = DataFrame(res[m])
+            df1 = DataFrame(d.res_importances[m])
+            df2 = DataFrame(d.res[m])
+            df = df1.merge(df2, on="description", how="left")
             df[["field", "delivery_mode", "measure"]] = df["description"].str.split('-', expand=True)
             del df["description"]
-            df.sort_values("p-value", inplace=True)
+            df.sort_values("score", ascending=False, inplace=True)
             print(df)
-            df.to_csv(f"/tmp/breastfeed-paper-scores-pvalues-{vif}-{m}.csv")
-
-            df = DataFrame(d.res_importances[m])
-            df[["field", "delivery_mode", "measure"]] = df["description"].str.split('-', expand=True)
-            del df["description"]
-            df.sort_values("importance-mean", ascending=False, inplace=True)
-            print(df)
-            df.to_csv(f"/tmp/breastfeed-paper-importances-{vif}-{m}.csv")
+            df.to_csv(f"/tmp/breastfeed-paper-scores-pvalues-importances-{vif}-{m}.csv")

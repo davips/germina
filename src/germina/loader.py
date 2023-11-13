@@ -1,3 +1,5 @@
+import copy
+
 import xgboost as xgb
 from datetime import datetime
 from pprint import pprint
@@ -178,3 +180,31 @@ def percentile_split(df: DataFrame, col=None, out=None):
     df2.loc[df[col] > df[col].quantile(3 / 5), out] = 1
     df2.drop(df2[(df2[col] != 0) & (df2[col] != 1)].index, inplace=True)
     return df2
+
+
+def aaa(predictparts, contribs_accumulator):
+    contribs = dict(zip(predictparts.result["variable"], predictparts.result["contribution"]))
+    contribs = {k.split(" ")[0]: v for k, v in contribs.items()}
+    if contribs_accumulator is None:
+        contribs_accumulator = {k: [v] for k, v in contribs.items()}
+    else:
+        for k, v in contribs.items():
+            contribs_accumulator[k].append(v)
+    return contribs_accumulator
+
+
+def start_reses(res, measure, res_importances):
+    res = res.copy()
+    res_importances = res_importances.copy()
+    res[measure] = {"description": [], "score": [], "p-value": []}
+    res_importances[measure] = {"description": [], "variable": [], "importance-mean": [], "importance-stdev": []}
+    return res, res_importances
+
+
+def ccc(scoring, res, field, d_score, parto, d_pval):
+    res = copy.deepcopy(res)
+    res[scoring]["description"].append(f"{field}-{parto}-{scoring}")
+    res[scoring]["score"].append(d_score)
+    res[scoring]["p-value"].append(d_pval)
+    print(f"{scoring:20} (p-value):\t{d_score:.4f} ({d_pval:.4f})")
+    return res
