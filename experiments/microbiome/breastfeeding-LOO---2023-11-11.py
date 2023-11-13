@@ -154,13 +154,16 @@ if __name__ == '__main__':
                 print()
     print("Finished!")
 
+    d.show()
     if not sched:
         for m in d.measures:
             df1 = DataFrame(d.res_importances[m])
             df2 = DataFrame(d.res[m])
+            df2.rename({"p-value": "model_p-value"}, inplace=True)
+
             df = df1.merge(df2, on="description", how="left")
             df[["field", "delivery_mode", "measure"]] = df["description"].str.split('-', expand=True)
             del df["description"]
             df.sort_values("score", ascending=False, inplace=True)
             print(df)
-            df.to_csv(f"/tmp/breastfeed-paper-scores-pvalues-importances-{vif}-{m}.csv")
+            df.to_csv(f"/home/davi/git/germina/breastfeed-paper-scores-pvalues-importances-{vif=}-{m}-{d.trees=}-{d.pvalruns=}-{d.ids['res']}-{d.ids['res_importances']}-{datetime.now()}.csv")

@@ -138,27 +138,30 @@ def importances(res_importances, importances, descr1, descr2, scoring, X):
         if importances.importances_mean[i] - importances.importances_std[i] > 0:
             newscoring["description"].append(f"{descr1}-{descr2}-{scoring}")
             newscoring["variable"].append(X.columns[i])
-            newscoring["importance-mean"].append(importances.importances_mean[i])
-            newscoring["importance-stdev"].append(importances.importances_std[i])
+            newscoring["importance_mean"].append(importances.importances_mean[i])
+            newscoring["importance_std"].append(importances.importances_std[i])
     cpy = res_importances.copy()
     cpy[scoring] = newscoring
     return cpy
 
 
 def importances2(res_importances, contribs_accumulator, descr1, descr2, scoring):
-    dctmean, dctstd = {}, {}
+    """Roda 1 vez por cenário (descr1, descr2, scoring)"""
+    dctmean, dctstd, dctpval = {}, {}, {}
     for k, v in contribs_accumulator.items():
         dctmean[k] = np.mean(v)
         dctstd[k] = np.std(v)
+        dctpval[k] = (np.sum(np.array(v) >= 0) + 1.0) / (len(contribs_accumulator) + 1)
+
     newscoring = {}
-    for k, lst in res_importances[scoring].items():
+    for k, lst in res_importances[scoring].items():  # copia anterior para acrescentar novo cenário no loop abaixo
         newscoring[k] = lst.copy()
-    for (k, m), s in zip(dctmean.items(), dctstd.values()):
-        if m - s > 0:  # reminder: without abs() → only positive contributions
-            newscoring["description"].append(f"{descr1}-{descr2}-{scoring}")
-            newscoring["variable"].append(k)
-            newscoring["importance-mean"].append(m)
-            newscoring["importance-stdev"].append(s)
+    for (k, m), s, pval in zip(dctmean.items(), dctstd.values(), dctpval.values()):  # uma volta para cada bebê (LOO)
+        newscoring["description"].append(f"{descr1}-{descr2}-{scoring}")
+        newscoring["variable"].append(k)
+        newscoring["importance_mean"].append(m)
+        newscoring["importance_std"].append(s)
+        newscoring["importance_p-value"].append(pval)
     cpy = res_importances.copy()
     cpy[scoring] = newscoring
     return cpy
@@ -197,7 +200,7 @@ def start_reses(res, measure, res_importances):
     res = res.copy()
     res_importances = res_importances.copy()
     res[measure] = {"description": [], "score": [], "p-value": []}
-    res_importances[measure] = {"description": [], "variable": [], "importance-mean": [], "importance-stdev": []}
+    res_importances[measure] = {"description": [], "variable": [], "importance_mean": [], "importance_std": [], "importance_p-value": []}
     return res, res_importances
 
 

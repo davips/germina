@@ -62,7 +62,7 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
     res_importances = {}
     for measure in d.measures:
         res[measure] = {"description": [], "score": [], "p-value": []}
-        res_importances[measure] = {"description": [], "variable": [], "importance-mean": [], "importance-stdev": []}
+        res_importances[measure] = {"description": [], "variable": [], "importance_mean": [], "importance_std": []}
     d["res_importances"] = res_importances
 
     for arq, field, oldidx in [("t_3-4_pathways_filtered", "pathways34", "Pathways"),
@@ -190,6 +190,6 @@ if not sched:
         df = DataFrame(d.res_importances[m])
         df[["field", "delivery_mode", "measure"]] = df["description"].str.split('-', expand=True)
         del df["description"]
-        df.sort_values("importance-mean", ascending=False, inplace=True)
+        df.sort_values("importance_mean", ascending=False, inplace=True)
         print(df)
         df.to_csv(f"/tmp/breastfeed-paper-importances-{vif}-{m}.csv")

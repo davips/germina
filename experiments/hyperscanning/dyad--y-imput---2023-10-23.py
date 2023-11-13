@@ -63,7 +63,7 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
     res_importances = {}
     for measure in d.measures:
         res[measure] = {"description": [], "score": [], "p-value": []}
-        res_importances[measure] = {"description": [], "variable": [], "importance-mean": [], "importance-stdev": []}
+        res_importances[measure] = {"description": [], "variable": [], "importance_mean": [], "importance_std": []}
     d["res_importances"] = res_importances
 
     d = load_from_synapse(d, storages, storage_to_be_updated, path, vif, "synapse/EEG-september-nosensorvars", "Xdyadic")
