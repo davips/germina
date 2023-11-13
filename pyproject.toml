@@ -47,6 +47,7 @@ testfixtures = "^7.1.0"
 ipython = "^8.9.0"
 setuptools = "^67.7.2"
 synapseclient = "^3.0.0"
+shelchemy = "^2.231111.1"
 
 [build-system]
 requires = ["poetry-core"]
