@@ -109,13 +109,16 @@ if __name__ == '__main__':
                     # calcula baseline score e p-values
                     d["scoring"] = m
                     score_field, permscores_field, pval_field = f"{m}_score", f"{m}_permscores", f"{m}_pval"
-                    d = d >> apply(permutation_test_score, _.alg)(score_field, permscores_field, pval_field)
-                    d = ch(d, storages, storage_to_be_updated)
-                    res[m]["description"].append(f"{field}-{parto}-{m}")
-                    res[m]["score"].append(d[score_field])
-                    res[m]["p-value"].append(d[pval_field])
-                    print(f"{m:20} (p-value):\t{d[score_field]:.4f} ({d[pval_field]:.4f})")
-                    d["baseline_score"] = d[score_field]
+
+                    tasks = [(field, parto, f"{vif=}", m, f"trees={d.n_estimators}")]
+                    for __, __, __, __, __ in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
+                        d = d >> apply(permutation_test_score, _.alg)(score_field, permscores_field, pval_field)
+                        d = ch(d, storages, storage_to_be_updated)
+                        res[m]["description"].append(f"{field}-{parto}-{m}")
+                        res[m]["score"].append(d[score_field])
+                        res[m]["p-value"].append(d[pval_field])
+                        print(f"{m:20} (p-value):\t{d[score_field]:.4f} ({d[pval_field]:.4f})")
+                        d["baseline_score"] = d[score_field]
 
                     # LOO importances
                     importances_mean, importances_std = [], []
