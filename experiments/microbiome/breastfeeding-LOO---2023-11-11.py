@@ -149,11 +149,12 @@ if __name__ == '__main__':
                                     for k, v in contribs.items():
                                         contribs_accumulator[k].append(v)
 
-                    d["contribs_accumulator"] = contribs_accumulator
-                    d = d >> apply(importances2, descr1=_.field, descr2=_.parto).res_importances
-                    d = ch(d, storages, storage_to_be_updated)
-                    # pprint(d.res_importances)
-                    # d = ch(d, storages, storage_to_be_updated)
+                    if contribs_accumulator:
+                        d["contribs_accumulator"] = contribs_accumulator
+                        d = d >> apply(importances2, descr1=_.field, descr2=_.parto).res_importances
+                        d = ch(d, storages, storage_to_be_updated)
+                        # pprint(d.res_importances)
+                        # d = ch(d, storages, storage_to_be_updated)
 
                 print()
     print("Finished!")
