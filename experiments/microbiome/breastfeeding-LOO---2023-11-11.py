@@ -24,7 +24,7 @@ from hdict import hdict, apply, _
 
 warnings.filterwarnings('ignore')
 if __name__ == '__main__':
-    pulatudo = "skip" in argv
+    load = argv[argv.index("load")+1] if "load" in argv else False
     __ = enable_iterative_imputer
     dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="", measures=list)
     print(datetime.now())
@@ -54,8 +54,8 @@ if __name__ == '__main__':
             "near": near_storage,
             "local": local_storage,
         }
-        if pulatudo:
-            d = hdict.load("LACpbgrFDL4dqebRTxOMd4R2o.PtioKtBuj87tbF", local_storage)
+        if load:
+            d = hdict.load(load, local_storage)
             print("Loaded!")
         else:
             d = d >> apply(StratifiedKFold).cv
