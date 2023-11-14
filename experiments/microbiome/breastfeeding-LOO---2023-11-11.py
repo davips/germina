@@ -121,7 +121,7 @@ if __name__ == '__main__':
                         print()
                         for (fi, pa, vi, __, __), i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
                             d["idxtr", "idxts"] = runs[i]
-                            print(f"\r>>> {fi}\t{pa}\t{vi} ts:{d.idxts}\t", datetime.now(), f"\t{100 * i / len(d.X):1.1f} %", end="")
+                            print(f"\r>>> {fi}\t{pa}\t{vi} ts:{d.idxts}\t{datetime.now():19}\t{100 * i / len(d.X):1.1f} %", end="")
 
                             d = d >> apply(lambda X, y, idxtr, idxts: (X.iloc[idxtr], y.iloc[idxtr], X.iloc[idxts], y.iloc[idxts]))("Xtr", "ytr", "Xts", "yts")
 
