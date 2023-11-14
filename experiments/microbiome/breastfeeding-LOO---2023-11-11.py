@@ -2,7 +2,7 @@ import copy
 from datetime import datetime
 import warnings
 from datetime import datetime
-from itertools import repeat
+from itertools import repeat, chain
 from pprint import pprint
 from sys import argv
 
@@ -122,30 +122,34 @@ if __name__ == '__main__':
                         print()
                         for (fi, pa, vi, __, __), i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
                             d["idxtr", "idxts"] = runs[i]
-                            print(f"\r>>> {i}\t{fi}\t{pa}\t{vi}\tts:{d.idxts}\t", datetime.now(), f"\t{100 * i / len(d.X):1.1f} %", end="")
+                            print(f"\r>>> {fi}\t{pa}\t{vi} ts:{d.idxts}\t", datetime.now(), f"\t{100 * i / len(d.X):1.1f} %", end="")
 
                             d = d >> apply(lambda X, y, idxtr, idxts: (X.iloc[idxtr], y.iloc[idxtr], X.iloc[idxts], y.iloc[idxts]))("Xtr", "ytr", "Xts", "yts")
-                            if d.yts.to_list()[0] == 1:
-                                d = d >> apply(lambda alg, Xtr, ytr: clone(alg).fit(Xtr, ytr)).estimator  # reminder: don't store 'model'
-                                d = d >> apply(lambda estimator, Xts: estimator.predict(Xts)).prediction
-                                if d.prediction.tolist()[0] == 1:
-                                    d = d >> apply(dx.Explainer, model=_.estimator, data=_.Xtr, y=_.ytr).explainer
-                                    d = d >> apply(dx.Explainer.predict_parts, _.explainer, new_observation=_.Xts, type="shap", processes=1).predictparts
-                                    d = ch(d, storages, storage_to_be_updated)
-                                    d = d >> apply(aaa).contribs_accumulator
-                                    d = ch(d, storages, storage_to_be_updated)
-                                    d = d >> apply(bbb).values_accumulator
-                                    # for id in d.ids['values_accumulator']:
-                                    #     del local_storage[id]
-                                    #     del near_storage[id]
-                                    #     del remote_storage[id]
-                                    d = ch(d, storages, storage_to_be_updated)
+
+                            d = d >> apply(lambda alg, Xtr, ytr: clone(alg).fit(Xtr, ytr)).estimator  # reminder: we won't store hundreds of models; skipping ch() call
+                            d = d >> apply(lambda estimator, Xts: estimator.predict(Xts)).prediction
+
+                            # IF this is a hit ...
+                            if d.yts.to_list()[0] == d.prediction.tolist()[0]:
+                                d = d >> apply(dx.Explainer, model=_.estimator, data=_.Xtr, y=_.ytr).explainer
+                                d = d >> apply(dx.Explainer.predict_parts, _.explainer, new_observation=_.Xts, type="shap", processes=1).predictparts
+                                d = ch(d, storages, storage_to_be_updated)
+
+                                d = d >> apply(aaa).contribs_accumulator
+                                d = ch(d, storages, storage_to_be_updated)
+                                d = d >> apply(bbb).values_accumulator
+                                d = ch(d, storages, storage_to_be_updated)
+
+                                # for id in chain(d.ids['contribs_accumulator'], d.ids['values_accumulator']):
+                                #     del local_storage[id]
+                                #     del near_storage[id]
+                                #     del remote_storage[id]
 
                         d = d >> apply(importances2, descr1=_.field, descr2=_.parto).res_importances
                         d = ch(d, storages, storage_to_be_updated)
 
                     print()
-            for storage in storages:
+            for storage in storages.values():
                 d.save(storage)
             print("Finished!")
 
