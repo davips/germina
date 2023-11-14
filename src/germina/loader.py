@@ -145,23 +145,25 @@ def importances(res_importances, importances, descr1, descr2, scoring, X):
     return cpy
 
 
-def importances2(res_importances, contribs_accumulator, descr1, descr2, scoring):
+def importances2(res_importances, contribs_accumulator, values_accumulator, descr1, descr2, scoring):
     """Roda 1 vez por cenário (descr1, descr2, scoring)"""
-    dctmean, dctstd, dctpval = {}, {}, {}
+    dctmean, dctstd, dctpval, dctvaluescontribs = {}, {}, {}, {}
     for k, v in contribs_accumulator.items():
         dctmean[k] = np.mean(v)
         dctstd[k] = np.std(v)
         dctpval[k] = (np.sum(np.array(v) >= 0) + 1.0) / (len(contribs_accumulator) + 1)
+        dctvaluescontribs[k] = list(zip(values_accumulator[k], contribs_accumulator[k]))
 
     newscoring = {}
     for k, lst in res_importances[scoring].items():  # copia anterior para acrescentar novo cenário no loop abaixo
         newscoring[k] = lst.copy()
-    for (k, m), s, pval in zip(dctmean.items(), dctstd.values(), dctpval.values()):  # uma volta para cada bebê (LOO)
+    for (k, m), s, pval, valuescontribs in zip(dctmean.items(), dctstd.values(), dctpval.values(), dctvaluescontribs.values()):  # uma volta para cada bebê (LOO)
         newscoring["description"].append(f"{descr1}-{descr2}-{scoring}")
         newscoring["variable"].append(k)
-        newscoring["importance_mean"].append(m)
-        newscoring["importance_std"].append(s)
-        newscoring["importance_p-value"].append(pval)
+        newscoring["shap_mean"].append(m)
+        newscoring["shap_std"].append(s)
+        newscoring["shap_p-value"].append(pval)
+        newscoring["values_shaps"].append(valuescontribs)
     cpy = res_importances.copy()
     cpy[scoring] = newscoring
     return cpy
@@ -196,11 +198,21 @@ def aaa(predictparts, contribs_accumulator):
     return contribs_accumulator
 
 
+def bbb(predictparts, values_accumulator):
+    values = {name_val.split(" = ")[0]: name_val.split(" = ")[1:] for name_val in predictparts.result["variable"]}
+    if values_accumulator is None:
+        values_accumulator = {k: [v] for k, v in values.items()}
+    else:
+        for k, v in values.items():
+            values_accumulator[k].append(v)
+    return values_accumulator
+
+
 def start_reses(res, measure, res_importances):
     res = res.copy()
     res_importances = res_importances.copy()
     res[measure] = {"description": [], "score": [], "p-value": []}
-    res_importances[measure] = {"description": [], "variable": [], "importance_mean": [], "importance_std": [], "importance_p-value": []}
+    res_importances[measure] = {"description": [], "variable": [], "shap_mean": [], "shap_std": [], "shap_p-value": [], "values_shaps": []}
     return res, res_importances
 
 
