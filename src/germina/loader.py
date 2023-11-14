@@ -148,22 +148,22 @@ def importances(res_importances, importances, descr1, descr2, scoring, X):
 def importances2(res_importances, contribs_accumulator, values_accumulator, descr1, descr2, scoring):
     """Roda 1 vez por cenário (descr1, descr2, scoring)"""
     dctmean, dctstd, dctpval, dctvaluescontribs = {}, {}, {}, {}
-    for k, v in contribs_accumulator.items():
-        dctmean[k] = np.mean(v)
-        dctstd[k] = np.std(v)
-        dctpval[k] = (np.sum(np.array(v) >= 0) + 1.0) / (len(contribs_accumulator) + 1)
-        dctvaluescontribs[k] = list(zip(values_accumulator[k], contribs_accumulator[k]))
+    for variable, v in contribs_accumulator.items():
+        dctmean[variable] = np.mean(v)
+        dctstd[variable] = np.std(v)
+        dctpval[variable] = (np.sum(np.array(v) >= 0) + 1.0) / (len(contribs_accumulator) + 1)
+        dctvaluescontribs[variable] = list(zip(values_accumulator[variable], contribs_accumulator[variable]))
 
     newscoring = {}
-    for k, lst in res_importances[scoring].items():  # copia anterior para acrescentar novo cenário no loop abaixo
-        newscoring[k] = lst.copy()
-    for (k, m), s, pval, valuescontribs in zip(dctmean.items(), dctstd.values(), dctpval.values(), dctvaluescontribs.values()):  # uma volta para cada bebê (LOO)
+    for variable, lst in res_importances[scoring].items():  # copia anterior para acrescentar novo cenário no loop abaixo
+        newscoring[variable] = lst.copy()
+    for (variable, m), s, pval, valuescontribs in zip(dctmean.items(), dctstd.values(), dctpval.values(), dctvaluescontribs.values()):  # uma volta para cada bebê (LOO)
         newscoring["description"].append(f"{descr1}-{descr2}-{scoring}")
-        newscoring["variable"].append(k)
+        newscoring["variable"].append(variable)
         newscoring["shap_mean"].append(m)
         newscoring["shap_std"].append(s)
         newscoring["shap_p-value"].append(pval)
-        newscoring["values_shaps"].append(valuescontribs)
+        newscoring["values_shaps"][variable] = valuescontribs
     cpy = res_importances.copy()
     cpy[scoring] = newscoring
     return cpy
@@ -199,7 +199,7 @@ def aaa(predictparts, contribs_accumulator):
 
 
 def bbb(predictparts, values_accumulator):
-    values = {name_val.split(" = ")[0]: name_val.split(" = ")[1:] for name_val in predictparts.result["variable"]}
+    values = {name_val.split(" = ")[0]: float(name_val.split(" = ")[1:][0]) for name_val in predictparts.result["variable"]}
     if values_accumulator is None:
         values_accumulator = {k: [v] for k, v in values.items()}
     else:
@@ -212,7 +212,7 @@ def start_reses(res, measure, res_importances):
     res = res.copy()
     res_importances = res_importances.copy()
     res[measure] = {"description": [], "score": [], "p-value": []}
-    res_importances[measure] = {"description": [], "variable": [], "shap_mean": [], "shap_std": [], "shap_p-value": [], "values_shaps": []}
+    res_importances[measure] = {"description": [], "variable": [], "shap_mean": [], "shap_std": [], "shap_p-value": [], "values_shaps": {}}
     return res, res_importances
 
 

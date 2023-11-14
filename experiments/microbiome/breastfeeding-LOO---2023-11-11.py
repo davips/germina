@@ -49,7 +49,7 @@ if __name__ == '__main__':
     for noncfg in ["index", "join", "n_jobs", "return_name", "osf_filename"]:
         del cfg[noncfg]
     vif, nans, sched, storage_to_be_updated = dct["vif"], dct["nans"], dct["sched"], dct["up"]
-    with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_storage, sopen(remote_cache_uri) as remote_storage, sopen(schedule_uri) as db):
+    with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_uri, ondup="skip") as near_storage, sopen(remote_cache_uri, ondup="skip") as remote_storage, sopen(schedule_uri) as db):
         storages = {
             "remote": remote_storage,
             "near": near_storage,
@@ -119,9 +119,10 @@ if __name__ == '__main__':
                         importances_mean, importances_std = [], []
                         tasks = zip(repeat((field, parto, f"{vif=}", m, f"trees={d.n_estimators}")), range(len(runs)))
                         d["contribs_accumulator"] = d["values_accumulator"] = None
+                        print()
                         for (fi, pa, vi, __, __), i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
                             d["idxtr", "idxts"] = runs[i]
-                            print(f"\t{i}\t{fi}\t{pa}\t{vi}\tts:{d.idxts}\t", datetime.now(), f"\t{100 * i / len(d.X):1.1f} %\t-----------------------------------")
+                            print(f"\r>>> {i}\t{fi}\t{pa}\t{vi}\tts:{d.idxts}\t", datetime.now(), f"\t{100 * i / len(d.X):1.1f} %", end="")
 
                             d = d >> apply(lambda X, y, idxtr, idxts: (X.iloc[idxtr], y.iloc[idxtr], X.iloc[idxts], y.iloc[idxts]))("Xtr", "ytr", "Xts", "yts")
                             if d.yts.to_list()[0] == 1:
@@ -134,16 +135,22 @@ if __name__ == '__main__':
                                     d = d >> apply(aaa).contribs_accumulator
                                     d = ch(d, storages, storage_to_be_updated)
                                     d = d >> apply(bbb).values_accumulator
+                                    # for id in d.ids['values_accumulator']:
+                                    #     del local_storage[id]
+                                    #     del near_storage[id]
+                                    #     del remote_storage[id]
                                     d = ch(d, storages, storage_to_be_updated)
 
                         d = d >> apply(importances2, descr1=_.field, descr2=_.parto).res_importances
                         d = ch(d, storages, storage_to_be_updated)
 
                     print()
-            d.save(local_storage)
+            for storage in storages:
+                d.save(storage)
             print("Finished!")
 
     d.show()
+    exit()
     if not sched:
         resimportances, res = copy.deepcopy(d.res_importances), d.res
         for m in d.measures:
