@@ -24,8 +24,7 @@ from hdict import hdict, apply, _
 
 warnings.filterwarnings('ignore')
 if __name__ == '__main__':
-    pulatudo = True
-    pulatudo = False
+    pulatudo = "skip" in argv
     __ = enable_iterative_imputer
     dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="", measures=list)
     print(datetime.now())
@@ -129,23 +128,19 @@ if __name__ == '__main__':
                             d = d >> apply(lambda alg, Xtr, ytr: clone(alg).fit(Xtr, ytr)).estimator  # reminder: we won't store hundreds of models; skipping ch() call
                             d = d >> apply(lambda estimator, Xts: estimator.predict(Xts)).prediction
 
-                            # IF this is a hit ...
-                            if d.yts.to_list()[0] == d.prediction.tolist()[0]:
-                                d = d >> apply(dx.Explainer, model=_.estimator, data=_.Xtr, y=_.ytr).explainer
-                                d = d >> apply(dx.Explainer.predict_parts, _.explainer, new_observation=_.Xts, type="shap", processes=1).predictparts
-                                d = ch(d, storages, storage_to_be_updated)
+                            # if d.yts.to_list()[0] == d.prediction.tolist()[0] == 1:
+                            d = d >> apply(dx.Explainer, model=_.estimator, data=_.Xtr, y=_.ytr).explainer
+                            d = d >> apply(dx.Explainer.predict_parts, _.explainer, new_observation=_.Xts, type="shap", processes=1).predictparts
+                            d = ch(d, storages, storage_to_be_updated)
 
-                                d = d >> apply(aaa).contribs_accumulator
-                                d = ch(d, storages, storage_to_be_updated)
-                                d = d >> apply(bbb).values_accumulator
-                                d = ch(d, storages, storage_to_be_updated)
-
-                                # for id in chain(d.ids['contribs_accumulator'], d.ids['values_accumulator']):
-                                #     del local_storage[id]
-                                #     del near_storage[id]
-                                #     del remote_storage[id]
+                            d = d >> apply(aaa).contribs_accumulator
+                            d = ch(d, storages, storage_to_be_updated)
+                            d = d >> apply(bbb).values_accumulator
+                            d = ch(d, storages, storage_to_be_updated)
 
                         d = d >> apply(importances2, descr1=_.field, descr2=_.parto).res_importances
+                        # for storage in storages.values():
+                        #     del storage[d.ids["res_importances"]]
                         d = ch(d, storages, storage_to_be_updated)
 
                     print()
@@ -154,10 +149,11 @@ if __name__ == '__main__':
             print("Finished!")
 
     d.show()
-    exit()
     if not sched:
         resimportances, res = copy.deepcopy(d.res_importances), d.res
         for m in d.measures:
+            print(resimportances[m].keys())
+            exit()
             values_shaps = resimportances[m].pop("values_shaps")
             print(values_shaps)
 
@@ -171,62 +167,3 @@ if __name__ == '__main__':
             df.sort_values("score", ascending=False, inplace=True)
             print(df)
             df.to_csv(f"/home/davi/git/germina/breastfeed-paper-scores-pvalues-importances-{vif=}-{m}-trees={d.n_estimators}-{d.n_permutations=}-{d.ids['res']}-{d.ids['res_importances']}.csv")
-
-"""
-    _id: LACpbgrFDL4dqebRTxOMd4R2o.PtioKtBuj87tbF,
-    _ids: {
-        n_permutations: Ia59r57N4ZbP2QU6ukhHZyFTetb71a1MWr6wNv2e,
-        n_repeats: M7HyZUgSF.ZSmBEMFcDkiZBQz00wU9pGF3DoRiDu,
-        imputation_trees: M7HyZUgSF.ZSmBEMFcDkiZBQz00wU9pGF3DoRiDu,
-        random_state: M7HyZUgSF.ZSmBEMFcDkiZBQz00wU9pGF3DoRiDu,
-        target_var: 61e69319G35iXtmb4coJC7iarKv8nrGTbqe31QF7,
-        measures: J4fWpvg0macuoHiXzsP6bHVzVmgmr0xUQZRD0Sb4,
-        max_iter: 51.DDUrY5M40-CLBvPlHV-p04HKnsXzpoq7SVEir,
-        n_estimators: 51.DDUrY5M40-CLBvPlHV-p04HKnsXzpoq7SVEir,
-        n_splits: ecvgo-CBPi7wRWIxNzuo1HgHQCbdvR058xi6zmr2,
-        shuffle: oK8X-7eG1Qp1WH7v6fokBDrQPdngKn.h86tlEnx4,
-        index: LuboysuDvbHXYTrfFdElle0gArVEPFRxLpNYtqIb,
-        join: mIYIXtS2dR60NlpaHeHkHgi-vm7AICh0xwXhs3fq,
-        n_jobs: 3MDYtx6Fhsi0FuPsmIRfthQ-xbwUWEiYgQPRHO.7,
-        return_name: ZDGiyqxLvVn3e7PvMeLgzGeYm9uuNyeVYe9Owi14,
-        osf_filename: fP28-J7G9Rm49hTjJI0cPvbGAnt6J6dxnTsnW962,
-        cv: nMEU4Fjfu1XyQs3RB2vid5fju7xWJzM-QfwFmxhg,
-        res: zIaAb1W7hrQaNbWZzR6OLHIEE57TsG0-NR2hpWhr,
-        res_importances: 5ddyciUdwaUZoilYv172KPuhv2Y3x2rg7AtVYpwi,
-        field: 3TN0RrNqX.l283blsfGrpxcLZJhRRW.b-aHY4Wo4,
-        pathways34: pErnqiQrE0dpYZYHlEaW.6jX3BpV.B1GwsZ.GRX1,
-        ebf: ot3GKqCzu76fAQdug7uw8B1UTh8Ed8F64EHmgMVJ,
-        df: hXLKU.tMp.qM7rkqJt.rvFAxD6YwejBhnZMOTeWC,
-        X: EMWOHfdfL7SbGbcjIlhuxeC2vjqP8KGdJLqoNDLn,
-        Xcols: 5sqz1zEsrWPLSICdrNXzp22XUr6TxewZfq5Xq1G5,
-        y: bO3DG7Nraylu4UVT51FLrcDgDChXzS7x9Q8DQoC-,
-        X0: YSd53GRdu.GAlMeze5SsQRhgqG.Bq2jIwX1Map9p,
-        y0: 4l2gIviWbSxaPPM9xkzJL5Yj.mSGFM-xM4rptUjS,
-        parto: sM3AhTsyZsJOEioev8lGED-K2aIvJVuyl7zB7ly9,
-        Xshape: cGZusuWM8bKbDkZU-D4Dd3X0TDdU0SkR9CTyXgli,
-        yshape: 58gPnEbCJEnxDk0rg.XRoUIxNsy3NenaYPvFoteX,
-        unique_labels: MUJwW7LrRN1wbqcNZ-Wd-ttdqBrrYnqVKrasncZ6,
-        counts: GEcsjrtrndDjjOXUibEwFm7KrhmFj63n6t3AbRnc,
-        proportions: 13FK69Bt5zDUuYsv9fM.vLWOamm18Cm1e7xqHhdx,
-        alg: Z4qBSOY42K0bPG1xDTko2wkZ.yMMzNFyu9wj0vSp,
-        scoring: AIekppmFFWjb6KcgZXwiZgsBvjWWBgdWWHeSaeKs,
-        balanced_accuracy_score: SlMNFEnwZGssN0Wcm3cKgnRnqnH02dFLe.PShb16,
-        balanced_accuracy_permscores: 3XSbG4S6.7vIcRMTl9.V8dE347j5R8iOwV9pPL8n,
-        balanced_accuracy_pval: 20yHBNNT6wkWDB-2pZMvqUj7CtcM6Pt8822Zfh5P,
-        contribs_accumulator: okXi2ZAmtac-92AZOnkWpPOP8LBfaUw1SEr4iZyG,
-        idxtr: BSZio5.U1sAyAmPcwAyB744yaBSrStCiF5jH.eW2,
-        idxts: IsFH5tADZAyLEPxGMb6atZ-y0yFfwXuYaXeHPwel,
-        Xtr: iGrFAXoL44.XyCnZUFrO2euu2R9-zK2G5nBIvOFr,
-        ytr: GqkM6rO3lnyLI0zorV9xvx0p3U8hpgpIUpQoFkL1,
-        Xts: KlBDhKOp5-Nc0U1G-Yaz-ERZWvyWB2GYKETs9PAc,
-        yts: 1PlBKPRVbS0KSEQWBDpkmQYuCzn99l63BJjuhy3Z,
-        estimator: JbuS-3KK7J4qNN72-6c7PJQXtOCB.9Gc.jZkzn9N,
-        prediction: DXrxhAe7rpyDrW7jgIGkX3sDIImAHEIHXU1N3OA0,
-        explainer: wnA.Nfg09IAaTBQPFaFlwGk2y0qe1d567ZFmYgdJ,
-        predictparts: zQO90Ypaivk42m78SbH0Cv-JgLTko20kdcaizFJ7,
-        species34: OPMDmtzPsZ-udScfGJqjwbk2pplXYFa6jfqeWk9f,
-        pathways57: p5uscYiJ-C174-tLczeIyYzbKUYc6OWYF7SGlDvK,
-        species57: hb5m9cqlmf1CsOK.pvsnDd2RZLxTC9FAl.NcVfmJ,
-        pathways89: BqmRMgw4tNjkMWiW3huLP.7dJ.4mT.x2dbe4ELt1,
-        species89: 0HktNaOIyMDI.R9XJyg0SgJfmFNeOsngCW1q6LeI
-"""
