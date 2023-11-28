@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from sklearn import clone
 from sklearn.impute import IterativeImputer
+from sklearn.metrics._scorer import _ProbaScorer
 
 from germina.dataset import join
 from hdict import apply, _
@@ -24,7 +25,7 @@ def load_from_csv(d, storages, storage_to_be_updated, path, vif, filename, field
     d = d >> apply(file2df, path + filename + ".csv", transpose=transpose, index=True)(field)
     d = ch(d, storages, storage_to_be_updated)
     if verbose:
-        print(f"Loaded '{field}' data from '{filename}.csv' ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d[field].shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
+        print(f"Loaded '{field}' data from '{filename}.csv' ↓↓↓↓↓↓↓", d[field].shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
     if vars:
         d = d >> apply(lambda df, vs: df[vs], _[field], vars)(field)
         d = ch(d, storages, storage_to_be_updated)
@@ -93,25 +94,29 @@ def load_from_osf(d, storages, storage_to_be_updated, path, vif, filename, vars_
     return d
 
 
-def apply_std(d, storages, storage_to_be_updated, path, vif, field):
-    print(datetime.now())
+def apply_std(d, storages, storage_to_be_updated, path, vif, field, verbose=False):
+    if verbose:
+        print(datetime.now())
     d = d >> apply(lambda x: DataFrame(StandardScaler().fit_transform(x)), _[field])(field)
     d = d >> apply(setindex, _[field])(field)
     d = ch(d, storages, storage_to_be_updated)
-    print("Scaled ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d[field].shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
+    if verbose:
+        print("Scaled ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d[field].shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
     return d
 
 
-def clean_for_dalex(d, storages, storage_to_be_updated):
-    print(datetime.now())
-    d = d >> apply(lambda df: df.drop(["EBF_3m"], axis=1)).X
-    d = d >> apply(lambda X: [col.replace("[", "").replace("]", "").replace("<", "").replace(" ", "_") for col in X.columns]).Xcols
-    d = d >> apply(lambda X, Xcols: X.rename(columns=dict(zip(X.columns, Xcols)))).X
+def clean_for_dalex(d, storages, storage_to_be_updated, verbose=False):
+    if verbose:
+        print(datetime.now())
+    d = d >> apply(lambda df: df.drop(["EBF_3m"], axis=1)).X0
+    d = d >> apply(lambda X0: [col.replace("[", "").replace("]", "").replace("<", "").replace(" ", "_").replace(":", "_").replace(".", "_").replace("-", "_").replace("(", "").replace(")", "").replace("{", "").replace("}", "").replace(";", "").replace(",", "") for col in X0.columns]).Xcols
+    d = d >> apply(lambda X0, Xcols: X0.rename(columns=dict(zip(X0.columns, Xcols)))).X
     # d = d >> apply(lambda X: pd.get_dummies(X["delivery_mode"])["vaginal"].astype(int)).delivery_mode
     # d = d >> apply(join, df=_.X, other=_.delivery_mode).X
     d = d >> apply(lambda df: pd.get_dummies(df["EBF_3m"])["EBF"].astype(int)).y
     d = ch(d, storages, storage_to_be_updated)
-    print("Scaled ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d.X.shape, d.y.shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
+    if verbose:
+        print("Scaled ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d.X.shape, d.y.shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
     return d
 
 
@@ -120,13 +125,14 @@ def train_xgb(params, X, y, idxtr):
     return xgb.train(params, xgb.DMatrix(X.iloc[idxtr], label=y.iloc[idxtr]))
 
 
-def get_balance(d, storages, storage_to_be_updated):
+def get_balance(d, storages, storage_to_be_updated, verbose=False):
     d = d >> apply(lambda X: X.shape).Xshape
     d = d >> apply(lambda y: y.shape).yshape
     d = d >> apply(lambda y: np.unique(y, return_counts=True))("unique_labels", "counts")
     d = d >> apply(lambda y, counts: counts / len(y)).proportions
     d = ch(d, storages, storage_to_be_updated)
-    print(datetime.now(), "X, y:", d.Xshape, d.yshape, f"{d.counts=}\t{d.proportions=}")
+    if verbose:
+        print(datetime.now(), "X, y:", d.Xshape, d.yshape, f"{d.counts=}\t{d.proportions=}")
     return d
 
 
@@ -163,7 +169,7 @@ def importances2(res_importances, contribs_accumulator, values_accumulator, desc
         newscoring["shap_mean"].append(m)
         newscoring["shap_std"].append(s)
         newscoring["shap_p-value"].append(pval)
-        newscoring["values_shaps"][variable] = valuescontribs
+        newscoring["values_shaps"][variable].append(valuescontribs)
     cpy = res_importances.copy()
     cpy[scoring] = newscoring
     return cpy
@@ -217,6 +223,8 @@ def start_reses(res, measure, res_importances):
 
 
 def ccc(scoring, res, field, d_score, parto, d_pval):
+    if isinstance(scoring, _ProbaScorer):
+        scoring = "average_precision_score"
     res = copy.deepcopy(res)
     res[scoring]["description"].append(f"{field}-{parto}-{scoring}")
     res[scoring]["score"].append(d_score)

@@ -1,3 +1,11 @@
+from lightgbm import LGBMClassifier as LGBMc
+from numpy import array, quantile, where, extract, argsort
+from numpy import mean, std
+from pandas import DataFrame
+from shelchemy import sopen
+from shelchemy.scheduler import Scheduler
+from sklearn import clone
+from sklearn.ensemble import ExtraTreesClassifier as ETc, StackingClassifier
 import copy
 from datetime import datetime
 import warnings
@@ -7,26 +15,30 @@ from pprint import pprint
 from sys import argv
 
 import dalex as dx
+import numpy as np
 from argvsucks import handle_command_line
-from pandas import DataFrame
+from pandas import DataFrame, Series
 from shelchemy import sopen
 from shelchemy.scheduler import Scheduler
 from sklearn import clone
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.experimental import enable_iterative_imputer
-from sklearn.model_selection import LeaveOneOut, permutation_test_score, StratifiedKFold
+from sklearn.metrics import average_precision_score, make_scorer
+from sklearn.model_selection import LeaveOneOut, permutation_test_score, StratifiedKFold, cross_val_score, cross_val_predict
 
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.dataset import join
 from germina.loader import load_from_csv, clean_for_dalex, get_balance, importances2, aaa, start_reses, ccc, bbb
 from germina.runner import ch
 from hdict import hdict, apply, _
+import numpy as np
+from scipy import stats
 
 warnings.filterwarnings('ignore')
 if __name__ == '__main__':
-    load = argv[argv.index("load")+1] if "load" in argv else False
+    load = argv[argv.index("load") + 1] if "load" in argv else False
     __ = enable_iterative_imputer
-    dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="", measures=list)
+    dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="", measures=list, loo=False)
     print(datetime.now())
     pprint(dct, sort_dicts=False)
     print()
@@ -48,6 +60,7 @@ if __name__ == '__main__':
     for noncfg in ["index", "join", "n_jobs", "return_name", "osf_filename"]:
         del cfg[noncfg]
     vif, nans, sched, storage_to_be_updated = dct["vif"], dct["nans"], dct["sched"], dct["up"]
+    loo_flag = dct["loo"]
     with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_uri, ondup="skip") as near_storage, sopen(remote_cache_uri, ondup="skip") as remote_storage, sopen(schedule_uri) as db):
         storages = {
             "remote": remote_storage,
@@ -65,6 +78,7 @@ if __name__ == '__main__':
                 d = d >> apply(start_reses, measure=measure)("res", "res_importances")
                 d = ch(d, storages, storage_to_be_updated)
 
+            results = {}
             for arq, field, oldidx in [("t_3-4_pathways_filtered", "pathways34", "Pathways"),
                                        ("t_3-4_species_filtered", "species34", "Species"),
                                        ("t_5-7_pathways_filtered", "pathways57", "Pathways"),
@@ -72,9 +86,11 @@ if __name__ == '__main__':
                                        ("t_8-9_pathways_filtered", "pathways89", "Pathways"),
                                        ("t_8-9_species_filtered", "species89", "Species")]:
                 d["field"] = field
+                results[field] = {}
+
                 print(field, "=================================================================================")
-                d = load_from_csv(d, storages, storage_to_be_updated, path, vif, arq, field, transpose=True, old_indexname=oldidx)
-                d = load_from_csv(d, storages, storage_to_be_updated, path, False, "EBF_parto", "ebf", False)
+                d = load_from_csv(d, storages, storage_to_be_updated, path, vif, arq, field, transpose=True, old_indexname=oldidx, verbose=False)
+                d = load_from_csv(d, storages, storage_to_be_updated, path, False, "EBF_parto", "ebf", False, verbose=False)
 
                 d = d >> apply(join, df=_.ebf, other=_[field]).df
                 d = ch(d, storages, storage_to_be_updated)
@@ -86,6 +102,7 @@ if __name__ == '__main__':
 
                 for parto in ["c_section", "vaginal"]:
                     print(parto)
+                    results[field][parto] = {}
                     d["parto"] = parto
                     d = d >> apply(lambda X0, parto: X0[X0["delivery_mode"] == parto]).X
                     d = d >> apply(lambda X: X.drop("delivery_mode", axis=1)).X
@@ -96,74 +113,146 @@ if __name__ == '__main__':
                     params = {"max_depth": 5, "objective": "binary:logistic", "eval_metric": "auc"}
                     loo = LeaveOneOut()
                     runs = list(loo.split(d.X))
-                    d = d >> apply(RandomForestClassifier).alg
+                    for alg_name, alg in {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc}.items():
+                        d = d >> apply(alg).alg
 
-                    for m in d.measures:
-                        # calcula baseline score e p-values
-                        d["scoring"] = m
-                        d["field"] = field
-                        score_field, permscores_field, pval_field = f"{m}_score", f"{m}_permscores", f"{m}_pval"
+                        for m in d.measures:
+                            results[field][parto][m] = {}
+                            # calcula baseline score e p-values
+                            d["scoring"] = make_scorer(average_precision_score, needs_proba=True) if m == "average_precision_score" else m
+                            score_field, permscores_field, pval_field = f"{m}_score", f"{m}_permscores", f"{m}_pval"
+                            predictions_field = f"{m}_{alg_name}_predictions"
 
-                        tasks = [(field, parto, f"{vif=}", m, f"trees={d.n_estimators}")]
-                        for __, __, __, __, __ in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
-                            d = d >> apply(permutation_test_score, _.alg)(score_field, permscores_field, pval_field)
+                            tasks = [(field, parto, f"{vif=}", m, f"trees={d.n_estimators}")]
+                            for __, __, __, __, __ in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
+                                d = d >> apply(cross_val_predict, _.alg)(predictions_field)
+                                d = ch(d, storages, storage_to_be_updated)
+                                d = d >> apply(permutation_test_score, _.alg)(score_field, permscores_field, pval_field)
+                                d = ch(d, storages, storage_to_be_updated)
+                                d = d >> apply(ccc, d_score=_[score_field], d_pval=_[pval_field]).res
+                                d = ch(d, storages, storage_to_be_updated)
+
+                            d = d >> apply(lambda res: res).res
                             d = ch(d, storages, storage_to_be_updated)
-                            d = d >> apply(ccc, d_score=_[score_field], d_pval=_[pval_field]).res
-                            d = ch(d, storages, storage_to_be_updated)
+                            if not loo_flag:
+                                continue
 
-                        d = d >> apply(lambda res: res).res
-                        d = ch(d, storages, storage_to_be_updated)
+                            # LOO shaps
+                            tasks = zip(repeat((field, parto, f"{vif=}", m, f"trees={d.n_estimators}")), range(len(runs)))
+                            d["contribs_accumulator"] = d["values_accumulator"] = None
+                            print()
+                            for (fi, pa, vi, __, __), i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
+                                d["idxtr", "idxts"] = runs[i]
+                                print(f"\r>>> {fi}\t{pa}\t{vi} ts:{d.idxts}\t{str(datetime.now()):19}\t{100 * i / len(d.X):1.1f} %", end="")
 
-                        # LOO importances
-                        importances_mean, importances_std = [], []
-                        tasks = zip(repeat((field, parto, f"{vif=}", m, f"trees={d.n_estimators}")), range(len(runs)))
-                        d["contribs_accumulator"] = d["values_accumulator"] = None
-                        print()
-                        for (fi, pa, vi, __, __), i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
-                            d["idxtr", "idxts"] = runs[i]
-                            print(f"\r>>> {fi}\t{pa}\t{vi} ts:{d.idxts}\t{datetime.now():19}\t{100 * i / len(d.X):1.1f} %", end="")
+                                d = d >> apply(lambda X, y, idxtr, idxts: (X.iloc[idxtr], y.iloc[idxtr], X.iloc[idxts], y.iloc[idxts]))("Xtr", "ytr", "Xts", "yts")
 
-                            d = d >> apply(lambda X, y, idxtr, idxts: (X.iloc[idxtr], y.iloc[idxtr], X.iloc[idxts], y.iloc[idxts]))("Xtr", "ytr", "Xts", "yts")
+                                d = d >> apply(lambda alg, Xtr, ytr: clone(alg).fit(Xtr, ytr)).estimator  # reminder: we won't store hundreds of models; skipping ch() call
+                                d = d >> apply(lambda estimator, Xts: estimator.predict(Xts)).prediction
 
-                            d = d >> apply(lambda alg, Xtr, ytr: clone(alg).fit(Xtr, ytr)).estimator  # reminder: we won't store hundreds of models; skipping ch() call
-                            d = d >> apply(lambda estimator, Xts: estimator.predict(Xts)).prediction
+                                # if d.yts.to_list()[0] == d.prediction.tolist()[0] == 1:
+                                d = d >> apply(dx.Explainer, model=_.estimator, data=_.Xtr, y=_.ytr).explainer
+                                d = d >> apply(dx.Explainer.predict_parts, _.explainer, new_observation=_.Xts, type="shap", processes=1).predictparts
+                                d = ch(d, storages, storage_to_be_updated)
 
-                            # if d.yts.to_list()[0] == d.prediction.tolist()[0] == 1:
-                            d = d >> apply(dx.Explainer, model=_.estimator, data=_.Xtr, y=_.ytr).explainer
-                            d = d >> apply(dx.Explainer.predict_parts, _.explainer, new_observation=_.Xts, type="shap", processes=1).predictparts
-                            d = ch(d, storages, storage_to_be_updated)
+                                var_valu_dct = {name_val.split(" = ")[0]: float(name_val.split(" = ")[1:][0]) for name_val in d.predictparts.result["variable"]}
+                                var_shap_dct = dict(zip((k.split(" ")[0] for k in d.predictparts.result["variable"]), d.predictparts.result["contribution"]))
+                                target = d.yts.to_list()[0]
+                                prediction = d.prediction.tolist()[0]
+                                results[field][parto][m][i] = {"target": target, "prediction": prediction, "var_shap_dct": var_shap_dct, "var_valu_dct": var_valu_dct}
 
-                            d = d >> apply(aaa).contribs_accumulator
-                            d = ch(d, storages, storage_to_be_updated)
-                            d = d >> apply(bbb).values_accumulator
-                            d = ch(d, storages, storage_to_be_updated)
+                                # d = d >> apply(aaa).contribs_accumulator
+                                # d = ch(d, storages, storage_to_be_updated)
+                                # d = d >> apply(bbb).values_accumulator
+                                # d = ch(d, storages, storage_to_be_updated)
 
-                        d = d >> apply(importances2, descr1=_.field, descr2=_.parto).res_importances
-                        # for storage in storages.values():
-                        #     del storage[d.ids["res_importances"]]
-                        d = ch(d, storages, storage_to_be_updated)
+                            # d = d >> apply(importances2, descr1=_.field, descr2=_.parto).res_importances
+                            # # for storage in storages.values():
+                            # #     del storage[d.ids["res_importances"]]
+                            # d = ch(d, storages, storage_to_be_updated)
 
                     print()
+            d["results"] = results
             for storage in storages.values():
                 d.save(storage)
+            print(d.id)
             print("Finished!")
 
-    d.show()
-    if not sched:
-        resimportances, res = copy.deepcopy(d.res_importances), d.res
-        for m in d.measures:
-            print(resimportances[m].keys())
-            exit()
-            values_shaps = resimportances[m].pop("values_shaps")
-            print(values_shaps)
+    # d.evaluated.show()
+    if sched or not load:
+        exit()
 
-            df1 = DataFrame(resimportances[m])
-            df2 = DataFrame(res[m])
-            df2.rename({"p-value": "model_p-value"}, inplace=True)
+    lstfield, lstparto, lstm, lstbebe = [], [], [], []
+    targets, predictions = [], []
+    vars, shaps, valus = [], [], []
+    for field, fielddct in d.results.items():
+        for parto, partodct in fielddct.items():
+            for m, mdct in partodct.items():
+                for bebe, bebedct in mdct.items():
+                    target, prediction, var_shap_dct, var_valu_dct = bebedct.values()
+                    if var_shap_dct.keys() != var_valu_dct.keys():
+                        raise Exception(f"")
+                    for (var, shap), valu in zip(var_shap_dct.items(), var_valu_dct.values()):
+                        var = var.replace(",", "-").replace(";", "-")
+                        lstfield.append(field)
+                        lstparto.append(parto)
+                        lstm.append(m)
+                        lstbebe.append(bebe)
+                        targets.append(target)
+                        predictions.append(prediction)
 
-            df = df1.merge(df2, on="description", how="left")
-            df[["field", "delivery_mode", "measure"]] = df["description"].str.split('-', expand=True)
-            del df["description"]
-            df.sort_values("score", ascending=False, inplace=True)
-            print(df)
-            df.to_csv(f"/home/davi/git/germina/breastfeed-paper-scores-pvalues-importances-{vif=}-{m}-trees={d.n_estimators}-{d.n_permutations=}-{d.ids['res']}-{d.ids['res_importances']}.csv")
+                        vars.append(var)
+                        shaps.append(shap)
+                        valus.append(valu)
+
+    dfbig = DataFrame({"field": lstfield, "parto": lstparto, "score": lstm, "bebe": lstbebe, "target": targets, "prediction": predictions, "variable": vars, "value": valus, "SHAP": shaps})
+    dfbig["description"] = dfbig["field"] + "-" + dfbig["parto"] + "-" + dfbig["score"]
+    del dfbig["field"]
+    del dfbig["parto"]
+    del dfbig["score"]
+    print(dfbig)
+    print(dfbig.columns)
+    for m in d.measures:
+        print()
+        print("============================-------------------")
+        print(" ", m)
+        print("============================-------------------")
+        print()
+        dfmodel = DataFrame(d.res[m])
+        dfmodel.rename(columns={"p-value": "model_p-value"}, inplace=True)
+        dfmodel[["type-age", "delivery_mode", "measure"]] = dfmodel["description"].str.split('-', expand=True)
+        dfmodel["age"] = dfmodel["type-age"].str.slice(-2)
+        dfmodel["type"] = dfmodel["type-age"].str.slice(0, -2)
+        del dfmodel["type-age"]
+        dfmodel.sort_values("score", ascending=False, inplace=True)
+        dfmodel.rename(columns={"score": m}, inplace=True)
+        dfmodel.to_csv(f"/home/davi/git/germina/results/model-performance-{m}-trees={d.n_estimators}-perms={d.n_permutations}-{d.id}--LOO.csv")
+        print(dfmodel)
+        print(dfmodel.columns)
+        print("__________________________________")
+        print()
+
+        df = dfbig.merge(dfmodel, on="description", how="left")
+        for descr in df["description"].unique():
+            subdf = df[df["description"] == descr]
+            del subdf["type"]
+            del subdf["age"]
+            del subdf["measure"]
+            del subdf[m]
+            del subdf["description"]
+            del subdf["delivery_mode"]
+            subdf.to_csv(f"/home/davi/git/germina/results/complete---{descr}---{m}-trees={d.n_estimators}-perms={d.n_permutations}-{d.id}--LOO.csv")
+        print("++++++++++++++++++++++++++++++++++++++++++++++")
+        print()
+
+        df["helpfulness"] = np.where(df["target"] == 1, df["SHAP"], -df["SHAP"])
+        grouped = df.groupby(["delivery_mode", "age", "type", "measure", "variable"]).agg({
+            "helpfulness": [lambda x: np.mean(x), lambda x: np.std(x), lambda x: stats.ttest_1samp(x, popmean=0, alternative="greater")[1]],
+            "SHAP": ["min", "max"],
+            'value': ['mean', 'std'],
+            "model_p-value": ["first"],
+        })
+        print(grouped)
+        print(grouped.columns)
+        print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+        grouped.to_csv(f"/home/davi/git/germina/results/grouped--SHAPhelpfulness-p-value-{m}-trees={d.n_estimators}-perms={d.n_permutations}-{d.id}--LOO.csv")
