@@ -1250,17 +1250,17 @@ test = ["objgraph", "psutil"]
 
 [[package]]
 name = "hdict"
-version = "2.230721.5"
+version = "2.230721.6"
 description = "A versatile dictionary based on a novel paradigm useful for computing, caching, experiments, distributed data, among others."
 optional = false
 python-versions = ">=3.10,<4.0"
 files = [
-    {file = "hdict-2.230721.5-py3-none-any.whl", hash = "sha256:1934f566c4882d274d9641613648a17c7462b12c2a23521a3713151648cb5953"},
-    {file = "hdict-2.230721.5.tar.gz", hash = "sha256:1e73950a039dc95ee86e5421bdf80de07f67f55a511ddb3a4db56a858fb997ce"},
+    {file = "hdict-2.230721.6-py3-none-any.whl", hash = "sha256:0e94733450e091899af8976ccfca0b503222a7baaefaeaf039e0f3bdc2c2b87f"},
+    {file = "hdict-2.230721.6.tar.gz", hash = "sha256:e667b69ca8137d6143209ff74d541870f7e2c1d936bfae5e33a13c6169c91d06"},
 ]
 
 [package.dependencies]
-hosh = ">=3.230705.4,<4.0.0"
+hosh = ">=3.230705.5,<4.0.0"
 indexed = ">=1.3.0,<2.0.0"
 lange = ">=1.230203.2,<2.0.0"
 
@@ -3903,4 +3903,4 @@ full = []
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11.2"
-content-hash = "11eb954b64d3ec82d92a713d276071d08c764856a20316fca8a09fe8abc5202f"
+content-hash = "74b4cf8ab227cfd0694bc9855733694d48740dd943d24b708564d5271367d71f"
