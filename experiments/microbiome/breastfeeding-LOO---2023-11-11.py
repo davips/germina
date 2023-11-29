@@ -114,7 +114,7 @@ if __name__ == '__main__':
                             score_field, permscores_field, pval_field = f"{m}_score", f"{m}_permscores", f"{m}_pval"
                             predictions_field = f"{m}_{alg_name}_predictions"
 
-                            tasks = [(field, parto, f"{vif=}", m, f"trees={d.n_estimators}_")]
+                            tasks = [(field, parto, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}")]
                             for __, __, __, __, __ in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
                                 d = d >> apply(cross_val_predict, _.alg)(predictions_field)
                                 d = ch(d, storages, storage_to_be_updated)
@@ -129,7 +129,7 @@ if __name__ == '__main__':
                                 continue
 
                             # LOO shaps
-                            tasks = zip(repeat((field, parto, f"{vif=}", m, f"trees={d.n_estimators}_")), range(len(runs)))
+                            tasks = zip(repeat((field, parto, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}")), range(len(runs)))
                             d["contribs_accumulator"] = d["values_accumulator"] = None
                             print()
                             for (fi, pa, vi, __, __), i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
