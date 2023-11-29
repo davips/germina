@@ -1,38 +1,29 @@
-from lightgbm import LGBMClassifier as LGBMc
-from numpy import array, quantile, where, extract, argsort
-from numpy import mean, std
-from pandas import DataFrame
-from shelchemy import sopen
-from shelchemy.scheduler import Scheduler
-from sklearn import clone
-from sklearn.ensemble import ExtraTreesClassifier as ETc, StackingClassifier
-import copy
-from datetime import datetime
 import warnings
 from datetime import datetime
-from itertools import repeat, chain
+from itertools import repeat
 from pprint import pprint
 from sys import argv
 
 import dalex as dx
 import numpy as np
 from argvsucks import handle_command_line
-from pandas import DataFrame, Series
+from lightgbm import LGBMClassifier as LGBMc
+from pandas import DataFrame
+from scipy import stats
 from shelchemy import sopen
 from shelchemy.scheduler import Scheduler
 from sklearn import clone
+from sklearn.ensemble import ExtraTreesClassifier as ETc
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.metrics import average_precision_score, make_scorer
-from sklearn.model_selection import LeaveOneOut, permutation_test_score, StratifiedKFold, cross_val_score, cross_val_predict
+from sklearn.model_selection import LeaveOneOut, permutation_test_score, StratifiedKFold, cross_val_predict
 
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.dataset import join
-from germina.loader import load_from_csv, clean_for_dalex, get_balance, importances2, aaa, start_reses, ccc, bbb
+from germina.loader import load_from_csv, clean_for_dalex, get_balance, start_reses, ccc
 from germina.runner import ch
 from hdict import hdict, apply, _
-import numpy as np
-from scipy import stats
 
 warnings.filterwarnings('ignore')
 if __name__ == '__main__':
@@ -123,7 +114,7 @@ if __name__ == '__main__':
                             score_field, permscores_field, pval_field = f"{m}_score", f"{m}_permscores", f"{m}_pval"
                             predictions_field = f"{m}_{alg_name}_predictions"
 
-                            tasks = [(field, parto, f"{vif=}", m, f"trees={d.n_estimators}")]
+                            tasks = [(field, parto, f"{vif=}", m, f"trees={d.n_estimators}_")]
                             for __, __, __, __, __ in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
                                 d = d >> apply(cross_val_predict, _.alg)(predictions_field)
                                 d = ch(d, storages, storage_to_be_updated)
@@ -138,7 +129,7 @@ if __name__ == '__main__':
                                 continue
 
                             # LOO shaps
-                            tasks = zip(repeat((field, parto, f"{vif=}", m, f"trees={d.n_estimators}")), range(len(runs)))
+                            tasks = zip(repeat((field, parto, f"{vif=}", m, f"trees={d.n_estimators}_")), range(len(runs)))
                             d["contribs_accumulator"] = d["values_accumulator"] = None
                             print()
                             for (fi, pa, vi, __, __), i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
