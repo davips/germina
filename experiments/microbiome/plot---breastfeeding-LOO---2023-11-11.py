@@ -23,10 +23,9 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         "local": local_storage,
     }
 
-    id = "Rd0gw123LEim8D4tSQfYN5p-wXezUrsSHHHELox7"  # U4w8lX0KIr6KXT1EL3Ks.LBMrTERm-ydj6wICe-o"
+    id = "jIgdwdP1oDI416bOLM0ZQrhm.U8blbJTNIy5UNzN"
     d = hdict.load(id, local_storage)
-    d.show()
-    exit()
+    # d.show()
 
     d["X"] = _.X_species34_c_section
     d["y"] = _.y_species34_c_section
@@ -87,9 +86,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         balacc = (ntpos / npos + ntneg / nneg) / 2
         print(f"Balanced Accuracy by majority voting:\t{balacc:0.3f}")
 
-        # MLP
-
-        exit()
+        continue
 
         # PLOT #########################################################################################################
         ################## ################## ################## ################## ################## ##################

@@ -13,7 +13,7 @@ from scipy import stats
 from shelchemy import sopen
 from shelchemy.scheduler import Scheduler
 from sklearn import clone
-from sklearn.ensemble import ExtraTreesClassifier as ETc, StackingClassifier
+from sklearn.ensemble import ExtraTreesClassifier as ETc, StackingClassifier, VotingClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.metrics import average_precision_score, make_scorer
@@ -108,23 +108,42 @@ if __name__ == '__main__':
                     params = {"max_depth": 5, "objective": "binary:logistic", "eval_metric": "auc"}
                     loo = LeaveOneOut()
                     runs = list(loo.split(d.X))
-                    algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc, "Sc": StackingClassifier}
+                    algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc, "Sc": StackingClassifier, "MVc": VotingClassifier, "hardMVc": VotingClassifier}
                     for alg_name, alg in algs.items():
                         print(alg_name, "<<<<<<<<<<<<<<<<<")
                         if alg_name == "Sc":
                             d["estimators"] = []
-                            for na, al in list(algs.items())[:-1]:
+                            for na, al in list(algs.items())[:-3]:
                                 d.apply(al, out=f"base_alg")
                                 d["base_name"] = na
                                 d.apply(lambda base_name, base_alg, estimators: estimators + [(base_name, base_alg)], out="estimators")
                             d = d >> apply(alg, final_estimator=MLPClassifier(random_state=0, max_iter=30, hidden_layer_sizes=(20,))).alg
+                        elif alg_name == "MVc":
+                            d["estimators"] = []
+                            for na, al in list(algs.items())[:-3]:
+                                d.apply(al, out=f"base_alg")
+                                d["base_name"] = na
+                                d.apply(lambda base_name, base_alg, estimators: estimators + [(base_name, base_alg)], out="estimators")
+                            d = d >> apply(alg, voting="soft").alg
+                        elif alg_name == "hardMVc":
+                            d["estimators"] = []
+                            for na, al in list(algs.items())[:-3]:
+                                d.apply(al, out=f"base_alg")
+                                d["base_name"] = na
+                                d.apply(lambda base_name, base_alg, estimators: estimators + [(base_name, base_alg)], out="estimators")
+                            d = d >> apply(alg, voting="hard").alg
                         else:
                             d = d >> apply(alg).alg
 
                         for m in d.measures:
                             results[field][parto][m] = {}
                             # calcula baseline score e p-values
-                            d["scoring"] = make_scorer(average_precision_score, needs_proba=True) if m == "average_precision_score" else m
+                            if m == "average_precision_score":
+                                if alg_name == "hardMVc":
+                                    continue
+                                d["scoring"] = make_scorer(average_precision_score, needs_proba=True)
+                            else:
+                                d["scoring"] = m
                             prefix = f"{field}_{parto}_{alg_name}_{m}"
                             score_field, permscores_field, pval_field = f"{prefix}_score", f"{prefix}_permscores", f"{prefix}_pval"
                             predictions_field = f"{field}_{parto}_{alg_name}_predictions"
