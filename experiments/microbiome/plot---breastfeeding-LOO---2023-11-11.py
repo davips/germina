@@ -23,7 +23,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         "local": local_storage,
     }
 
-    id = "P5n7VEl0Dw6Rt.m7mHjJG2MoZaf7u.WsSTT2xJUN"  # U4w8lX0KIr6KXT1EL3Ks.LBMrTERm-ydj6wICe-o"
+    id = "Rd0gw123LEim8D4tSQfYN5p-wXezUrsSHHHELox7"  # U4w8lX0KIr6KXT1EL3Ks.LBMrTERm-ydj6wICe-o"
     d = hdict.load(id, local_storage)
     d.show()
     exit()

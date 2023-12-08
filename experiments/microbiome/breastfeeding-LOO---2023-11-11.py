@@ -130,13 +130,16 @@ if __name__ == '__main__':
                             predictions_field = f"{field}_{parto}_{alg_name}_predictions"
 
                             tasks = [(field, parto, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}")]
+                            print(f"Starting {field}_{parto}_{m}  ...", d.id)
                             for __, __, __, __, __ in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
                                 d = d >> apply(cross_val_predict, _.alg)(predictions_field)
+                                d = ch(d, storages, storage_to_be_updated)
                                 d = d >> apply(permutation_test_score, _.alg)(score_field, permscores_field, pval_field)
+                                d = ch(d, storages, storage_to_be_updated)
                                 d = d >> apply(ccc, d_score=_[score_field], d_pval=_[pval_field]).res
+                                d = ch(d, storages, storage_to_be_updated)
 
                             d = d >> apply(lambda res: res).res
-                            print(f"Starting {field}_{parto}  ...", d.id)
                             d = ch(d, storages, storage_to_be_updated)
 
                             # LOO shaps @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
