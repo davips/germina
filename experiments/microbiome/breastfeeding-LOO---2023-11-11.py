@@ -13,11 +13,12 @@ from scipy import stats
 from shelchemy import sopen
 from shelchemy.scheduler import Scheduler
 from sklearn import clone
-from sklearn.ensemble import ExtraTreesClassifier as ETc
+from sklearn.ensemble import ExtraTreesClassifier as ETc, StackingClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.metrics import average_precision_score, make_scorer
 from sklearn.model_selection import LeaveOneOut, permutation_test_score, StratifiedKFold, cross_val_predict
+from sklearn.neural_network import MLPClassifier
 
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.dataset import join
@@ -44,7 +45,7 @@ if __name__ == '__main__':
         max_iter=dct["trees"], n_estimators=dct["trees"],
         n_splits=5,
         shuffle=True,
-        index="id_estudo", join="inner", n_jobs=20, return_name=False,
+        index="id_estudo", join="inner", n_jobs=20, return_name=False, deterministic=True, force_row_wise=True,
         osf_filename="germina-osf-request---davi121023"
     )
     cfg = hdict(d)
@@ -100,19 +101,33 @@ if __name__ == '__main__':
                     d = d >> apply(lambda X0, y0, parto: y0[X0["delivery_mode"] == parto]).y
                     d = ch(d, storages, storage_to_be_updated)
                     d = get_balance(d, storages, storage_to_be_updated)
+                    d[f"X_{field}_{parto}"] = _.X
+                    d[f"y_{field}_{parto}"] = _.y
+                    print(f"X_{field}_{parto}", f"y_{field}_{parto}")
 
                     params = {"max_depth": 5, "objective": "binary:logistic", "eval_metric": "auc"}
                     loo = LeaveOneOut()
                     runs = list(loo.split(d.X))
-                    for alg_name, alg in {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc}.items():
-                        d = d >> apply(alg).alg
+                    algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc, "Sc": StackingClassifier}
+                    for alg_name, alg in algs.items():
+                        print(alg_name, "<<<<<<<<<<<<<<<<<")
+                        if alg_name == "Sc":
+                            d["estimators"] = []
+                            for na, al in list(algs.items())[:-1]:
+                                d.apply(al, out=f"base_alg")
+                                d["base_name"] = na
+                                d.apply(lambda base_name, base_alg, estimators: estimators + [(base_name, base_alg)], out="estimators")
+                            d = d >> apply(alg, final_estimator=MLPClassifier(random_state=0, max_iter=30, hidden_layer_sizes=(20,))).alg
+                        else:
+                            d = d >> apply(alg).alg
 
                         for m in d.measures:
                             results[field][parto][m] = {}
                             # calcula baseline score e p-values
                             d["scoring"] = make_scorer(average_precision_score, needs_proba=True) if m == "average_precision_score" else m
-                            score_field, permscores_field, pval_field = f"{m}_score", f"{m}_permscores", f"{m}_pval"
-                            predictions_field = f"{m}_{alg_name}_predictions"
+                            prefix = f"{field}_{parto}_{alg_name}_{m}"
+                            score_field, permscores_field, pval_field = f"{prefix}_score", f"{prefix}_permscores", f"{prefix}_pval"
+                            predictions_field = f"{field}_{parto}_{alg_name}_predictions"
 
                             tasks = [(field, parto, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}")]
                             for __, __, __, __, __ in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
