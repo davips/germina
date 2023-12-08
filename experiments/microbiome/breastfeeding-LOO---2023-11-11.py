@@ -71,12 +71,12 @@ if __name__ == '__main__':
                 d = ch(d, storages, storage_to_be_updated)
 
             results = {}
-            for arq, field, oldidx in [("t_3-4_pathways_filtered", "pathways34", "Pathways"),
-                                       ("t_3-4_species_filtered", "species34", "Species"),
-                                       ("t_5-7_pathways_filtered", "pathways57", "Pathways"),
+            for arq, field, oldidx in [("t_3-4_species_filtered", "species34", "Species"),
+                                       ("t_3-4_pathways_filtered", "pathways34", "Pathways"),
                                        ("t_5-7_species_filtered", "species57", "Species"),
-                                       ("t_8-9_pathways_filtered", "pathways89", "Pathways"),
-                                       ("t_8-9_species_filtered", "species89", "Species")]:
+                                       ("t_5-7_pathways_filtered", "pathways57", "Pathways"),
+                                       ("t_8-9_species_filtered", "species89", "Species"),
+                                       ("t_8-9_pathways_filtered", "pathways89", "Pathways")]:
                 d["field"] = field
                 results[field] = {}
 
@@ -132,18 +132,16 @@ if __name__ == '__main__':
                             tasks = [(field, parto, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}")]
                             for __, __, __, __, __ in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
                                 d = d >> apply(cross_val_predict, _.alg)(predictions_field)
-                                d = ch(d, storages, storage_to_be_updated)
                                 d = d >> apply(permutation_test_score, _.alg)(score_field, permscores_field, pval_field)
-                                d = ch(d, storages, storage_to_be_updated)
                                 d = d >> apply(ccc, d_score=_[score_field], d_pval=_[pval_field]).res
-                                d = ch(d, storages, storage_to_be_updated)
 
                             d = d >> apply(lambda res: res).res
+                            print(f"Starting {field}_{parto}  ...", d.id)
                             d = ch(d, storages, storage_to_be_updated)
+
+                            # LOO shaps @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
                             if not loo_flag:
                                 continue
-
-                            # LOO shaps
                             tasks = zip(repeat((field, parto, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}")), range(len(runs)))
                             d["contribs_accumulator"] = d["values_accumulator"] = None
                             print()
@@ -178,6 +176,10 @@ if __name__ == '__main__':
                             # d = ch(d, storages, storage_to_be_updated)
 
                     print()
+                    d["results"] = results
+                    for storage in storages.values():
+                        d.save(storage)
+                    print(f"{field}_{parto} finished!", d.id)
             d["results"] = results
             for storage in storages.values():
                 d.save(storage)
