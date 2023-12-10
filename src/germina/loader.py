@@ -229,5 +229,5 @@ def ccc(scoring, res, field, d_score, parto, d_pval):
     res[scoring]["description"].append(f"{field}-{parto}-{scoring}")
     res[scoring]["score"].append(d_score)
     res[scoring]["p-value"].append(d_pval)
-    print(f"{scoring:20} (p-value):\t{d_score:.4f} ({d_pval:.4f})")
+    print(f"{scoring:20} (p-value):\t{d_score:.4f} ({d_pval:.4f})", flush=True)
     return res

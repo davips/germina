@@ -211,7 +211,7 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
                 rets = [f"{m}_scores", f"{m}_permscores", f"{m}_pval"]
                 d = d >> apply(permutation_test_score, _.alg)(*rets)
                 d = ch(d, storages, to_be_updated)
-                print(f"{m:20} (p-value):\t{d[rets[0]]:.4f} ({d[rets[2]]:.4f})")
+                print(f"{m:20} (p-value):\t{d[rets[0]]:.4f} ({d[rets[2]]:.4f})", flush=True)
 
                 # Importances
                 d = d >> apply(lambda alg, X, y: clone(alg).fit(X, y)).estimator

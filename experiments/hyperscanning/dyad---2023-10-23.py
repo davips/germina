@@ -148,7 +148,7 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
                     res[m]["description"].append(f"{target}-{Xvar}-{m}-{k}")
                     res[m]["score"].append(d[rets[0]])
                     res[m]["p-value"].append(d[rets[2]])
-                    print(f"{m:20} (p-value):\t{d[rets[0]]:.4f} ({d[rets[2]]:.4f})")
+                    print(f"{m:20} (p-value):\t{d[rets[0]]:.4f} ({d[rets[2]]:.4f})", flush=True)
 
                     # Importances
                     d = d >> apply(lambda alg, X, y: clone(alg).fit(X, y)).estimator

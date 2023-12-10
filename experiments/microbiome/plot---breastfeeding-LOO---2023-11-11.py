@@ -79,8 +79,8 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         vote_hit = d.y == vote_predictions
         vote_nhit = np.count_nonzero(vote_hit)
         print(f"Correct by majority voting:\t{vote_nhit:3}/{n}\t=\t{100 * vote_nhit / n:0.3f}%")
-        ntpos = np.count_nonzero(vote_hit == 1)
-        ntneg = np.count_nonzero(vote_hit == 0)
+        ntpos = np.count_nonzero((vote_hit == 1) & (d.y == 1))
+        ntneg = np.count_nonzero((vote_hit == 1) & (d.y == 0))
         npos = np.count_nonzero(d.y == 1)
         nneg = np.count_nonzero(d.y == 0)
         balacc = (ntpos / npos + ntneg / nneg) / 2

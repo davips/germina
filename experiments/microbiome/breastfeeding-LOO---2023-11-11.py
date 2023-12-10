@@ -157,6 +157,7 @@ if __name__ == '__main__':
                                 d = ch(d, storages, storage_to_be_updated)
                                 d = d >> apply(ccc, d_score=_[score_field], d_pval=_[pval_field]).res
                                 d = ch(d, storages, storage_to_be_updated)
+                                print(f"score (p-value):\t{d.res[m]['score'][-1]:.4f} ({d.res[m]['p-value'][-1]:.4f})\t{d.res[m]['description'][-1]}={alg_name}", flush=True)
 
                             d = d >> apply(lambda res: res).res
                             d = ch(d, storages, storage_to_be_updated)
