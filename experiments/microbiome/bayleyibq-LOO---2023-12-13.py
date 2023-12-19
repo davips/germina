@@ -147,7 +147,7 @@ if __name__ == '__main__':
                             score_field, permscores_field, pval_field = f"{prefix}_score", f"{prefix}_permscores", f"{prefix}_pval"
                             predictions_field = f"{field}_{parto}_{alg_name}_predictions"
 
-                            tasks = [(field, parto, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}")]
+                            tasks = [(field, parto, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}_{target_var}")]
                             print(f"Starting {field}_{parto}_{m}  ...", d.id)
                             for __, __, __, __, __ in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
                                 d = d >> apply(cross_val_predict, _.alg)(predictions_field)
@@ -164,7 +164,7 @@ if __name__ == '__main__':
                             # LOO shaps @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
                             if not loo_flag:
                                 continue
-                            tasks = zip(repeat((field, parto, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}")), range(len(runs)))
+                            tasks = zip(repeat((field, parto, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}_{target_var}")), range(len(runs)))
                             d["contribs_accumulator"] = d["values_accumulator"] = None
                             print()
                             for (fi, pa, vi, __, __), i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
