@@ -6,12 +6,13 @@ from pprint import pprint
 
 import numpy as np
 import pandas as pd
+from germina.nan import remove_nan_rows_cols
 from sklearn import clone
 from sklearn.impute import IterativeImputer
 from sklearn.metrics._scorer import _ProbaScorer
 
 from germina.dataset import join
-from hdict import apply, _
+from hdict import apply, _, field
 from hdict.dataset.pandas_handling import file2df
 from pandas import DataFrame
 from sklearn.preprocessing import StandardScaler
@@ -105,15 +106,32 @@ def apply_std(d, storages, storage_to_be_updated, path, vif, field, verbose=Fals
     return d
 
 
-def clean_for_dalex(d, storages, storage_to_be_updated, verbose=False):
+def cut(df, target_var, div=2):
+    me = df[target_var].mean()
+    st = df[target_var].std()
+    hi = df[target_var] > me + st / 2
+    lo = df[target_var] < me - st / 2
+    pos = df[target_var][hi] * 0 + 1
+    neg = df[target_var][lo] * 0
+    df = pd.concat([neg, pos]).astype(int)
+    return df
+
+
+def clean_for_dalex(d, storages, storage_to_be_updated, verbose=False, target="EBF_3m", alias="EBF", keep=[]):
     if verbose:
         print(datetime.now())
-    d = d >> apply(lambda df: df.drop(["EBF_3m"], axis=1)).X0
+    if alias != "EBF":
+        d = d >> apply(remove_nan_rows_cols, keep=keep).df
+    d = d >> apply(lambda df: df.drop([target], axis=1)).X0
     d = d >> apply(lambda X0: [col.replace("[", "").replace("]", "").replace("<", "").replace(" ", "_").replace(":", "_").replace(".", "_").replace("-", "_").replace("(", "").replace(")", "").replace("{", "").replace("}", "").replace(";", "").replace(",", "") for col in X0.columns]).Xcols
     d = d >> apply(lambda X0, Xcols: X0.rename(columns=dict(zip(X0.columns, Xcols)))).X
-    # d = d >> apply(lambda X: pd.get_dummies(X["delivery_mode"])["vaginal"].astype(int)).delivery_mode
-    # d = d >> apply(join, df=_.X, other=_.delivery_mode).X
-    d = d >> apply(lambda df: pd.get_dummies(df["EBF_3m"])["EBF"].astype(int)).y
+    if alias == "EBF":
+        d = d >> apply(lambda X: pd.get_dummies(X["delivery_mode"])["vaginal"].astype(int)).delivery_mode
+        d = d >> apply(join, df=_.X, other=_.delivery_mode).X
+        d = d >> apply(lambda df: pd.get_dummies(df[target])[alias].astype(int)).y
+    else:
+        d = d >> apply(cut).y
+        d = d >> apply(lambda X, y: X.loc[y.index]).X
     d = ch(d, storages, storage_to_be_updated)
     if verbose:
         print("Scaled ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d.X.shape, d.y.shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
