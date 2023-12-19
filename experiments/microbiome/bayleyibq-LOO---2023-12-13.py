@@ -30,12 +30,13 @@ warnings.filterwarnings('ignore')
 if __name__ == '__main__':
     load = argv[argv.index("load") + 1] if "load" in argv else False
     __ = enable_iterative_imputer
-    dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="", measures=list, loo=False)
+    dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="", measures=list, algs=list, loo=False)
     print(datetime.now())
     pprint(dct, sort_dicts=False)
     print()
     path = "data/"
     d = hdict(
+        algs=dct["algs"],
         n_permutations=dct["pvalruns"],
         n_repeats=dct["importanceruns"],
         imputation_trees=dct["imputertrees"],
@@ -106,6 +107,7 @@ if __name__ == '__main__':
                     loo = LeaveOneOut()
                     runs = list(loo.split(d.X))
                     algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc, "Sc": StackingClassifier, "MVc": VotingClassifier, "hardMVc": VotingClassifier}
+                    algs = {k: algs[k] for k in d.algs}
                     for alg_name, alg in algs.items():
                         print(alg_name, "<<<<<<<<<<<<<<<<<")
                         if alg_name == "Sc":
