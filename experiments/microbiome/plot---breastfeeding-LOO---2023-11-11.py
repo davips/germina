@@ -13,6 +13,7 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from germina.config import local_cache_uri, near_cache_uri, remote_cache_uri, schedule_uri
 from hdict import hdict, _
 
+ebf = False
 # 3-4 c-section
 warnings.filterwarnings('ignore')
 # with (sopen(local_cache_uri, ondup="skip") as local_storage):
@@ -23,12 +24,17 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         "local": local_storage,
     }
 
-    id = "jIgdwdP1oDI416bOLM0ZQrhm.U8blbJTNIy5UNzN"
+    if ebf:
+        id = "jIgdwdP1oDI416bOLM0ZQrhm.U8blbJTNIy5UNzN"
+        exp = "34_c_section"
+    else:  # cogn
+        id = "0tiIN9b9StZ.Sy4G-RdQN7iYlMHmYlXi7tOMCjka"
+        exp = "1_none"
     d = hdict.load(id, local_storage)
-    # d.show()
+    d.show()
 
-    d["X"] = _.X_species34_c_section
-    d["y"] = _.y_species34_c_section
+    d["X"] = _[f"X_species{exp}"]
+    d["y"] = _[f"y_species{exp}"]
     d["y"] = d.y.to_numpy()
     d.apply(StandardScaler, out="stsc")
     d.apply(StandardScaler.fit_transform, _.stsc, out="X")
@@ -38,9 +44,9 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
     d.apply(MinMaxScaler.fit_transform, _.mmsc, out="X")
     d = ch(d, storages, to_be_updated="")
 
-    prefix = "species34_c_section"
-    algnames = ["RFc", "LGBMc", "ETc", "Sc"]
-    measures = ["average_precision_score", "balanced_accuracy"]
+    prefix = f"species{exp}"
+    algnames = ["RFc", "LGBMc", "ETc", "Sc"][:1]
+    measures = ["balanced_accuracy", "average_precision_score"][:1]
     predictions, scores, pvals = {}, {}, {}
     for measure in measures:
         predictions[measure] = {}
@@ -126,3 +132,49 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         mng.resize(1800, 900)
 
         plt.show()
+
+"""
+100 trees
+score (p-value):        0.4270 (0.9610) species2-none-balanced_accuracy=RFc
+score (p-value):        0.4558 (0.8751) species2-none-balanced_accuracy=RFc
+score (p-value):        0.4725 (0.7702) species2-none-balanced_accuracy=RFc
+score (p-value):        0.4911 (0.5884) species2-none-balanced_accuracy=RFc
+score (p-value):        0.4914 (0.6394) species2-none-balanced_accuracy=RFc
+score (p-value):        0.4984 (0.4965) species1-none-balanced_accuracy=RFc
+score (p-value):        0.5008 (0.5025) species1-none-balanced_accuracy=RFc
+score (p-value):        0.5071 (0.4166) species2-none-balanced_accuracy=RFc
+score (p-value):        0.5137 (0.3487) species1-none-balanced_accuracy=RFc
+score (p-value):        0.5143 (0.3327) species1-none-balanced_accuracy=RFc
+score (p-value):        0.5173 (0.3427) species1-none-balanced_accuracy=RFc
+score (p-value):        0.5191 (0.2987) species1-none-balanced_accuracy=RFc
+score (p-value):        0.5237 (0.1289) species1-none-balanced_accuracy=RFc
+score (p-value):        0.5352 (0.1948) species2-none-balanced_accuracy=RFc
+score (p-value):        0.5380 (0.1159) species1-none-balanced_accuracy=RFc
+score (p-value):        0.5467 (0.0949) species1-none-balanced_accuracy=RFc
+score (p-value):        0.5475 (0.1119) species2-none-balanced_accuracy=RFc
+score (p-value):        0.5509 (0.0569) species1-none-balanced_accuracy=RFc
+score (p-value):        0.5948 (0.0050) species2-none-balanced_accuracy=RFc
+score (p-value):        0.6297 (0.0010) species2-none-balanced_accuracy=RFc
+
+1000 trees
+score (p-value):        0.4357 (0.9301) species2-none-balanced_accuracy=RFc
+score (p-value):        0.4662 (0.8042) species2-none-balanced_accuracy=RFc
+score (p-value):        0.4671 (0.8092) species1-none-balanced_accuracy=RFc
+score (p-value):        0.4927 (0.5784) species1-none-balanced_accuracy=RFc
+score (p-value):        0.4928 (0.6074) species1-none-balanced_accuracy=RFc
+score (p-value):        0.5057 (0.4555) species2-none-balanced_accuracy=RFc
+score (p-value):        0.5065 (0.4366) species1-none-balanced_accuracy=RFc
+score (p-value):        0.5072 (0.3846) species2-none-balanced_accuracy=RFc
+score (p-value):        0.5073 (0.4236) species2-none-balanced_accuracy=RFc
+score (p-value):        0.5090 (0.4066) species2-none-balanced_accuracy=RFc
+score (p-value):        0.5213 (0.2837) species1-none-balanced_accuracy=RFc
+score (p-value):        0.5220 (0.3047) species1-none-balanced_accuracy=RFc
+score (p-value):        0.5228 (0.2797) species2-none-balanced_accuracy=RFc
+score (p-value):        0.5373 (0.1159) species1-none-balanced_accuracy=RFc
+score (p-value):        0.5387 (0.1598) species1-none-balanced_accuracy=RFc
+score (p-value):        0.5438 (0.0969) species1-none-balanced_accuracy=RFc
+score (p-value):        0.5464 (0.1039) species1-none-balanced_accuracy=RFc
+score (p-value):        0.5735 (0.0140) species2-none-balanced_accuracy=RFc
+score (p-value):        0.5766 (0.0200) species2-none-balanced_accuracy=RFc
+score (p-value):        0.6170 (0.0030) species2-none-balanced_accuracy=RFc
+"""

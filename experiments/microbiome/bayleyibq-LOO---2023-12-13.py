@@ -156,7 +156,7 @@ if __name__ == '__main__':
                                 d = ch(d, storages, storage_to_be_updated)
                                 d = d >> apply(ccc, d_score=_[score_field], d_pval=_[pval_field]).res
                                 d = ch(d, storages, storage_to_be_updated)
-                                print(f"score (p-value):\t{d.res[m]['score'][-1]:.4f} ({d.res[m]['p-value'][-1]:.4f})\t{d.res[m]['description'][-1]}={alg_name}", flush=True)
+                                print(f"score (p-value):\t{d.res[m]['score'][-1]:.4f} ({d.res[m]['p-value'][-1]:.4f})\t{d.res[m]['description'][-1]}={alg_name} {target_var}", flush=True)
 
                             d = d >> apply(lambda res: res).res
                             d = ch(d, storages, storage_to_be_updated)
@@ -271,7 +271,7 @@ if __name__ == '__main__':
             del subdf[m]
             del subdf["description"]
             del subdf["delivery_mode"]
-            subdf.to_csv(f"/home/davi/git/germina/results/complete---{descr}---{m}-trees={d.n_estimators}-perms={d.n_permutations}-{d.id}--LOO.csv")
+            subdf.to_csv(f"/home/davi/git/germina/results/complete-{descr}-{m}-tr={d.n_estimators}-perms={d.n_permutations}-{d.id}--LOO.csv")
         print("++++++++++++++++++++++++++++++++++++++++++++++")
         print()
 
@@ -285,4 +285,4 @@ if __name__ == '__main__':
         print(grouped)
         print(grouped.columns)
         print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-        grouped.to_csv(f"/home/davi/git/germina/results/grouped--SHAPhelpfulness-p-value-{m}-trees={d.n_estimators}-perms={d.n_permutations}-{d.id}--LOO.csv")
+        grouped.to_csv(f"/home/davi/git/germina/results/shap-{m}-tr{d.n_estimators}-perms{d.n_permutations}-{d.id}--LOO.csv")
