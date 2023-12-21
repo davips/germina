@@ -27,6 +27,7 @@ from germina.runner import ch
 from hdict import hdict, apply, _
 
 warnings.filterwarnings('ignore')
+algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc, "Sc": StackingClassifier, "MVc": VotingClassifier, "hardMVc": VotingClassifier}
 if __name__ == '__main__':
     load = argv[argv.index("load") + 1] if "load" in argv else False
     __ = enable_iterative_imputer
@@ -103,7 +104,6 @@ if __name__ == '__main__':
                     params = {"max_depth": 5, "objective": "binary:logistic", "eval_metric": "auc"}
                     loo = LeaveOneOut()
                     runs = list(loo.split(d.X))
-                    algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc, "Sc": StackingClassifier, "MVc": VotingClassifier, "hardMVc": VotingClassifier}
                     algs = {k: algs[k] for k in d.algs}
                     for alg_name, alg in algs.items():
                         print(alg_name, "<<<<<<<<<<<<<<<<<")
@@ -282,4 +282,4 @@ if __name__ == '__main__':
         print(grouped)
         print(grouped.columns)
         print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-        grouped.to_csv(f"/home/davi/git/germina/results/shap-{descr}-tr{d.n_estimators}-perms{d.n_permutations}-{d.id}--LOO.csv")
+        grouped.to_csv(f"/home/davi/git/germina/results/shap-{m}-tr{d.n_estimators}-perms{d.n_permutations}-{d.id}--LOO.csv")

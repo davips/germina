@@ -3,19 +3,24 @@ from pprint import pprint
 
 import matplotlib.pyplot as plt
 import numpy as np
-import plotly
-from germina.runner import ch
-from plotly.tools import mpl_to_plotly
+from lightgbm import LGBMClassifier as LGBMc
 from shelchemy import sopen
+from sklearn import clone
 from sklearn.decomposition import PCA
+from sklearn.ensemble import ExtraTreesClassifier as ETc, StackingClassifier, VotingClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import ConfusionMatrixDisplay
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 from germina.config import local_cache_uri, near_cache_uri, remote_cache_uri, schedule_uri
-from hdict import hdict, _
+from germina.runner import ch
+from hdict import hdict, _, apply
+
 warnings.filterwarnings('ignore')
+algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc, "Sc": StackingClassifier, "MVc": VotingClassifier, "hardMVc": VotingClassifier}
 
 # exp, id = "species34_c_section", "jIgdwdP1oDI416bOLM0ZQrhm.U8blbJTNIy5UNzN"  # EBF
-exp, id = "species2_bayley_8_t2", ".NvbQC-uBRPIjvpNPZ4zL1qEBdcX6IJOECD7mSmb"  # cognition
+exp, id = "species2_bayley_8_t2", "6pmEcmVAWWWfLJnCMb8vo4ZoYl0AHHD-2g4oJ28N"  # cognition
 
 with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_uri, ondup="skip") as near_storage, sopen(remote_cache_uri, ondup="skip") as remote_storage, sopen(schedule_uri) as db):
     storages = {
@@ -36,18 +41,36 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
     d.apply(MinMaxScaler, out="mmsc")
     d.apply(MinMaxScaler.fit_transform, _.mmsc, out="X")
     d = ch(d, storages, to_be_updated="")
+    pos = d.y == 1
+    neg = d.y == 0
 
-    prefix = f"{exp}"
-    algnames = ["RFc", "LGBMc", "ETc", "Sc"][:1]
-    measures = ["balanced_accuracy", "average_precision_score"][:1]
-    predictions, scores, pvals = {}, {}, {}
-    for measure in measures:
-        predictions[measure] = {}
+    #################################################################################################################
+    # Confusion Matrix
+    #################################################################################################################
+    predictions = {}
+    algs = {k: algs[k] for k in d.algs}
+    for algname, algclass in algs.items():
+        print(algname)
+        predictions[algname] = d[f"{exp}_{algname}_predictions"]
+        d.apply(algclass, out="alg")
+        d.apply(lambda alg, X, y: clone(alg).fit(X, y), out="model_tr")
+        d.apply(lambda model_tr: model_tr.classes_, out="display_labels")
+        d.apply(ConfusionMatrixDisplay.from_estimator, _.model_tr, out="cm_tr")
+        d.cm_tr.plot()
+        d.apply(ConfusionMatrixDisplay.from_predictions, y_true=_.y, y_pred=_[f"{exp}_{algname}_predictions"], out="cm_ts")
+        d.cm_ts.plot()
+    plt.show()
+    exit()
+
+    #################################################################################################################
+    # For each measure...
+    #################################################################################################################
+    scores, pvals = {}, {}
+    for measure in d.measures:
         scores[measure] = {}
         pvals[measure] = {}
-        for algname in algnames:
-            predictions[measure][algname] = d[f"{prefix}_{algname}_predictions"]
-            prefix2 = f"{prefix}_{algname}_{measure}"
+        for algname in d.algs:
+            prefix2 = f"{exp}_{algname}_{measure}"
             scores[measure][algname] = d[f"{prefix2}_score"]
             pvals[measure][algname] = d[f"{prefix2}_pval"]
 
@@ -60,8 +83,8 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         atleast1hit, atleast1miss = set(), set()
         for name, y_ in predictions[measure].items():
             eq = d.y == y_
-            atleast1hit.update(np.nonzero(eq)[0])
-            atleast1miss.update(np.nonzero(~eq)[0])
+        atleast1hit.update(np.nonzero(eq)[0])
+        atleast1miss.update(np.nonzero(~eq)[0])
         allhit = list(set(range(len(d.X))).difference(atleast1miss))
         allmiss = list(set(range(len(d.X))).difference(atleast1hit))
 
@@ -85,17 +108,19 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         balacc = (ntpos / npos + ntneg / nneg) / 2
         print(f"Balanced Accuracy by majority voting:\t{balacc:0.3f}")
 
-        continue
+        # continue
 
         # PLOT #########################################################################################################
         ################## ################## ################## ################## ################## ##################
         ax = plt.subplot(1, 2, 1)
         for (c, m, s, a), (name, y_) in zip([("black", "+", 500, .9), ("green", "^", 100, .9), ("gray", "o", 300, .2)], predictions[measure].items()):
             idx = list(set(np.nonzero(d.y == y_)[0].tolist()).difference(allhit).difference(allmiss))
-            X, y = d.X[idx], d.y[idx]
-            ax.scatter(X[:, 0], X[:, 1], color=c, label=name, alpha=a, s=s, marker=m)
-        ax.scatter(d.X[allhit, 0], d.X[allhit, 1], color="blue", label="all hit", alpha=0.3, s=80, marker=".")
-        ax.scatter(d.X[allmiss, 0], d.X[allmiss, 1], color="red", label="all miss", alpha=0.3, s=80, marker="x")
+        X, y = d.X[idx], d.y[idx]
+        # ax.scatter(X[:, 0], X[:, 1], color=c, label=name, alpha=a, s=s, marker=m)
+        ax.scatter(d.X[allhit, 0], d.X[allhit, 1], color="blue", label="all hit", alpha=0.99, s=70, marker=".")
+        ax.scatter(d.X[allmiss, 0], d.X[allmiss, 1], color="red", label="all miss", alpha=0.7, s=50, marker="x")
+        ax.scatter(d.X[pos, 0], d.X[pos, 1], color="green", label="high", alpha=0.2, s=150, marker="o")
+        ax.scatter(d.X[neg, 0], d.X[neg, 1], color="yellow", label="low", alpha=0.4, s=150, marker="o")
         ax.set_xlim([0.0, 1.0])
         ax.set_ylim([0.0, 1.0])
         plt.grid()
@@ -111,8 +136,8 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         ax = plt.subplot(1, 2, 2, sharex=ax, sharey=ax)
         for (c, m, s, a), (name, y_) in zip([("black", "+", 500, .9), ("green", "^", 100, .9), ("gray", "o", 300, .2)], predictions[measure].items()):
             idx = list(set(np.nonzero(d.y != y_)[0].tolist()).difference(allhit).difference(allmiss))
-            X, y = d.X[idx], d.y[idx]
-            ax.scatter(X[:, 0], X[:, 1], color=c, label=name, alpha=a, s=s, marker=m)
+        X, y = d.X[idx], d.y[idx]
+        ax.scatter(X[:, 0], X[:, 1], color=c, label=name, alpha=a, s=s, marker=m)
         ax.scatter(d.X[allhit, 0], d.X[allhit, 1], color="blue", label="all hit", alpha=0.3, s=80, marker=".")
         ax.scatter(d.X[allmiss, 0], d.X[allmiss, 1], color="red", label="all miss", alpha=0.3, s=80, marker="x")
         plt.grid()
@@ -126,48 +151,48 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
 
         plt.show()
 
-"""
-100 trees
-score (p-value):        0.4270 (0.9610) species2-none-balanced_accuracy=RFc
-score (p-value):        0.4558 (0.8751) species2-none-balanced_accuracy=RFc
-score (p-value):        0.4725 (0.7702) species2-none-balanced_accuracy=RFc
-score (p-value):        0.4911 (0.5884) species2-none-balanced_accuracy=RFc
-score (p-value):        0.4914 (0.6394) species2-none-balanced_accuracy=RFc
-score (p-value):        0.4984 (0.4965) species1-none-balanced_accuracy=RFc
-score (p-value):        0.5008 (0.5025) species1-none-balanced_accuracy=RFc
-score (p-value):        0.5071 (0.4166) species2-none-balanced_accuracy=RFc
-score (p-value):        0.5137 (0.3487) species1-none-balanced_accuracy=RFc
-score (p-value):        0.5143 (0.3327) species1-none-balanced_accuracy=RFc
-score (p-value):        0.5173 (0.3427) species1-none-balanced_accuracy=RFc
-score (p-value):        0.5191 (0.2987) species1-none-balanced_accuracy=RFc
-score (p-value):        0.5237 (0.1289) species1-none-balanced_accuracy=RFc
-score (p-value):        0.5352 (0.1948) species2-none-balanced_accuracy=RFc
-score (p-value):        0.5380 (0.1159) species1-none-balanced_accuracy=RFc
-score (p-value):        0.5467 (0.0949) species1-none-balanced_accuracy=RFc
-score (p-value):        0.5475 (0.1119) species2-none-balanced_accuracy=RFc
-score (p-value):        0.5509 (0.0569) species1-none-balanced_accuracy=RFc
-score (p-value):        0.5948 (0.0050) species2-none-balanced_accuracy=RFc
-score (p-value):        0.6297 (0.0010) species2-none-balanced_accuracy=RFc
-
-1000 trees
-score (p-value):        0.4357 (0.9301) species2-none-balanced_accuracy=RFc
-score (p-value):        0.4662 (0.8042) species2-none-balanced_accuracy=RFc
-score (p-value):        0.4671 (0.8092) species1-none-balanced_accuracy=RFc
-score (p-value):        0.4927 (0.5784) species1-none-balanced_accuracy=RFc
-score (p-value):        0.4928 (0.6074) species1-none-balanced_accuracy=RFc
-score (p-value):        0.5057 (0.4555) species2-none-balanced_accuracy=RFc
-score (p-value):        0.5065 (0.4366) species1-none-balanced_accuracy=RFc
-score (p-value):        0.5072 (0.3846) species2-none-balanced_accuracy=RFc
-score (p-value):        0.5073 (0.4236) species2-none-balanced_accuracy=RFc
-score (p-value):        0.5090 (0.4066) species2-none-balanced_accuracy=RFc
-score (p-value):        0.5213 (0.2837) species1-none-balanced_accuracy=RFc
-score (p-value):        0.5220 (0.3047) species1-none-balanced_accuracy=RFc
-score (p-value):        0.5228 (0.2797) species2-none-balanced_accuracy=RFc
-score (p-value):        0.5373 (0.1159) species1-none-balanced_accuracy=RFc
-score (p-value):        0.5387 (0.1598) species1-none-balanced_accuracy=RFc
-score (p-value):        0.5438 (0.0969) species1-none-balanced_accuracy=RFc
-score (p-value):        0.5464 (0.1039) species1-none-balanced_accuracy=RFc
-score (p-value):        0.5735 (0.0140) species2-none-balanced_accuracy=RFc
-score (p-value):        0.5766 (0.0200) species2-none-balanced_accuracy=RFc
-score (p-value):        0.6170 (0.0030) species2-none-balanced_accuracy=RFc
-"""
+    """
+    100 trees
+    score (p-value):        0.4270 (0.9610) species2-none-balanced_accuracy=RFc
+    score (p-value):        0.4558 (0.8751) species2-none-balanced_accuracy=RFc
+    score (p-value):        0.4725 (0.7702) species2-none-balanced_accuracy=RFc
+    score (p-value):        0.4911 (0.5884) species2-none-balanced_accuracy=RFc
+    score (p-value):        0.4914 (0.6394) species2-none-balanced_accuracy=RFc
+    score (p-value):        0.4984 (0.4965) species1-none-balanced_accuracy=RFc
+    score (p-value):        0.5008 (0.5025) species1-none-balanced_accuracy=RFc
+    score (p-value):        0.5071 (0.4166) species2-none-balanced_accuracy=RFc
+    score (p-value):        0.5137 (0.3487) species1-none-balanced_accuracy=RFc
+    score (p-value):        0.5143 (0.3327) species1-none-balanced_accuracy=RFc
+    score (p-value):        0.5173 (0.3427) species1-none-balanced_accuracy=RFc
+    score (p-value):        0.5191 (0.2987) species1-none-balanced_accuracy=RFc
+    score (p-value):        0.5237 (0.1289) species1-none-balanced_accuracy=RFc
+    score (p-value):        0.5352 (0.1948) species2-none-balanced_accuracy=RFc
+    score (p-value):        0.5380 (0.1159) species1-none-balanced_accuracy=RFc
+    score (p-value):        0.5467 (0.0949) species1-none-balanced_accuracy=RFc
+    score (p-value):        0.5475 (0.1119) species2-none-balanced_accuracy=RFc
+    score (p-value):        0.5509 (0.0569) species1-none-balanced_accuracy=RFc
+    score (p-value):        0.5948 (0.0050) species2-none-balanced_accuracy=RFc
+    score (p-value):        0.6297 (0.0010) species2-none-balanced_accuracy=RFc
+    
+    1000 trees
+    score (p-value):        0.4357 (0.9301) species2-none-balanced_accuracy=RFc
+    score (p-value):        0.4662 (0.8042) species2-none-balanced_accuracy=RFc
+    score (p-value):        0.4671 (0.8092) species1-none-balanced_accuracy=RFc
+    score (p-value):        0.4927 (0.5784) species1-none-balanced_accuracy=RFc
+    score (p-value):        0.4928 (0.6074) species1-none-balanced_accuracy=RFc
+    score (p-value):        0.5057 (0.4555) species2-none-balanced_accuracy=RFc
+    score (p-value):        0.5065 (0.4366) species1-none-balanced_accuracy=RFc
+    score (p-value):        0.5072 (0.3846) species2-none-balanced_accuracy=RFc
+    score (p-value):        0.5073 (0.4236) species2-none-balanced_accuracy=RFc
+    score (p-value):        0.5090 (0.4066) species2-none-balanced_accuracy=RFc
+    score (p-value):        0.5213 (0.2837) species1-none-balanced_accuracy=RFc
+    score (p-value):        0.5220 (0.3047) species1-none-balanced_accuracy=RFc
+    score (p-value):        0.5228 (0.2797) species2-none-balanced_accuracy=RFc
+    score (p-value):        0.5373 (0.1159) species1-none-balanced_accuracy=RFc
+    score (p-value):        0.5387 (0.1598) species1-none-balanced_accuracy=RFc
+    score (p-value):        0.5438 (0.0969) species1-none-balanced_accuracy=RFc
+    score (p-value):        0.5464 (0.1039) species1-none-balanced_accuracy=RFc
+    score (p-value):        0.5735 (0.0140) species2-none-balanced_accuracy=RFc
+    score (p-value):        0.5766 (0.0200) species2-none-balanced_accuracy=RFc
+    score (p-value):        0.6170 (0.0030) species2-none-balanced_accuracy=RFc
+    """
