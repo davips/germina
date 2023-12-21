@@ -22,7 +22,7 @@ from sklearn.neural_network import MLPClassifier
 
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.dataset import join
-from germina.loader import load_from_csv, clean_for_dalex, get_balance, start_reses, ccc
+from germina.loader import load_from_csv, clean_for_dalex, get_balance, start_reses, ccc, aaa, bbb
 from germina.runner import ch
 from hdict import hdict, apply, _
 
@@ -162,7 +162,7 @@ if __name__ == '__main__':
                             if not loo_flag:
                                 continue
                             tasks = zip(repeat((field, target_var, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}")), range(len(runs)))
-                            d["contribs_accumulator"] = d["values_accumulator"] = None
+                            # d["contribs_accumulator"] = d["values_accumulator"] = None
                             print()
                             for (fi, pa, vi, __, __), i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
                                 d["idxtr", "idxts"] = runs[i]
@@ -183,6 +183,17 @@ if __name__ == '__main__':
                                 label = d.yts.to_list()[0]
                                 prediction = d.prediction.tolist()[0]
                                 results[field][target_var][m][i] = {"target": label, "prediction": prediction, "var_shap_dct": var_shap_dct, "var_valu_dct": var_valu_dct}
+
+                                # d = d >> apply(aaa).contribs_accumulator
+                                # d = ch(d, storages, storage_to_be_updated)
+                                # d = d >> apply(bbb).values_accumulator
+                                # d = ch(d, storages, storage_to_be_updated)
+
+                            # d = d >> apply(importances2, descr1=_.field, descr2=_.parto).res_importances
+                            # # for storage in storages.values():
+                            # #     del storage[d.ids["res_importances"]]
+                            # d = ch(d, storages, storage_to_be_updated)
+
                     print()
                     d["results"] = results
                     for storage in storages.values():
@@ -236,7 +247,7 @@ if __name__ == '__main__':
         print()
         dfmodel = DataFrame(d.res[m])
         dfmodel.rename(columns={"p-value": "model_p-value"}, inplace=True)
-        dfmodel[["type-age", "delivery_mode", "measure"]] = dfmodel["description"].str.split('-', expand=True)
+        dfmodel[["type-age", "target_var", "measure"]] = dfmodel["description"].str.split('-', expand=True)
         dfmodel["age"] = dfmodel["type-age"].str.slice(-2)
         dfmodel["type"] = dfmodel["type-age"].str.slice(0, -2)
         del dfmodel["type-age"]
@@ -256,14 +267,14 @@ if __name__ == '__main__':
             del subdf["measure"]
             del subdf[m]
             del subdf["description"]
-            del subdf["delivery_mode"]
-            subdf.to_csv(f"/home/davi/git/germina/results/complete-{descr}-{m}-tr={d.n_estimators}-perms={d.n_permutations}-{d.id}--LOO.csv")
+            del subdf["target_var"]
+            subdf.to_csv(f"/home/davi/git/germina/results/complete-{descr}-tr={d.n_estimators}-perms={d.n_permutations}-{d.id}--LOO.csv")
         print("++++++++++++++++++++++++++++++++++++++++++++++")
         print()
 
-        df["helpfulness"] = np.where(df["target"] == 1, df["SHAP"], -df["SHAP"])
-        grouped = df.groupby(["delivery_mode", "age", "type", "measure", "variable"]).agg({
-            "helpfulness": [lambda x: np.mean(x), lambda x: np.std(x), lambda x: stats.ttest_1samp(x, popmean=0, alternative="greater")[1]],
+        df["TargetOrientedSHAP"] = np.where(df["target"] == 1, df["SHAP"], -df["SHAP"])
+        grouped = df.groupby(["target_var", "age", "type", "measure", "variable"]).agg({
+            "TargetOrientedSHAP": [lambda x: np.mean(x), lambda x: np.std(x), lambda x: stats.ttest_1samp(x, popmean=0, alternative="greater")[1]],
             "SHAP": ["min", "max"],
             'value': ['mean', 'std'],
             "model_p-value": ["first"],
@@ -271,4 +282,4 @@ if __name__ == '__main__':
         print(grouped)
         print(grouped.columns)
         print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-        grouped.to_csv(f"/home/davi/git/germina/results/shap-{m}-tr{d.n_estimators}-perms{d.n_permutations}-{d.id}--LOO.csv")
+        grouped.to_csv(f"/home/davi/git/germina/results/shap-{descr}-tr{d.n_estimators}-perms{d.n_permutations}-{d.id}--LOO.csv")

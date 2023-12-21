@@ -12,31 +12,22 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 from germina.config import local_cache_uri, near_cache_uri, remote_cache_uri, schedule_uri
 from hdict import hdict, _
-
-exp = "2_none"
-# 3-4 c-section
 warnings.filterwarnings('ignore')
-# with (sopen(local_cache_uri, ondup="skip") as local_storage):
+
+# exp, id = "species34_c_section", "jIgdwdP1oDI416bOLM0ZQrhm.U8blbJTNIy5UNzN"  # EBF
+exp, id = "species2_bayley_8_t2", ".NvbQC-uBRPIjvpNPZ4zL1qEBdcX6IJOECD7mSmb"  # cognition
+
 with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_uri, ondup="skip") as near_storage, sopen(remote_cache_uri, ondup="skip") as remote_storage, sopen(schedule_uri) as db):
     storages = {
         "remote": remote_storage,
         "near": near_storage,
         "local": local_storage,
     }
-
-    if exp == "34_c_section":
-        id = "jIgdwdP1oDI416bOLM0ZQrhm.U8blbJTNIy5UNzN"  # EBF
-    # elif exp == "1_none":
-    #     id = "0tiIN9b9StZ.Sy4G-RdQN7iYlMHmYlXi7tOMCjka"
-    elif exp == "2_none":
-        id = "JZ8IkITPOBExlX57j05k7QOf7YuuxcJC7dlWsov-"  # bayley_8_t2
-    else:
-        raise Exception(f"{exp} not found")
     d = hdict.load(id, local_storage)
     d.show()
 
-    d["X"] = _[f"X_species{exp}"]
-    d["y"] = _[f"y_species{exp}"]
+    d["X"] = _[f"X_{exp}"]
+    d["y"] = _[f"y_{exp}"]
     d["y"] = d.y.to_numpy()
     d.apply(StandardScaler, out="stsc")
     d.apply(StandardScaler.fit_transform, _.stsc, out="X")
@@ -46,7 +37,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
     d.apply(MinMaxScaler.fit_transform, _.mmsc, out="X")
     d = ch(d, storages, to_be_updated="")
 
-    prefix = f"species{exp}"
+    prefix = f"{exp}"
     algnames = ["RFc", "LGBMc", "ETc", "Sc"][:1]
     measures = ["balanced_accuracy", "average_precision_score"][:1]
     predictions, scores, pvals = {}, {}, {}
