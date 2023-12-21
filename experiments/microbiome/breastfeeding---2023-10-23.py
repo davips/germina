@@ -173,7 +173,7 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
                     d = d >> apply(lambda alg, X, y: clone(alg).fit(X, y)).estimator
                     d = d >> apply(permutation_importance).importances
                     d = ch(d, storages, storage_to_be_updated)
-                    d = d >> apply(importances, descr1=_.field, descr2=_.parto).res_importances
+                    d = d >> apply(importances, descr1=_.field, descr2=_.target_var).res_importances
 
             print()
 print("Finished!")

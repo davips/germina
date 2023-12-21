@@ -13,7 +13,7 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from germina.config import local_cache_uri, near_cache_uri, remote_cache_uri, schedule_uri
 from hdict import hdict, _
 
-ebf = False
+exp = "2_none"
 # 3-4 c-section
 warnings.filterwarnings('ignore')
 # with (sopen(local_cache_uri, ondup="skip") as local_storage):
@@ -24,12 +24,14 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         "local": local_storage,
     }
 
-    if ebf:
-        id = "jIgdwdP1oDI416bOLM0ZQrhm.U8blbJTNIy5UNzN"
-        exp = "34_c_section"
-    else:  # cogn
-        id = "0tiIN9b9StZ.Sy4G-RdQN7iYlMHmYlXi7tOMCjka"
-        exp = "1_none"
+    if exp == "34_c_section":
+        id = "jIgdwdP1oDI416bOLM0ZQrhm.U8blbJTNIy5UNzN"  # EBF
+    # elif exp == "1_none":
+    #     id = "0tiIN9b9StZ.Sy4G-RdQN7iYlMHmYlXi7tOMCjka"
+    elif exp == "2_none":
+        id = "JZ8IkITPOBExlX57j05k7QOf7YuuxcJC7dlWsov-"  # bayley_8_t2
+    else:
+        raise Exception(f"{exp} not found")
     d = hdict.load(id, local_storage)
     d.show()
 

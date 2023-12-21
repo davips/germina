@@ -92,16 +92,13 @@ if __name__ == '__main__':
                     d = d >> apply(lambda y: y.copy(deep=True)).y0
                     d = ch(d, storages, storage_to_be_updated)
 
-                    parto = "none"
-                    d["parto"] = parto
-                    print(parto)
-                    results[field][parto] = {}
+                    results[field][target_var] = {}
                     d["X"] = d.X0
                     d = ch(d, storages, storage_to_be_updated)
                     d = get_balance(d, storages, storage_to_be_updated)
-                    d[f"X_{field}_{parto}"] = _.X
-                    d[f"y_{field}_{parto}"] = _.y
-                    print(f"X_{field}_{parto}", f"y_{field}_{parto}")
+                    d[f"X_{field}_{target_var}"] = _.X
+                    d[f"y_{field}_{target_var}"] = _.y
+                    print(f"X_{field}_{target_var}", f"y_{field}_{target_var}")
 
                     params = {"max_depth": 5, "objective": "binary:logistic", "eval_metric": "auc"}
                     loo = LeaveOneOut()
@@ -135,7 +132,7 @@ if __name__ == '__main__':
                             d = d >> apply(alg).alg
 
                         for m in d.measures:
-                            results[field][parto][m] = {}
+                            results[field][target_var][m] = {}
                             # calcula baseline score e p-values
                             if m == "average_precision_score":
                                 if alg_name == "hardMVc":
@@ -143,12 +140,12 @@ if __name__ == '__main__':
                                 d["scoring"] = make_scorer(average_precision_score, needs_proba=True)
                             else:
                                 d["scoring"] = m
-                            prefix = f"{field}_{parto}_{alg_name}_{m}"
+                            prefix = f"{field}_{target_var}_{alg_name}_{m}"
                             score_field, permscores_field, pval_field = f"{prefix}_score", f"{prefix}_permscores", f"{prefix}_pval"
-                            predictions_field = f"{field}_{parto}_{alg_name}_predictions"
+                            predictions_field = f"{field}_{target_var}_{alg_name}_predictions"
 
-                            tasks = [(field, parto, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}_{target_var}")]
-                            print(f"Starting {field}_{parto}_{m}  ...", d.id)
+                            tasks = [(field, target_var, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}_{target_var}")]
+                            print(f"Starting {field}_{target_var}_{m}  ...", d.id)
                             for __, __, __, __, __ in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
                                 d = d >> apply(cross_val_predict, _.alg)(predictions_field)
                                 d = ch(d, storages, storage_to_be_updated)
@@ -164,7 +161,7 @@ if __name__ == '__main__':
                             # LOO shaps @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
                             if not loo_flag:
                                 continue
-                            tasks = zip(repeat((field, parto, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}_{target_var}")), range(len(runs)))
+                            tasks = zip(repeat((field, target_var, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}")), range(len(runs)))
                             d["contribs_accumulator"] = d["values_accumulator"] = None
                             print()
                             for (fi, pa, vi, __, __), i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
@@ -185,23 +182,12 @@ if __name__ == '__main__':
                                 var_shap_dct = dict(zip((k.split(" ")[0] for k in d.predictparts.result["variable"]), d.predictparts.result["contribution"]))
                                 label = d.yts.to_list()[0]
                                 prediction = d.prediction.tolist()[0]
-                                results[field][parto][m][i] = {"target": label, "prediction": prediction, "var_shap_dct": var_shap_dct, "var_valu_dct": var_valu_dct}
-
-                                # d = d >> apply(aaa).contribs_accumulator
-                                # d = ch(d, storages, storage_to_be_updated)
-                                # d = d >> apply(bbb).values_accumulator
-                                # d = ch(d, storages, storage_to_be_updated)
-
-                            # d = d >> apply(importances2, descr1=_.field, descr2=_.parto).res_importances
-                            # # for storage in storages.values():
-                            # #     del storage[d.ids["res_importances"]]
-                            # d = ch(d, storages, storage_to_be_updated)
-
+                                results[field][target_var][m][i] = {"target": label, "prediction": prediction, "var_shap_dct": var_shap_dct, "var_valu_dct": var_valu_dct}
                     print()
                     d["results"] = results
                     for storage in storages.values():
                         d.save(storage)
-                    print(f"{field}_{parto} finished!", d.id)
+                    print(f"{field}_{target_var} finished!", d.id)
             d["results"] = results
             for storage in storages.values():
                 d.save(storage)
@@ -212,12 +198,12 @@ if __name__ == '__main__':
     if sched or not load:
         exit()
 
-    lstfield, lstparto, lstm, lstbebe = [], [], [], []
+    lstfield, lsttarget_var, lstm, lstbebe = [], [], [], []
     targets, predictions = [], []
     vars, shaps, valus = [], [], []
     for field, fielddct in d.results.items():
-        for parto, partodct in fielddct.items():
-            for m, mdct in partodct.items():
+        for target_var, target_vardct in fielddct.items():
+            for m, mdct in target_vardct.items():
                 for bebe, bebedct in mdct.items():
                     target, prediction, var_shap_dct, var_valu_dct = bebedct.values()
                     if var_shap_dct.keys() != var_valu_dct.keys():
@@ -225,7 +211,7 @@ if __name__ == '__main__':
                     for (var, shap), valu in zip(var_shap_dct.items(), var_valu_dct.values()):
                         var = var.replace(",", "-").replace(";", "-")
                         lstfield.append(field)
-                        lstparto.append(parto)
+                        lsttarget_var.append(target_var)
                         lstm.append(m)
                         lstbebe.append(bebe)
                         targets.append(target)
@@ -235,10 +221,10 @@ if __name__ == '__main__':
                         shaps.append(shap)
                         valus.append(valu)
 
-    dfbig = DataFrame({"field": lstfield, "parto": lstparto, "score": lstm, "bebe": lstbebe, "target": targets, "prediction": predictions, "variable": vars, "value": valus, "SHAP": shaps})
-    dfbig["description"] = dfbig["field"] + "-" + dfbig["parto"] + "-" + dfbig["score"]
+    dfbig = DataFrame({"field": lstfield, "target_var": lsttarget_var, "score": lstm, "bebe": lstbebe, "target": targets, "prediction": predictions, "variable": vars, "value": valus, "SHAP": shaps})
+    dfbig["description"] = dfbig["field"] + "-" + dfbig["target_var"] + "-" + dfbig["score"]
     del dfbig["field"]
-    del dfbig["parto"]
+    del dfbig["target_var"]
     del dfbig["score"]
     print(dfbig)
     print(dfbig.columns)
