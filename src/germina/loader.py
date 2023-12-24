@@ -140,7 +140,7 @@ def clean_for_dalex(d, storages, storage_to_be_updated, verbose=False, target="E
         d = ch(d, storages, storage_to_be_updated)
         d.apply(lambda X, y: X.loc[y.index], out=f"X")
     d = ch(d, storages, storage_to_be_updated)
-    d.apply(lambda df, alias, y: df[alias].loc[y.index], alias=alias, out=f"yor_{field}_{alias}")
+    d.apply(lambda df, alias, y: df[alias].loc[y.index], alias=alias, out=f"yor_{d.field}_{alias}")
     if verbose:
         print("Cleaned ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d.X.shape, d.y.shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
     return d

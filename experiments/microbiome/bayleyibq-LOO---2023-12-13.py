@@ -92,7 +92,7 @@ if __name__ == '__main__':
                     d = d >> apply(join, df=_.osf, other=_[field]).df
                     d = ch(d, storages, storage_to_be_updated)
 
-                    d = clean_for_dalex(d, storages, storage_to_be_updated, target=d.target_var, alias=d.target_var, keep=d.cols)
+                    d = clean_for_dalex(d, storages, storage_to_be_updated, field, target=d.target_var, alias=d.target_var, keep=d.cols)
                     d = d >> apply(lambda X: X.copy(deep=True)).X0
                     d = d >> apply(lambda y: y.copy(deep=True)).y0
                     d = ch(d, storages, storage_to_be_updated)

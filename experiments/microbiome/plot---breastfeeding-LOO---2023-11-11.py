@@ -22,12 +22,9 @@ from hdict import hdict, _, apply
 warnings.filterwarnings('ignore')
 algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc, "Sc": StackingClassifier, "MVc": VotingClassifier, "hardMVc": VotingClassifier, "CART": DecisionTreeClassifier, "Perceptron": Perceptron, "Dummy": DummyClassifier}
 
-# exp, id = "species34_c_section", "jIgdwdP1oDI416bOLM0ZQrhm.U8blbJTNIy5UNzN"  # EBF
-# exp, id = "species2_bayley_8_t2", "6pmEcmVAWWWfLJnCMb8vo4ZoYl0AHHD-2g4oJ28N"  # cognition
-# exp, id = "species2_bayley_8_t2", "rKecIDcHJIFNBfKi26hmK-k2Tsim2wAW3QWtdrCN"  # cognition
-# exp, id = "species2_bayley_8_t2", "jIMFNh5FvZQQl4bzhKsbloQDvbFSia4LVidZrnZX"  # cognition
-exp, id = "species2_bayley_8_t2", "K6Z5OLlEaOcgpBTILU6VAWGI.rI0Lv35Ane8bLds"  # cognition
-div = 2
+# exp, id = "species34_c_section", "?????????"  # EBF
+exp, id = "species1_ibq_dura_t3", "BFLlB6IUDyIp6FffZkw9zicVY604y3s5aj6cdOaU"  # cognition
+div = 3
 with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_uri, ondup="skip") as near_storage, sopen(remote_cache_uri, ondup="skip") as remote_storage, sopen(schedule_uri) as db):
     storages = {
         "remote": remote_storage,
