@@ -136,7 +136,7 @@ def clean_for_dalex(d, storages, storage_to_be_updated, verbose=False, target="E
         d = d >> apply(join, df=_.X, other=_.delivery_mode).X
         d = d >> apply(lambda df: pd.get_dummies(df[target])[alias].astype(int)).y
     else:
-        d = d >> apply(cut, div=3).y
+        d = d >> apply(cut).y
     d = ch(d, storages, storage_to_be_updated)
     if verbose:
         print("Scaled ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d.X.shape, d.y.shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
