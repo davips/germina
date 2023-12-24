@@ -98,7 +98,7 @@ if __name__ == '__main__':
                     d = ch(d, storages, storage_to_be_updated)
 
                     results[field][target_var] = {}
-                    d["X"] = d.X0
+                    # d["X"] = d.X0
                     d = ch(d, storages, storage_to_be_updated)
                     d = get_balance(d, storages, storage_to_be_updated, verbose=True)
                     d[f"X_{field}_{target_var}"] = _.X

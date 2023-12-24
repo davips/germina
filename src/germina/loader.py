@@ -106,21 +106,21 @@ def apply_std(d, storages, storage_to_be_updated, path, vif, field, verbose=Fals
     return d
 
 
-def cut(df, target_var, div=2):
-    df = df.copy()
-    me = df[target_var].mean()
-    st = df[target_var].std()
-    hi = df[target_var] > me + st / 2
-    lo = df[target_var] < me - st / 2
+def cut(df, target_var, field, div=2):
+    df2 = df.copy()
+    me = df2[target_var].mean()
+    st = df2[target_var].std()
+    hi = df2[target_var] > me + st / 2
+    lo = df2[target_var] < me - st / 2
     if div == 2:
-        pos = df[target_var][hi] * 0 + 1
-        neg = df[target_var][lo] * 0
-        df[target_var] = pd.concat([neg, pos])
+        pos = df2[target_var][hi] * 0 + 1
+        neg = df2[target_var][lo] * 0
+        df2[target_var] = pd.concat([neg, pos])
     else:
-        df[target_var] = df[target_var] * 0 + 1
-        df[target_var][hi] = df[target_var][hi] * 0 + 2
-        df[target_var][lo] = df[target_var][lo] * 0
-    return df[target_var].astype(int)
+        df2[target_var] = df2[target_var] * 0 + 1
+        df2[target_var][hi] = df2[target_var][hi] * 0 + 2
+        df2[target_var][lo] = df2[target_var][lo] * 0
+    return df2[target_var].astype(int)
 
 
 def clean_for_dalex(d, storages, storage_to_be_updated, verbose=False, target="EBF_3m", alias="EBF", keep=[]):
@@ -128,18 +128,22 @@ def clean_for_dalex(d, storages, storage_to_be_updated, verbose=False, target="E
         print(datetime.now())
     if alias != "EBF":
         d = d >> apply(remove_nan_rows_cols, keep=keep).df
-    d = d >> apply(lambda df: df.drop([target], axis=1)).X0
+    d = d >> apply(lambda df, tgt: df.drop([tgt], axis=1), tgt=target).X0
     d = d >> apply(lambda X0: [col.replace("[", "").replace("]", "").replace("<", "").replace(" ", "_").replace(":", "_").replace(".", "_").replace("-", "_").replace("(", "").replace(")", "").replace("{", "").replace("}", "").replace(";", "").replace(",", "") for col in X0.columns]).Xcols
     d = d >> apply(lambda X0, Xcols: X0.rename(columns=dict(zip(X0.columns, Xcols)))).X
     if alias == "EBF":
         d = d >> apply(lambda X: pd.get_dummies(X["delivery_mode"])["vaginal"].astype(int)).delivery_mode
         d = d >> apply(join, df=_.X, other=_.delivery_mode).X
-        d = d >> apply(lambda df: pd.get_dummies(df[target])[alias].astype(int)).y
+        d = d >> apply(lambda df, tgt: pd.get_dummies(df[tgt])[alias].astype(int), tgt=target).y
     else:
         d = d >> apply(cut).y
+        d = ch(d, storages, storage_to_be_updated)
+        d.apply(lambda X, y: X[y.index], out=f"X")
     d = ch(d, storages, storage_to_be_updated)
+    d.apply(lambda df, alias, X, y: df[alias][y.index], alias=alias, out=f"Xor_{field}_{alias}")
+    d.apply(lambda df, alias, y: df[alias][y.index], alias=alias, out=f"yor_{field}_{alias}")
     if verbose:
-        print("Scaled ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d.X.shape, d.y.shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
+        print("Cleaned ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d.X.shape, d.y.shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
     return d
 
 
