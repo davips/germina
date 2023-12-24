@@ -107,14 +107,20 @@ def apply_std(d, storages, storage_to_be_updated, path, vif, field, verbose=Fals
 
 
 def cut(df, target_var, div=2):
+    df = df.copy()
     me = df[target_var].mean()
     st = df[target_var].std()
     hi = df[target_var] > me + st / 2
     lo = df[target_var] < me - st / 2
-    pos = df[target_var][hi] * 0 + 1
-    neg = df[target_var][lo] * 0
-    df = pd.concat([neg, pos]).astype(int)
-    return df
+    if div == 2:
+        pos = df[target_var][hi] * 0 + 1
+        neg = df[target_var][lo] * 0
+        df[target_var] = pd.concat([neg, pos])
+    else:
+        df[target_var] = df[target_var] * 0 + 1
+        df[target_var][hi] = df[target_var][hi] * 0 + 2
+        df[target_var][lo] = df[target_var][lo] * 0
+    return df[target_var].astype(int)
 
 
 def clean_for_dalex(d, storages, storage_to_be_updated, verbose=False, target="EBF_3m", alias="EBF", keep=[]):
@@ -130,8 +136,7 @@ def clean_for_dalex(d, storages, storage_to_be_updated, verbose=False, target="E
         d = d >> apply(join, df=_.X, other=_.delivery_mode).X
         d = d >> apply(lambda df: pd.get_dummies(df[target])[alias].astype(int)).y
     else:
-        d = d >> apply(cut).y
-        d = d >> apply(lambda X, y: X.loc[y.index]).X
+        d = d >> apply(cut, div=3).y
     d = ch(d, storages, storage_to_be_updated)
     if verbose:
         print("Scaled ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d.X.shape, d.y.shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")

@@ -7,20 +7,26 @@ from lightgbm import LGBMClassifier as LGBMc
 from shelchemy import sopen
 from sklearn import clone
 from sklearn.decomposition import PCA
+from sklearn.dummy import DummyClassifier
 from sklearn.ensemble import ExtraTreesClassifier as ETc, StackingClassifier, VotingClassifier
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import Perceptron
 from sklearn.metrics import ConfusionMatrixDisplay
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.tree import DecisionTreeClassifier
 
 from germina.config import local_cache_uri, near_cache_uri, remote_cache_uri, schedule_uri
 from germina.runner import ch
 from hdict import hdict, _, apply
 
 warnings.filterwarnings('ignore')
-algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc, "Sc": StackingClassifier, "MVc": VotingClassifier, "hardMVc": VotingClassifier}
+algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc, "Sc": StackingClassifier, "MVc": VotingClassifier, "hardMVc": VotingClassifier, "CART": DecisionTreeClassifier, "Perceptron": Perceptron, "Dummy": DummyClassifier}
 
 # exp, id = "species34_c_section", "jIgdwdP1oDI416bOLM0ZQrhm.U8blbJTNIy5UNzN"  # EBF
-exp, id = "species2_bayley_8_t2", "6pmEcmVAWWWfLJnCMb8vo4ZoYl0AHHD-2g4oJ28N"  # cognition
+# exp, id = "species2_bayley_8_t2", "6pmEcmVAWWWfLJnCMb8vo4ZoYl0AHHD-2g4oJ28N"  # cognition
+# exp, id = "species2_bayley_8_t2", "rKecIDcHJIFNBfKi26hmK-k2Tsim2wAW3QWtdrCN"  # cognition
+# exp, id = "species2_bayley_8_t2", "jIMFNh5FvZQQl4bzhKsbloQDvbFSia4LVidZrnZX"  # cognition
+exp, id = "species2_bayley_8_t2", "t7-iOQHf6wI16IpDFG15l.cbX2zc8w49kwpiMTID"  # cognition
 
 with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_uri, ondup="skip") as near_storage, sopen(remote_cache_uri, ondup="skip") as remote_storage, sopen(schedule_uri) as db):
     storages = {
@@ -33,6 +39,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
 
     d["X"] = _[f"X_{exp}"]
     d["y"] = _[f"y_{exp}"]
+    d["y0"] = d.y
     d["y"] = d.y.to_numpy()
     d.apply(StandardScaler, out="stsc")
     d.apply(StandardScaler.fit_transform, _.stsc, out="X")
@@ -52,15 +59,20 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
     for algname, algclass in algs.items():
         print(algname)
         predictions[algname] = d[f"{exp}_{algname}_predictions"]
+
+        # Andre
+        # print(type(d.y0))
+        # pprint(list(sorted(zip(d.y, predictions[algname], d.y0.index))))
+        # exit()
+
         d.apply(algclass, out="alg")
         d.apply(lambda alg, X, y: clone(alg).fit(X, y), out="model_tr")
         d.apply(lambda model_tr: model_tr.classes_, out="display_labels")
         d.apply(ConfusionMatrixDisplay.from_estimator, _.model_tr, out="cm_tr")
-        d.cm_tr.plot()
         d.apply(ConfusionMatrixDisplay.from_predictions, y_true=_.y, y_pred=_[f"{exp}_{algname}_predictions"], out="cm_ts")
         d.cm_ts.plot()
     plt.show()
-    exit()
+    # exit()
 
     #################################################################################################################
     # For each measure...
@@ -81,7 +93,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         pprint(pvals[measure])
 
         atleast1hit, atleast1miss = set(), set()
-        for name, y_ in predictions[measure].items():
+        for name, y_ in predictions.items():
             eq = d.y == y_
         atleast1hit.update(np.nonzero(eq)[0])
         atleast1miss.update(np.nonzero(~eq)[0])
@@ -96,7 +108,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         print(f"Missed by all:\t{nmiss:3}/{n}\t=\t{100 * nmiss / n:0.3f}%")
 
         # Voting
-        a = np.vstack(list(predictions[measure].values()))
+        a = np.vstack(list(predictions.values()))
         vote_predictions = np.round(np.mean(a, axis=0))
         vote_hit = d.y == vote_predictions
         vote_nhit = np.count_nonzero(vote_hit)
@@ -113,7 +125,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         # PLOT #########################################################################################################
         ################## ################## ################## ################## ################## ##################
         ax = plt.subplot(1, 2, 1)
-        for (c, m, s, a), (name, y_) in zip([("black", "+", 500, .9), ("green", "^", 100, .9), ("gray", "o", 300, .2)], predictions[measure].items()):
+        for (c, m, s, a), (name, y_) in zip([("black", "+", 500, .9), ("green", "^", 100, .9), ("gray", "o", 300, .2)], predictions.items()):
             idx = list(set(np.nonzero(d.y == y_)[0].tolist()).difference(allhit).difference(allmiss))
         X, y = d.X[idx], d.y[idx]
         # ax.scatter(X[:, 0], X[:, 1], color=c, label=name, alpha=a, s=s, marker=m)
@@ -134,7 +146,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
 
         ################## ################## ################## ################## ################## ##################
         ax = plt.subplot(1, 2, 2, sharex=ax, sharey=ax)
-        for (c, m, s, a), (name, y_) in zip([("black", "+", 500, .9), ("green", "^", 100, .9), ("gray", "o", 300, .2)], predictions[measure].items()):
+        for (c, m, s, a), (name, y_) in zip([("black", "+", 500, .9), ("green", "^", 100, .9), ("gray", "o", 300, .2)], predictions.items()):
             idx = list(set(np.nonzero(d.y != y_)[0].tolist()).difference(allhit).difference(allmiss))
         X, y = d.X[idx], d.y[idx]
         ax.scatter(X[:, 0], X[:, 1], color=c, label=name, alpha=a, s=s, marker=m)

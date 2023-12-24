@@ -8,17 +8,20 @@ import dalex as dx
 import numpy as np
 from argvsucks import handle_command_line
 from lightgbm import LGBMClassifier as LGBMc
+from mlxtend.classifier import Perceptron
 from pandas import DataFrame
 from scipy import stats
 from shelchemy import sopen
 from shelchemy.scheduler import Scheduler
 from sklearn import clone
+from sklearn.dummy import DummyClassifier
 from sklearn.ensemble import ExtraTreesClassifier as ETc, StackingClassifier, VotingClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.metrics import average_precision_score, make_scorer
 from sklearn.model_selection import LeaveOneOut, permutation_test_score, StratifiedKFold, cross_val_predict
 from sklearn.neural_network import MLPClassifier
+from sklearn.tree import DecisionTreeClassifier
 
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.dataset import join
@@ -27,7 +30,7 @@ from germina.runner import ch
 from hdict import hdict, apply, _
 
 warnings.filterwarnings('ignore')
-algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc, "Sc": StackingClassifier, "MVc": VotingClassifier, "hardMVc": VotingClassifier}
+algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc, "Sc": StackingClassifier, "MVc": VotingClassifier, "hardMVc": VotingClassifier, "CART": DecisionTreeClassifier, "Perceptron": Perceptron, "Dummy": DummyClassifier}
 if __name__ == '__main__':
     load = argv[argv.index("load") + 1] if "load" in argv else False
     __ = enable_iterative_imputer
@@ -96,7 +99,7 @@ if __name__ == '__main__':
                     results[field][target_var] = {}
                     d["X"] = d.X0
                     d = ch(d, storages, storage_to_be_updated)
-                    d = get_balance(d, storages, storage_to_be_updated)
+                    d = get_balance(d, storages, storage_to_be_updated, verbose=True)
                     d[f"X_{field}_{target_var}"] = _.X
                     d[f"y_{field}_{target_var}"] = _.y
                     print(f"X_{field}_{target_var}", f"y_{field}_{target_var}")

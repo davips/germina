@@ -88,6 +88,7 @@ if __name__ == '__main__':
                 d = ch(d, storages, storage_to_be_updated)
 
                 d = clean_for_dalex(d, storages, storage_to_be_updated)
+                d = ch(d, storages, storage_to_be_updated)
                 d = d >> apply(lambda X: X.copy(deep=True)).X0
                 d = d >> apply(lambda y: y.copy(deep=True)).y0
                 d = ch(d, storages, storage_to_be_updated)
