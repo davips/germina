@@ -2,6 +2,7 @@ import warnings
 from pprint import pprint
 
 import matplotlib.pyplot as plt
+import matplotlib as mtl
 import numpy as np
 from lightgbm import LGBMClassifier as LGBMc
 from shelchemy import sopen
@@ -11,6 +12,7 @@ from sklearn.dummy import DummyClassifier
 from sklearn.ensemble import ExtraTreesClassifier as ETc, StackingClassifier, VotingClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import Perceptron
+from sklearn.manifold import MDS, TSNE
 from sklearn.metrics import ConfusionMatrixDisplay
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.tree import DecisionTreeClassifier
@@ -18,12 +20,13 @@ from sklearn.tree import DecisionTreeClassifier
 from germina.config import local_cache_uri, near_cache_uri, remote_cache_uri, schedule_uri
 from germina.runner import ch
 from hdict import hdict, _, apply
+from sortedness.embedding.sortedness_ import balanced_embedding
 
 warnings.filterwarnings('ignore')
 algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc, "Sc": StackingClassifier, "MVc": VotingClassifier, "hardMVc": VotingClassifier, "CART": DecisionTreeClassifier, "Perceptron": Perceptron, "Dummy": DummyClassifier}
 
 # exp, id = "species34_c_section", "?????????"  # EBF
-exp, id = "species1_ibq_dura_t3", "BFLlB6IUDyIp6FffZkw9zicVY604y3s5aj6cdOaU"  # cognition
+exp, id = "species2_ibq_dura_t3", "cCBOLRIkm-3-IMxKoGS2gZWMKkyR.4ESmy98.2a6"  # cognition
 div = 3
 with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_uri, ondup="skip") as near_storage, sopen(remote_cache_uri, ondup="skip") as remote_storage, sopen(schedule_uri) as db):
     storages = {
@@ -36,12 +39,15 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
 
     d["X"] = _[f"X_{exp}"]
     d["y"] = _[f"y_{exp}"]
-    d["yor"] = _[exp]
+    d["yor"] = _[f"yor_{exp}"]
     d["y"] = d.y.to_numpy()
     d.apply(StandardScaler, out="stsc")
     d.apply(StandardScaler.fit_transform, _.stsc, out="X")
     d.apply(PCA, out="pca")
     d.apply(PCA.fit_transform, _.pca, out="X")
+    d.apply(MDS, out="mds")
+    d.apply(MDS.fit_transform, _.mds, out="X")
+    d.apply(balanced_embedding, out="X")
     d.apply(MinMaxScaler, out="mmsc")
     d.apply(MinMaxScaler.fit_transform, _.mmsc, out="X")
     d = ch(d, storages, to_be_updated="")
@@ -123,25 +129,31 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
 
         # PLOT #########################################################################################################
         ################## ################## ################## ################## ################## ##################
+        prev = None
         for algname in d.algs:
             y_ = predictions[algname]
-            for tgt in range(3):
+            for tgt, cm in zip(range(3), ["Reds", "Grays", "Blues"]):
                 print("target", tgt)
-                ax = plt.subplot(1, 3, tgt + 1)
+                ax = plt.subplot(1, 3, tgt + 1, sharex=prev, sharey=prev)
+                prev = ax
                 idxhit = (d.y == y_) & (d.y == tgt)
                 idxmiss = (d.y != y_) & (d.y == tgt)
                 Xh, yorh = d.X[idxhit], d.yor[idxhit]
                 Xm, yorm = d.X[idxmiss], d.yor[idxmiss]
                 print(yorm)
-                ax.scatter(Xh[:, 0], Xh[:, 1], c=yorh, label=f"hit class {tgt}",  s=100, marker="o", alpha=.2)
-                ax.scatter(Xm[:, 0], Xm[:, 1], c=yorm, label=f"miss class {tgt}", s=150, marker="x")
+                norm = plt.Normalize(min(yorh), max(yorh))
+                cmap = mtl.colormaps[cm]
+                cols = cmap(norm(yorh))
+                a = ax.scatter(Xh[:, 0], Xh[:, 1], label=f"hit class {tgt}", s=100, alpha=.9, facecolors='none', edgecolors=cols)
+                b = ax.scatter(Xm[:, 0], Xm[:, 1], c=yorm, label=f"miss class {tgt}", s=100, marker="x", alpha=.9, cmap=cmap)
                 ax.set_xlim([0.0, 1.0])
                 ax.set_ylim([0.0, 1.0])
                 plt.grid()
                 plt.xlabel('PC 1')
                 plt.ylabel('PC 2')
-                plt.title("Correct Predictions")
+                # plt.title("Correct Predictions")
                 plt.legend()
+                plt.colorbar(b, orientation="horizontal")
 
         # ax = plt.subplot(1, 2, 1)
         # for (c, m, s, a), (name, y_) in zip([("black", "+", 500, .9), ("green", "^", 100, .9), ("gray", "o", 300, .2)], predictions.items()):
