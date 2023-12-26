@@ -40,7 +40,7 @@ with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_sto
     }
 
     d = load_from_osf(d, storages, storage_to_be_updated, path, False, d.osf_filename, osf_except_target_vars__no_t, "fullosf", [])
-    d = load_from_synapse(d, storages, storage_to_be_updated, path, False, "synapse/EEG-reduced", "eegsyn")
+    d = load_from_synapse(d, storages, storage_to_be_updated, path, False, "data/eeg-synapse-reduced.csv", "eegsyn")
     d = load_from_osf(d, storages, storage_to_be_updated, path, vif, d.osf_filename, eeg_vars__no_t, "eegosf", keeprows=d.eegsyn.index)
 
     d = d >> apply(lambda _: join(DataFrame({"id_estudo": _.eegsyn.index}), index="id_estudo", other=_.eegosf, join="inner")).eegosf_selected

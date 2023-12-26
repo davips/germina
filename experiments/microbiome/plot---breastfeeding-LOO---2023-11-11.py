@@ -20,7 +20,7 @@ from sklearn.tree import DecisionTreeClassifier
 from germina.config import local_cache_uri, near_cache_uri, remote_cache_uri, schedule_uri
 from germina.runner import ch
 from hdict import hdict, _, apply
-from sortedness.embedding.sortedness_ import balanced_embedding
+from sortedness.embedding.sortedness_ import balanced_embedding, balanced_embedding_
 
 warnings.filterwarnings('ignore')
 algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc, "Sc": StackingClassifier, "MVc": VotingClassifier, "hardMVc": VotingClassifier, "CART": DecisionTreeClassifier, "Perceptron": Perceptron, "Dummy": DummyClassifier}
@@ -43,11 +43,12 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
     d["y"] = d.y.to_numpy()
     d.apply(StandardScaler, out="stsc")
     d.apply(StandardScaler.fit_transform, _.stsc, out="X")
-    d.apply(PCA, out="pca")
-    d.apply(PCA.fit_transform, _.pca, out="X")
-    d.apply(MDS, out="mds")
-    d.apply(MDS.fit_transform, _.mds, out="X")
-    d.apply(balanced_embedding, out="X")
+    # d.apply(PCA, out="pca")
+    # d.apply(PCA.fit_transform, _.pca, out="X")
+    # d.apply(MDS, out="mds")
+    # d.apply(MDS.fit_transform, _.mds, out="X")
+    # d.apply(balanced_embedding, out="X")
+    d.apply(balanced_embedding_, out="X")
     d.apply(MinMaxScaler, out="mmsc")
     d.apply(MinMaxScaler.fit_transform, _.mmsc, out="X")
     d = ch(d, storages, to_be_updated="")
