@@ -106,12 +106,17 @@ def apply_std(d, storages, storage_to_be_updated, path, vif, field, verbose=Fals
     return d
 
 
-def cut(df, target_var, field, div=2):
-    df2 = df.copy()
+def cut(df, target_var, div=2):
+    df2:DataFrame = df.copy()
     me = df2[target_var].mean()
     st = df2[target_var].std()
-    hi = df2[target_var] > me + st / 2
-    lo = df2[target_var] < me - st / 2
+    if isinstance(div,str):
+        hi = df2[target_var] > me + st / float(div)
+        lo = df2[target_var] < me - st / float(div)
+        div = 2
+    else:
+        hi = df2[target_var] > me + st / 2
+        lo = df2[target_var] < me - st / 2
     if div == 2:
         pos = df2[target_var][hi] * 0 + 1
         neg = df2[target_var][lo] * 0
@@ -120,7 +125,7 @@ def cut(df, target_var, field, div=2):
         df2[target_var] = df2[target_var] * 0 + 1
         df2[target_var][hi] = df2[target_var][hi] * 0 + 2
         df2[target_var][lo] = df2[target_var][lo] * 0
-    return df2[target_var].astype(int)
+    return df2[target_var].dropna().astype(int)
 
 
 def clean_for_dalex(d, storages, storage_to_be_updated, verbose=False, target="EBF_3m", alias="EBF", keep=[]):
@@ -140,7 +145,7 @@ def clean_for_dalex(d, storages, storage_to_be_updated, verbose=False, target="E
         d = ch(d, storages, storage_to_be_updated)
         d.apply(lambda X, y: X.loc[y.index], out=f"X")
     d = ch(d, storages, storage_to_be_updated)
-    d.apply(lambda df, alias, y: df[alias].loc[y.index], alias=alias, out=f"yor_{d.field}_{alias}")
+    d.apply(lambda df, alias, y, field: df[alias].loc[y.index], alias=alias, out=f"yor_{field}_{alias}")
     if verbose:
         print("Cleaned ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d.X.shape, d.y.shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑\n")
     return d

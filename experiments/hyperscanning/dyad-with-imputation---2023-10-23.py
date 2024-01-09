@@ -66,7 +66,7 @@ d["res_importances"] = res_importances
 
 with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_storage, sopen(remote_cache_uri) as remote_storage, sopen(schedule_uri) as db):
     storages = {
-        "remote": remote_storage,
+        # "remote": remote_storage,
         "near": near_storage,
         "local": local_storage,
     }
