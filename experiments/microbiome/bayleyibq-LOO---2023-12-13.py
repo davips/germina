@@ -126,7 +126,7 @@ if __name__ == '__main__':
                         print(alg_name, "<<<<<<<<<<<<<<<<<")
                         if alg_name.startswith("pruned"):
                             d["max_depth"] = dct["depth"]
-                        else:
+                        elif "max_depth" in d:
                             del d["max_depth"]
                         if alg_name == "Sc":
                             d["estimators"] = []
