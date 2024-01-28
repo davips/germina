@@ -21,6 +21,7 @@ from sklearn.experimental import enable_iterative_imputer
 from sklearn.metrics import average_precision_score, make_scorer
 from sklearn.model_selection import LeaveOneOut, permutation_test_score, StratifiedKFold, cross_val_predict
 from sklearn.neural_network import MLPClassifier
+from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
@@ -30,11 +31,16 @@ from germina.runner import ch
 from hdict import hdict, apply, _
 
 warnings.filterwarnings('ignore')
-algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc, "Sc": StackingClassifier, "MVc": VotingClassifier, "hardMVc": VotingClassifier, "CART": DecisionTreeClassifier, "Perceptron": Perceptron, "Dummy": DummyClassifier}
+# RFc,LGBMc,ETc,prunedRFc,prunedLGBMc,prunedETc,SVC
+algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc,
+        "prunedRFc": RandomForestClassifier, "prunedLGBMc": LGBMc, "prunedETc": ETc,
+        "SVC": SVC,
+        "Sc": StackingClassifier, "MVc": VotingClassifier, "hardMVc": VotingClassifier,
+        "CART": DecisionTreeClassifier, "Perceptron": Perceptron, "Dummy": DummyClassifier}
 if __name__ == '__main__':
     load = argv[argv.index("load") + 1] if "load" in argv else False
     __ = enable_iterative_imputer
-    dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="", measures=list, algs=list, loo=False, div=int)
+    dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="", measures=list, algs=list, loo=False, div=int, depth=int)
     print(datetime.now())
     pprint(dct, sort_dicts=False)
     print()
@@ -49,6 +55,7 @@ if __name__ == '__main__':
         target_vars=dct["target"],
         measures=dct["measures"],
         max_iter=dct["trees"], n_estimators=dct["trees"],
+        max_depth=dct["depth"],
         n_splits=5,
         shuffle=True,
         index="id_estudo", join="inner", n_jobs=20, return_name=False, deterministic=True, force_row_wise=True,
@@ -61,7 +68,7 @@ if __name__ == '__main__':
     loo_flag = dct["loo"]
     with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_uri, ondup="skip") as near_storage, sopen(remote_cache_uri, ondup="skip") as remote_storage, sopen(schedule_uri) as db):
         storages = {
-            "remote": remote_storage,
+            # "remote": remote_storage,
             "near": near_storage,
             "local": local_storage,
         }
@@ -112,12 +119,15 @@ if __name__ == '__main__':
                     d[f"y_{field}_{target_var}"] = _.y
                     print(f"X_{field}_{target_var}", f"y_{field}_{target_var}")
 
-                    params = {"max_depth": 5, "objective": "binary:logistic", "eval_metric": "auc"}
                     loo = LeaveOneOut()
                     runs = list(loo.split(d.X))
                     algs = {k: algs[k] for k in d.algs}
                     for alg_name, alg in algs.items():
                         print(alg_name, "<<<<<<<<<<<<<<<<<")
+                        if alg_name.startswith("pruned"):
+                            d["max_depth"] = dct["depth"]
+                        else:
+                            del d["max_depth"]
                         if alg_name == "Sc":
                             d["estimators"] = []
                             for na, al in list(algs.items())[:-3]:

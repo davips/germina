@@ -66,7 +66,7 @@ if __name__ == '__main__':
     with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_uri, ondup="skip") as near_storage, sopen(remote_cache_uri, ondup="skip") as remote_storage, sopen(schedule_uri) as db):
         storages = {
             # "remote": remote_storage,
-            "near": near_storage,
+            # "near": near_storage,
             "local": local_storage,
         }
         if load:
