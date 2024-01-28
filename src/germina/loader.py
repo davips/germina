@@ -55,7 +55,7 @@ def load_from_synapse(d, storages, storage_to_be_updated, path, vif, filename, f
     print(f"Loaded '{field}' Synapse data from '{filename}.csv' ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓", d[field].shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
     d = d >> apply(sgid2estudoid, _[field])(field)
     d = ch(d, storages, storage_to_be_updated)
-    print("Fixed id ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d[field], "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
+    print("Fixed id ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n", d[field].shape, "↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑")
     if vif:
         print(f"Apply VIF to '{field}' ----------------------------------------------------------------------------------------------------------------------------")
         print(datetime.now())
@@ -107,10 +107,10 @@ def apply_std(d, storages, storage_to_be_updated, path, vif, field, verbose=Fals
 
 
 def cut(df, target_var, div=2):
-    df2:DataFrame = df.copy()
+    df2: DataFrame = df.copy()
     me = df2[target_var].mean()
     st = df2[target_var].std()
-    if isinstance(div,str):
+    if isinstance(div, str):
         hi = df2[target_var] > me + st / float(div)
         lo = df2[target_var] < me - st / float(div)
         div = 2
@@ -140,6 +140,10 @@ def clean_for_dalex(d, storages, storage_to_be_updated, verbose=False, target="E
         d = d >> apply(lambda X: pd.get_dummies(X["delivery_mode"])["vaginal"].astype(int)).delivery_mode
         d = d >> apply(join, df=_.X, other=_.delivery_mode).X
         d = d >> apply(lambda df, tgt: pd.get_dummies(df[tgt])[alias].astype(int), tgt=target).y
+    elif d.div == -1:  # pairwise regression
+        d = d >> apply(lambda df, tgt: df[tgt], tgt=target).y
+        d = ch(d, storages, storage_to_be_updated)
+        d.apply(lambda X, y: X.loc[y.index], out=f"X")
     else:
         d = d >> apply(cut).y
         d = ch(d, storages, storage_to_be_updated)

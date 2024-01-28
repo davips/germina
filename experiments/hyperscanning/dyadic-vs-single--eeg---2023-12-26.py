@@ -19,22 +19,23 @@ from sklearn.ensemble import ExtraTreesClassifier as ETc, StackingClassifier, Vo
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.metrics import average_precision_score, make_scorer
-from sklearn.model_selection import LeaveOneOut, permutation_test_score, StratifiedKFold, cross_val_predict
+from sklearn.model_selection import LeaveOneOut, permutation_test_score, StratifiedKFold, cross_val_predict, KFold
 from sklearn.neural_network import MLPClassifier
 from sklearn.tree import DecisionTreeClassifier
 
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.dataset import join, eeg_t2_vars
 from germina.loader import load_from_csv, clean_for_dalex, get_balance, start_reses, ccc, aaa, bbb, load_from_synapse
+from germina.pairwiserf import PairwiseRF
 from germina.runner import ch
 from hdict import hdict, apply, _
 
 warnings.filterwarnings('ignore')
-algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc, "Sc": StackingClassifier, "MVc": VotingClassifier, "hardMVc": VotingClassifier, "CART": DecisionTreeClassifier, "Perceptron": Perceptron, "Dummy": DummyClassifier}
+algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc, "Sc": StackingClassifier, "MVc": VotingClassifier, "hardMVc": VotingClassifier, "CART": DecisionTreeClassifier, "Perceptron": Perceptron, "Dummy": DummyClassifier, "PRF": PairwiseRF}
 if __name__ == '__main__':
     load = argv[argv.index("load") + 1] if "load" in argv else False
     __ = enable_iterative_imputer
-    dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="", measures=list, algs=list, loo=False, div=int, field=str)
+    dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="", measures=list, algs=list, loo=False, div=int, field=str, k=int, diff=False, nested=str)
     print(datetime.now())
     pprint(dct, sort_dicts=False)
     print()
@@ -49,11 +50,13 @@ if __name__ == '__main__':
         target_vars=dct["target"],
         measures=dct["measures"],
         max_iter=dct["trees"], n_estimators=dct["trees"],
-        n_splits=5,
+        n_splits=dct["k"],
         shuffle=True,
         index="id_estudo", join="inner", n_jobs=20, return_name=False, deterministic=True, force_row_wise=True,
         osf_filename="workshop111223",
-        field=dct["field"]
+        field=dct["field"],
+        diff=dct["diff"],  # pairwise RF applied to (x1 - x2) or to hconcat(x1, x2) ?  =  input is '2-baby subtraction' or '2-baby concatenation' ?
+        nested=dct["nested"]  # RFc or RFr ?  =  'predict order' or 'predict difference between labels' ?
     )
     cfg = hdict(d)
     for noncfg in ["index", "join", "n_jobs", "return_name", "osf_filename"]:
@@ -70,8 +73,14 @@ if __name__ == '__main__':
             d = hdict.load(load, local_storage)
             print("Loaded!")
         else:
-            d = d >> apply(StratifiedKFold).cv
-            # d = d >> apply(LeaveOneOut).cv
+            if d.n_splits == 0:
+                d = d >> apply(LeaveOneOut).cv
+            else:
+                if d.div == -1:  # For measure r2
+                    d = d >> apply(KFold).cv
+                else:
+                    d = d >> apply(StratifiedKFold).cv
+
             d["res"] = {}
             d["res_importances"] = {}
             for measure in d.measures:
@@ -85,7 +94,7 @@ if __name__ == '__main__':
                 print(arq, "=================================================================================")
                 d = load_from_synapse(d, storages, storage_to_be_updated, path, False, "eeg-synapse-reduced", "eegsyn")
                 d = load_from_csv(d, storages, storage_to_be_updated, path, False, d.osf_filename, "osf0", False, verbose=False)
-                d = load_from_csv(d, storages, storage_to_be_updated, path, vif, d.osf_filename, "single", transpose=False, vars=eeg_t2_vars) # + ["risco_class"])
+                d = load_from_csv(d, storages, storage_to_be_updated, path, vif, d.osf_filename, "single", transpose=False, vars=eeg_t2_vars)
                 d = ch(d, storages, storage_to_be_updated)
                 print("Separate subset from dataset 'EEG single'  --------------------------------------------------------------------------------------------------------------------------------------------------------")
                 d = d >> apply(lambda single, eegsyn: single.loc[eegsyn.index]).eegsin
@@ -103,7 +112,7 @@ if __name__ == '__main__':
                     d = d >> apply(lambda y: y.copy(deep=True)).y0
                     d = ch(d, storages, storage_to_be_updated)
                     # print(d.X)
-                    # print(d.y)
+                    # print(">>>>>>>>>>>", d.y)
                     # exit()
 
                     results[field][target_var] = {}
@@ -114,7 +123,6 @@ if __name__ == '__main__':
                     d[f"y_{field}_{target_var}"] = _.y
                     print(f"X_{field}_{target_var}", f"y_{field}_{target_var}")
 
-                    params = {"max_depth": 5, "objective": "binary:logistic", "eval_metric": "auc"}
                     loo = LeaveOneOut()
                     runs = list(loo.split(d.X))
                     algs = {k: algs[k] for k in d.algs}
@@ -157,7 +165,7 @@ if __name__ == '__main__':
                             score_field, permscores_field, pval_field = f"{prefix}_score", f"{prefix}_permscores", f"{prefix}_pval"
                             predictions_field = f"{field}_{target_var}_{alg_name}_predictions"
 
-                            tasks = [(field, target_var, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}_{d.div}_{dct['pvalruns']}")]
+                            tasks = [(field, target_var, f"{vif=}", m, f"trees={d.n_estimators}_k{d.n_splits}_{alg_name}_{d.div}_{dct['pvalruns']}")]
                             print(f"Starting {field}_{target_var}_{m}  ...", d.id)
                             for __, __, __, __, __ in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
                                 d = d >> apply(cross_val_predict, _.alg)(predictions_field)
@@ -174,7 +182,7 @@ if __name__ == '__main__':
                             # LOO shaps @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
                             if not loo_flag:
                                 continue
-                            tasks = zip(repeat((field, target_var, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}_{d.div}")), range(len(runs)))
+                            tasks = zip(repeat((field, target_var, f"{vif=}", m, f"trees={d.n_estimators}_k{d.n_splits}_{alg_name}_{d.div}")), range(len(runs)))
                             # d["contribs_accumulator"] = d["values_accumulator"] = None
                             print()
                             for (fi, pa, vi, __, __), i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:

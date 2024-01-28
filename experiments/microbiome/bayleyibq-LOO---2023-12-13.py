@@ -86,8 +86,15 @@ if __name__ == '__main__':
                 d = load_from_csv(d, storages, storage_to_be_updated, path, vif, arq, field, transpose=True, old_indexname=oldidx, verbose=False)
                 d = load_from_csv(d, storages, storage_to_be_updated, path, False, "workshop111223", "osf0", False, verbose=False)
                 for target_var in d.target_vars.split(","):
+                    cols = [target_var]
+                    if target_var.endswith("t2"):
+                        cols.append("idade_crianca_dias_t2")
+                    elif target_var.endswith("t3"):
+                        cols.append("idade_crianca_dias_t3")
+                    else:
+                        raise Exception(f"Unexpected suffix for target '{target_var}'.")
                     d["target_var"] = target_var
-                    d["cols"] = ["idade_crianca_dias_t2", "idade_crianca_dias_t3", target_var]
+                    d["cols"] = cols
                     d = d >> apply(lambda osf0, target_var, cols: osf0[cols]).osf
                     d = d >> apply(join, df=_.osf, other=_[field]).df
                     d = ch(d, storages, storage_to_be_updated)
