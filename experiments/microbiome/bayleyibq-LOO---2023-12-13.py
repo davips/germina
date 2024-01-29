@@ -18,8 +18,10 @@ from sklearn.dummy import DummyClassifier
 from sklearn.ensemble import ExtraTreesClassifier as ETc, StackingClassifier, VotingClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.experimental import enable_iterative_imputer
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, make_scorer
 from sklearn.model_selection import LeaveOneOut, permutation_test_score, StratifiedKFold, cross_val_predict
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
@@ -31,10 +33,10 @@ from germina.runner import ch
 from hdict import hdict, apply, _
 
 warnings.filterwarnings('ignore')
-# RFc,LGBMc,ETc,prunedRFc,prunedLGBMc,prunedETc,SVC
+# RFc,LGBMc,ETc,prunedRFc,prunedLGBMc,prunedETc,SVC,CART,1-NN,5-NN,25-NN,LR
 algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc,
         "prunedRFc": RandomForestClassifier, "prunedLGBMc": LGBMc, "prunedETc": ETc,
-        "SVC": SVC,
+        "SVC": SVC, "kNN": KNeighborsClassifier, "LR": LogisticRegression,
         "Sc": StackingClassifier, "MVc": VotingClassifier, "hardMVc": VotingClassifier,
         "CART": DecisionTreeClassifier, "Perceptron": Perceptron, "Dummy": DummyClassifier}
 if __name__ == '__main__':
@@ -121,13 +123,16 @@ if __name__ == '__main__':
 
                     loo = LeaveOneOut()
                     runs = list(loo.split(d.X))
-                    algs = {k: algs[k] for k in d.algs}
+                    algs = {k: algs["kNN" if k.endswith("-NN") else k] for k in d.algs}
                     for alg_name, alg in algs.items():
                         print(alg_name, "<<<<<<<<<<<<<<<<<")
                         if alg_name.startswith("pruned"):
                             d["max_depth"] = dct["depth"]
                         elif "max_depth" in d:
                             del d["max_depth"]
+                        elif alg_name.endswith("-NN"):
+                            d["n_neighbors"] = int(alg_name.split("-")[0])
+
                         if alg_name == "Sc":
                             d["estimators"] = []
                             for na, al in list(algs.items())[:-3]:
