@@ -26,7 +26,8 @@ warnings.filterwarnings('ignore')
 algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc, "Sc": StackingClassifier, "MVc": VotingClassifier, "hardMVc": VotingClassifier, "CART": DecisionTreeClassifier, "Perceptron": Perceptron, "Dummy": DummyClassifier}
 
 # exp, id = "species34_c_section", "?????????"  # EBF
-exp, id = "species2_ibq_dura_t3", "cCBOLRIkm-3-IMxKoGS2gZWMKkyR.4ESmy98.2a6"  # cognition
+# exp, id = "species2_ibq_dura_t3", "cCBOLRIkm-3-IMxKoGS2gZWMKkyR.4ESmy98.2a6"  # cognition
+exp, id = "species1_bayley_8_t2", "TlOleqkqeMINopXD-KZW7dV08HgsDKNklWPkbW7v"  # cognition 2024-01-31
 div = 3
 with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_uri, ondup="skip") as near_storage, sopen(remote_cache_uri, ondup="skip") as remote_storage, sopen(schedule_uri) as db):
     storages = {

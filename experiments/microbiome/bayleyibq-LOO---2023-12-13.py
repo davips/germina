@@ -23,6 +23,7 @@ from sklearn.metrics import average_precision_score, make_scorer
 from sklearn.model_selection import LeaveOneOut, permutation_test_score, StratifiedKFold, cross_val_predict
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
+from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 
@@ -57,6 +58,7 @@ if __name__ == '__main__':
         target_vars=dct["target"],
         measures=dct["measures"],
         max_iter=dct["trees"], n_estimators=dct["trees"],
+        max_iter0=100,
         max_depth=dct["depth"],
         n_splits=5,
         shuffle=True,
@@ -108,7 +110,7 @@ if __name__ == '__main__':
                     d = d >> apply(join, df=_.osf, other=_[field]).df
                     d = ch(d, storages, storage_to_be_updated)
 
-                    d = clean_for_dalex(d, storages, storage_to_be_updated, field, target=d.target_var, alias=d.target_var, keep=d.cols)
+                    d = clean_for_dalex(d, storages, storage_to_be_updated, field, target=d.target_var, alias=d.target_var, keep=d.cols, field=field)
                     d = d >> apply(lambda X: X.copy(deep=True)).X0
                     d = d >> apply(lambda y: y.copy(deep=True)).y0
                     d = ch(d, storages, storage_to_be_updated)
@@ -123,8 +125,8 @@ if __name__ == '__main__':
 
                     loo = LeaveOneOut()
                     runs = list(loo.split(d.X))
-                    algs = {k: algs["kNN" if k.endswith("-NN") else k] for k in d.algs}
-                    for alg_name, alg in algs.items():
+                    algsdct = {k: algs["kNN" if k.endswith("-NN") else k] for k in d.algs}
+                    for alg_name, alg in algsdct.items():
                         print(alg_name, "<<<<<<<<<<<<<<<<<")
                         if alg_name.startswith("pruned"):
                             d["max_depth"] = dct["depth"]
@@ -132,6 +134,11 @@ if __name__ == '__main__':
                             del d["max_depth"]
                         elif alg_name.endswith("-NN"):
                             d["n_neighbors"] = int(alg_name.split("-")[0])
+
+                        if alg_name == "LR":
+                            del d["max_iter"]
+                        else:
+                            d["max_iter"] = _.max_iter0
 
                         if alg_name == "Sc":
                             d["estimators"] = []
@@ -156,7 +163,7 @@ if __name__ == '__main__':
                             d = d >> apply(alg, voting="hard").alg
                         else:
                             d = d >> apply(alg).alg
-
+                        d["X00"] = _.X
                         for m in d.measures:
                             results[field][target_var][m] = {}
                             # calcula baseline score e p-values
@@ -172,6 +179,12 @@ if __name__ == '__main__':
 
                             tasks = [(field, target_var, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}_{d.div}_{dct['pvalruns']}{'d' + str(dct['depth']) if 'depth' in dct else ''}")]
                             print(f"Starting {field}_{target_var}_{m}  ...", d.id)
+                            d["X"] = _.X00
+                            if alg_name[-2:] in ["VC", "NN", "LR"]:
+                                d = d >> apply(StandardScaler).stdscl
+                                d = ch(d, storages, storage_to_be_updated)
+                                d = d >> apply(StandardScaler.fit_transform, _.stdscl)("X")
+                                d = ch(d, storages, storage_to_be_updated)
                             for __, __, __, __, __ in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
                                 d = d >> apply(cross_val_predict, _.alg)(predictions_field)
                                 d = ch(d, storages, storage_to_be_updated)

@@ -128,7 +128,9 @@ def cut(df, target_var, div=2):
     return df2[target_var].dropna().astype(int)
 
 
-def clean_for_dalex(d, storages, storage_to_be_updated, verbose=False, target="EBF_3m", alias="EBF", keep=[]):
+def clean_for_dalex(d, storages, storage_to_be_updated, verbose=False, target="EBF_3m", alias="EBF", keep=[], field=None):
+    if field is None:
+        raise Exception(f"")
     if verbose:
         print(datetime.now())
     if alias != "EBF":
