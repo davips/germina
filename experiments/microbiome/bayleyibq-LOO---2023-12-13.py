@@ -185,7 +185,7 @@ if __name__ == '__main__':
                                 d = ch(d, storages, storage_to_be_updated)
                                 d = d >> apply(StandardScaler.fit_transform, _.stdscl)("X")
                                 d = ch(d, storages, storage_to_be_updated)
-                                d = d >> apply(lambda X: DataFrame(X))("X")
+                                d = d >> apply(lambda X, X00: DataFrame(X, columns=X00.columns))("X")
                                 d = ch(d, storages, storage_to_be_updated)
                             for __, __, __, __, __ in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
                                 d = d >> apply(cross_val_predict, _.alg)(predictions_field)
