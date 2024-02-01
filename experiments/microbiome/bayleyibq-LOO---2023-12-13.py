@@ -119,15 +119,26 @@ if __name__ == '__main__':
                     # d["X"] = d.X0
                     d = ch(d, storages, storage_to_be_updated)
                     d = get_balance(d, storages, storage_to_be_updated, verbose=True)
-                    d[f"X_{field}_{target_var}"] = _.X
                     d[f"y_{field}_{target_var}"] = _.y
                     print(f"X_{field}_{target_var}", f"y_{field}_{target_var}")
 
-                    loo = LeaveOneOut()
-                    runs = list(loo.split(d.X))
+                    d["X00"] = _.X
                     algsdct = {k: algs["kNN" if k.endswith("-NN") else k] for k in d.algs}
                     for alg_name, alg in algsdct.items():
                         print(alg_name, "<<<<<<<<<<<<<<<<<")
+
+                        d["X"] = _.X00
+                        if alg_name[-2:] in ["VC", "NN", "LR"]:
+                            d = d >> apply(StandardScaler).stdscl
+                            d = ch(d, storages, storage_to_be_updated)
+                            d = d >> apply(StandardScaler.fit_transform, _.stdscl)("X")
+                            d = ch(d, storages, storage_to_be_updated)
+                            d = d >> apply(lambda X, X00: DataFrame(X, columns=X00.columns))("X")
+                            d = ch(d, storages, storage_to_be_updated)
+                        d[f"X_{field}_{target_var}_{alg_name}"] = _.X
+                        loo = LeaveOneOut()
+                        runs = list(loo.split(d.X))
+
                         if alg_name.startswith("pruned"):
                             d["max_depth"] = dct["depth"]
                         elif "max_depth" in d:
@@ -163,7 +174,6 @@ if __name__ == '__main__':
                             d = d >> apply(alg, voting="hard").alg
                         else:
                             d = d >> apply(alg).alg
-                        d["X00"] = _.X
                         for m in d.measures:
                             results[field][target_var][m] = {}
                             # calcula baseline score e p-values
@@ -179,14 +189,6 @@ if __name__ == '__main__':
 
                             tasks = [(field, target_var, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}_{d.div}_{dct['pvalruns']}{'d' + str(dct['depth']) if 'depth' in dct else ''}")]
                             print(f"Starting {field}_{target_var}_{m}  ...", d.id)
-                            d["X"] = _.X00
-                            if alg_name[-2:] in ["VC", "NN", "LR"]:
-                                d = d >> apply(StandardScaler).stdscl
-                                d = ch(d, storages, storage_to_be_updated)
-                                d = d >> apply(StandardScaler.fit_transform, _.stdscl)("X")
-                                d = ch(d, storages, storage_to_be_updated)
-                                d = d >> apply(lambda X, X00: DataFrame(X, columns=X00.columns))("X")
-                                d = ch(d, storages, storage_to_be_updated)
                             for __, __, __, __, __ in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
                                 d = d >> apply(cross_val_predict, _.alg)(predictions_field)
                                 d = ch(d, storages, storage_to_be_updated)

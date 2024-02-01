@@ -27,7 +27,9 @@ algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc, "Sc": Stackin
 
 # exp, id = "species34_c_section", "?????????"  # EBF
 # exp, id = "species2_ibq_dura_t3", "cCBOLRIkm-3-IMxKoGS2gZWMKkyR.4ESmy98.2a6"  # cognition
-exp, id = "species1_bayley_8_t2", "VlO7LNaCcSEZeZVMJN8Dis3XuzwS7PiqW7mSlgs1"  # cognition 2024-01-31
+# exp, id = "species1_bayley_8_t2", "j5Ozefslxxz7JQaj0rsFH1yMf7A3zu-o9.jsrK4N"  # cognition 2024-01-31
+exp, id = "species1_bayley_8_t2", "NpTduAvbpLJzdeHV-B9Ina-NtML0VfukUxeAeHKu"  # cognition 2024-02-01
+# exp, id = "species2_bayley_8_t2", "Vs6YyL50-nbkIg-Y9USPJBdVVS-qDfVFg5Nxoqaq"  # cognition 2024-02-01
 div = 3
 with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_uri, ondup="skip") as near_storage, sopen(remote_cache_uri, ondup="skip") as remote_storage, sopen(schedule_uri) as db):
     storages = {
@@ -38,7 +40,8 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
     d = hdict.load(id, local_storage)
     d.show()
 
-    d["X"] = _[f"X_{exp}"]
+    Xalg = next(k for k, v in d.items() if k.startswith(f"X_{exp}"))
+    d["X"] = _[Xalg]
     d["y"] = _[f"y_{exp}"]
     d["yor"] = _[f"yor_{exp}"]
     d["y"] = d.y.to_numpy()
