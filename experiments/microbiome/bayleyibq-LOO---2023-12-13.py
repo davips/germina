@@ -6,6 +6,7 @@ from sys import argv
 
 import dalex as dx
 import numpy as np
+import pandas as pd
 from argvsucks import handle_command_line
 from lightgbm import LGBMClassifier as LGBMc
 from mlxtend.classifier import Perceptron
@@ -43,7 +44,7 @@ algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc,
 if __name__ == '__main__':
     load = argv[argv.index("load") + 1] if "load" in argv else False
     __ = enable_iterative_imputer
-    dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="", measures=list, algs=list, loo=False, div=int, depth=int)
+    dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="", measures=list, algs=list, loo=False, div=int, depth=int, dataset=False)
     print(datetime.now())
     pprint(dct, sort_dicts=False)
     print()
@@ -121,6 +122,12 @@ if __name__ == '__main__':
                     d = get_balance(d, storages, storage_to_be_updated, verbose=True)
                     d[f"y_{field}_{target_var}"] = _.y
                     print(f"X_{field}_{target_var}", f"y_{field}_{target_var}")
+
+                    if dct["dataset"]:
+                        o = f"dataset_{field}"
+                        d.apply(lambda X, y: pd.concat([X, y], axis=1), out=o)
+                        d = ch(d, storages, storage_to_be_updated)
+                        d[o].to_csv(f"/home/davi/git/germina/results/{o}_{target_var}.csv")
 
                     d["X00"] = _.X
                     algsdct = {k: algs["kNN" if k.endswith("-NN") else k] for k in d.algs}

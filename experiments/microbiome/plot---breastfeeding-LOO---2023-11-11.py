@@ -11,10 +11,12 @@ from sklearn.decomposition import PCA
 from sklearn.dummy import DummyClassifier
 from sklearn.ensemble import ExtraTreesClassifier as ETc, StackingClassifier, VotingClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import Perceptron
+from sklearn.linear_model import Perceptron, LogisticRegression
 from sklearn.manifold import MDS, TSNE
 from sklearn.metrics import ConfusionMatrixDisplay
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 
 from germina.config import local_cache_uri, near_cache_uri, remote_cache_uri, schedule_uri
@@ -23,7 +25,12 @@ from hdict import hdict, _, apply
 from sortedness.embedding.sortedness_ import balanced_embedding, balanced_embedding_
 
 warnings.filterwarnings('ignore')
-algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc, "Sc": StackingClassifier, "MVc": VotingClassifier, "hardMVc": VotingClassifier, "CART": DecisionTreeClassifier, "Perceptron": Perceptron, "Dummy": DummyClassifier}
+# RFc,LGBMc,ETc,prunedRFc,prunedLGBMc,prunedETc,SVC,CART,1-NN,5-NN,25-NN,LR
+algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc,
+        "prunedRFc": RandomForestClassifier, "prunedLGBMc": LGBMc, "prunedETc": ETc,
+        "SVC": SVC, "kNN": KNeighborsClassifier, "LR": LogisticRegression,
+        "Sc": StackingClassifier, "MVc": VotingClassifier, "hardMVc": VotingClassifier,
+        "CART": DecisionTreeClassifier, "Perceptron": Perceptron, "Dummy": DummyClassifier}
 
 # exp, id = "species34_c_section", "?????????"  # EBF
 # exp, id = "species2_ibq_dura_t3", "cCBOLRIkm-3-IMxKoGS2gZWMKkyR.4ESmy98.2a6"  # cognition
@@ -33,7 +40,7 @@ exp, id = "species1_bayley_8_t2", "NpTduAvbpLJzdeHV-B9Ina-NtML0VfukUxeAeHKu"  # 
 div = 3
 with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_uri, ondup="skip") as near_storage, sopen(remote_cache_uri, ondup="skip") as remote_storage, sopen(schedule_uri) as db):
     storages = {
-        "remote": remote_storage,
+        # "remote": remote_storage,
         "near": near_storage,
         "local": local_storage,
     }
@@ -61,7 +68,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
     neg = neu if div == 2 else (d.y == -1)
 
     #################################################################################################################
-    # Confusion Matrix
+    print("Confusion Matrix")
     #################################################################################################################
     predictions = {}
     algs = {k: algs[k] for k in d.algs}
@@ -89,6 +96,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
     #################################################################################################################
     scores, pvals = {}, {}
     for measure in d.measures:
+        print("measure", measure)
         scores[measure] = {}
         pvals[measure] = {}
         for algname in d.algs:
