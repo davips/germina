@@ -254,16 +254,18 @@ def bbb(predictparts, values_accumulator):
 def start_reses(res, measure, res_importances):
     res = res.copy()
     res_importances = res_importances.copy()
-    res[measure] = {"description": [], "score": [], "p-value": []}
+    # res[measure] = {"description": [], "score": [], "p-value": []}
+    res[measure] = {"description": [], "alg": [], "score": [], "p-value": []}
     res_importances[measure] = {"description": [], "variable": [], "shap_mean": [], "shap_std": [], "shap_p-value": [], "values_shaps": {}}
     return res, res_importances
 
 
-def ccc(scoring, res, field, d_score, target_var, d_pval):
+def ccc(scoring, res, field, alg_name, d_score, target_var, d_pval):
     if isinstance(scoring, _ProbaScorer):
         scoring = "average_precision_score"
     res = copy.deepcopy(res)
     res[scoring]["description"].append(f"{field}-{target_var}-{scoring}")
+    res[scoring]["alg"].append(alg_name)
     res[scoring]["score"].append(d_score)
     res[scoring]["p-value"].append(d_pval)
     print(f"{scoring:20} (p-value):\t{d_score:.4f} ({d_pval:.4f})", flush=True)

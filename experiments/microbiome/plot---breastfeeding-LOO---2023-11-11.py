@@ -35,9 +35,8 @@ algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc,
 # exp, id = "species34_c_section", "?????????"  # EBF
 # exp, id = "species2_ibq_dura_t3", "cCBOLRIkm-3-IMxKoGS2gZWMKkyR.4ESmy98.2a6"  # cognition
 # exp, id = "species1_bayley_8_t2", "j5Ozefslxxz7JQaj0rsFH1yMf7A3zu-o9.jsrK4N"  # cognition 2024-01-31
-exp, id = "species1_bayley_8_t2", "NpTduAvbpLJzdeHV-B9Ina-NtML0VfukUxeAeHKu"  # cognition 2024-02-01
+exp, id = "species1_bayley_8_t2", "-MNNugRK3ETRd5zrf6fxSxp9XCfMfrGiDX08rvP0"  # cognition 2024-02-01
 # exp, id = "species2_bayley_8_t2", "Vs6YyL50-nbkIg-Y9USPJBdVVS-qDfVFg5Nxoqaq"  # cognition 2024-02-01
-div = 3
 with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_uri, ondup="skip") as near_storage, sopen(remote_cache_uri, ondup="skip") as remote_storage, sopen(schedule_uri) as db):
     storages = {
         # "remote": remote_storage,
@@ -47,32 +46,35 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
     d = hdict.load(id, local_storage)
     d.show()
 
+    print("Traverse hdict")
     Xalg = next(k for k, v in d.items() if k.startswith(f"X_{exp}"))
     d["X"] = _[Xalg]
     d["y"] = _[f"y_{exp}"]
     d["yor"] = _[f"yor_{exp}"]
     d["y"] = d.y.to_numpy()
+
+    print("Standard Scaler")
     d.apply(StandardScaler, out="stsc")
     d.apply(StandardScaler.fit_transform, _.stsc, out="X")
-    # d.apply(PCA, out="pca")
-    # d.apply(PCA.fit_transform, _.pca, out="X")
+    d.apply(PCA, out="pca")
+    d.apply(PCA.fit_transform, _.pca, out="X")
     # d.apply(MDS, out="mds")
     # d.apply(MDS.fit_transform, _.mds, out="X")
     # d.apply(balanced_embedding, out="X")
-    d.apply(balanced_embedding_, out="X")
+    # d.apply(balanced_embedding_, out="X")
     d.apply(MinMaxScaler, out="mmsc")
     d.apply(MinMaxScaler.fit_transform, _.mmsc, out="X")
     d = ch(d, storages, to_be_updated="")
     pos = d.y == 1
     neu = d.y == 0
-    neg = neu if div == 2 else (d.y == -1)
+    neg = neu if d.div == 2 else (d.y == -1)
 
     #################################################################################################################
     print("Confusion Matrix")
     #################################################################################################################
     predictions = {}
-    algs = {k: algs[k] for k in d.algs}
-    for algname, algclass in algs.items():
+    algsdct = {k: algs["kNN" if k.endswith("-NN") else k] for k in d.algs}
+    for algname, algclass in algsdct.items():
         print(algname)
         predictions[algname] = d[f"{exp}_{algname}_predictions"]
 
@@ -86,9 +88,10 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         d.apply(lambda model_tr: model_tr.classes_, out="display_labels")
         d.apply(ConfusionMatrixDisplay.from_estimator, _.model_tr, out="cm_tr")
         d.apply(ConfusionMatrixDisplay.from_predictions, y_true=_.y, y_pred=_[f"{exp}_{algname}_predictions"], out="cm_ts")
-        # d.cm_tr.plot()
-        # d.cm_ts.plot()
-    plt.show()
+        d.cm_tr.plot()
+        d.cm_ts.plot()
+        plt.title(algname)
+        plt.show()
     # exit()
 
     #################################################################################################################
@@ -144,8 +147,11 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         ################## ################## ################## ################## ################## ##################
         prev = None
         for algname in d.algs:
+            print(algname)
             y_ = predictions[algname]
-            for tgt, cm in zip(range(3), ["Reds", "Grays", "Blues"]):
+            for tgt, cm in zip(range(d.div), ["Reds", "Grays", "Blues"]):
+                if d.div == 2 and cm == "Grays":
+                    cm = "Blues"
                 print("target", tgt)
                 ax = plt.subplot(1, 3, tgt + 1, sharex=prev, sharey=prev)
                 prev = ax
@@ -153,11 +159,10 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                 idxmiss = (d.y != y_) & (d.y == tgt)
                 Xh, yorh = d.X[idxhit], d.yor[idxhit]
                 Xm, yorm = d.X[idxmiss], d.yor[idxmiss]
-                print(yorm)
                 norm = plt.Normalize(min(yorh), max(yorh))
                 cmap = mtl.colormaps[cm]
                 cols = cmap(norm(yorh))
-                a = ax.scatter(Xh[:, 0], Xh[:, 1], label=f"hit class {tgt}", s=100, alpha=.9, facecolors='none', edgecolors=cols)
+                # a = ax.scatter(Xh[:, 0], Xh[:, 1], label=f"hit class {tgt}", s=100, alpha=.9, facecolors='none', edgecolors=cols)
                 b = ax.scatter(Xm[:, 0], Xm[:, 1], c=yorm, label=f"miss class {tgt}", s=100, marker="x", alpha=.9, cmap=cmap)
                 ax.set_xlim([0.0, 1.0])
                 ax.set_ylim([0.0, 1.0])

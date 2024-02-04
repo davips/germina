@@ -35,9 +35,9 @@ from germina.runner import ch
 from hdict import hdict, apply, _
 
 warnings.filterwarnings('ignore')
-# RFc,LGBMc,ETc,prunedRFc,prunedLGBMc,prunedETc,SVC,CART,1-NN,5-NN,25-NN,LR
+# RFc,LGBMc,ETc,prunedRFc,prunedLGBMc,prunedETc,prunedCART,SVC,CART,1-NN,5-NN,25-NN,LR
 algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc,
-        "prunedRFc": RandomForestClassifier, "prunedLGBMc": LGBMc, "prunedETc": ETc,
+        "prunedRFc": RandomForestClassifier, "prunedLGBMc": LGBMc, "prunedETc": ETc, "prunedCART": DecisionTreeClassifier,
         "SVC": SVC, "kNN": KNeighborsClassifier, "LR": LogisticRegression,
         "Sc": StackingClassifier, "MVc": VotingClassifier, "hardMVc": VotingClassifier,
         "CART": DecisionTreeClassifier, "Perceptron": Perceptron, "Dummy": DummyClassifier}
@@ -133,6 +133,7 @@ if __name__ == '__main__':
                     algsdct = {k: algs["kNN" if k.endswith("-NN") else k] for k in d.algs}
                     for alg_name, alg in algsdct.items():
                         print(alg_name, "<<<<<<<<<<<<<<<<<")
+                        d["alg_name"] = alg_name
 
                         d["X"] = _.X00
                         if alg_name[-2:] in ["VC", "NN", "LR"]:
@@ -153,7 +154,7 @@ if __name__ == '__main__':
                         elif alg_name.endswith("-NN"):
                             d["n_neighbors"] = int(alg_name.split("-")[0])
 
-                        if alg_name == "LR":
+                        if alg_name == "LR" and "max_iter" in d:
                             del d["max_iter"]
                         else:
                             d["max_iter"] = _.max_iter0
@@ -297,10 +298,7 @@ if __name__ == '__main__':
         print()
         dfmodel = DataFrame(d.res[m])
         dfmodel.rename(columns={"p-value": "model_p-value"}, inplace=True)
-        dfmodel[["type-age", "target_var", "measure"]] = dfmodel["description"].str.split('-', expand=True)
-        dfmodel["age"] = dfmodel["type-age"].str.slice(-2)
-        dfmodel["type"] = dfmodel["type-age"].str.slice(0, -2)
-        del dfmodel["type-age"]
+        dfmodel[["input", "target_var", "measure"]] = dfmodel["description"].str.split('-', expand=True)
         dfmodel.sort_values("score", ascending=False, inplace=True)
         dfmodel.rename(columns={"score": m}, inplace=True)
         dfmodel.to_csv(f"/home/davi/git/germina/results/model-performance-{m}-trees={d.n_estimators}-perms={d.n_permutations}-{d.id}--LOO.csv")
@@ -312,8 +310,6 @@ if __name__ == '__main__':
         df = dfbig.merge(dfmodel, on="description", how="left")
         for descr in df["description"].unique():
             subdf = df[df["description"] == descr]
-            del subdf["type"]
-            del subdf["age"]
             del subdf["measure"]
             del subdf[m]
             del subdf["description"]
@@ -322,10 +318,10 @@ if __name__ == '__main__':
         print("++++++++++++++++++++++++++++++++++++++++++++++")
         print()
 
-        df["TargetOrientedSHAP"] = np.where(df["target"] == 1, df["SHAP"], -df["SHAP"])
-        grouped = df.groupby(["target_var", "age", "type", "measure", "variable"]).agg({
-            "TargetOrientedSHAP": [lambda x: np.mean(x), lambda x: np.std(x), lambda x: stats.ttest_1samp(x, popmean=0, alternative="greater")[1]],
-            "SHAP": ["min", "max"],
+        df["TargetOrientedSHAP__mean_std_p-value"] = np.where(df["target"] == 1, df["SHAP"], -df["SHAP"])
+        grouped = df.groupby(["target_var", "input", "alg", "measure", "variable"]).agg({
+            "TargetOrientedSHAP__mean_std_p-value": [lambda x: np.mean(x), lambda x: np.std(x), lambda x: stats.ttest_1samp(x, popmean=0, alternative="greater")[1]],
+            "SHAP": ["max", "min", "mean", "std"],
             'value': ['mean', 'std'],
             "model_p-value": ["first"],
         })
