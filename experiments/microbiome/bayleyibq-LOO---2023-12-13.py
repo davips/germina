@@ -15,6 +15,7 @@ from scipy import stats
 from shelchemy import sopen
 from shelchemy.scheduler import Scheduler
 from sklearn import clone
+from sklearn.decomposition import PCA
 from sklearn.dummy import DummyClassifier
 from sklearn.ensemble import ExtraTreesClassifier as ETc, StackingClassifier, VotingClassifier
 from sklearn.ensemble import RandomForestClassifier
@@ -44,7 +45,7 @@ algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc,
 if __name__ == '__main__':
     load = argv[argv.index("load") + 1] if "load" in argv else False
     __ = enable_iterative_imputer
-    dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="", measures=list, algs=list, loo=False, div=int, depth=int, dataset=False)
+    dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="", measures=list, algs=list, loo=False, div=int, depth=int, dataset=False, pc=int)
     print(datetime.now())
     pprint(dct, sort_dicts=False)
     print()
@@ -64,7 +65,8 @@ if __name__ == '__main__':
         n_splits=5,
         shuffle=True,
         index="id_estudo", join="inner", n_jobs=20, return_name=False, deterministic=True, force_row_wise=True,
-        osf_filename="germina-osf-request---davi121023"
+        osf_filename="germina-osf-request---davi121023",
+        pc=dct["pc"]
     )
     cfg = hdict(d)
     for noncfg in ["index", "join", "n_jobs", "return_name", "osf_filename"]:
@@ -136,13 +138,22 @@ if __name__ == '__main__':
                         d["alg_name"] = alg_name
 
                         d["X"] = _.X00
-                        if alg_name[-2:] in ["VC", "NN", "LR"]:
+                        if d.pc > 0 or alg_name[-2:] in ["VC", "NN", "LR"]:
                             d = d >> apply(StandardScaler).stdscl
                             d = ch(d, storages, storage_to_be_updated)
                             d = d >> apply(StandardScaler.fit_transform, _.stdscl)("X")
                             d = ch(d, storages, storage_to_be_updated)
                             d = d >> apply(lambda X, X00: DataFrame(X, columns=X00.columns))("X")
                             d = ch(d, storages, storage_to_be_updated)
+                        if d.pc > 0:
+                            d["n_components"] = d.pc
+                            d = d >> apply(PCA).pca
+                            d = ch(d, storages, storage_to_be_updated)
+                            d = d >> apply(PCA.fit_transform, _.pca)("X")
+                            d = ch(d, storages, storage_to_be_updated)
+                            d = d >> apply(lambda X: DataFrame(X))("X")
+                            d = ch(d, storages, storage_to_be_updated)
+
                         d[f"X_{field}_{target_var}_{alg_name}"] = _.X
                         loo = LeaveOneOut()
                         runs = list(loo.split(d.X))
@@ -195,7 +206,7 @@ if __name__ == '__main__':
                             score_field, permscores_field, pval_field = f"{prefix}_score", f"{prefix}_permscores", f"{prefix}_pval"
                             predictions_field = f"{field}_{target_var}_{alg_name}_predictions"
 
-                            tasks = [(field, target_var, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}_{d.div}_{dct['pvalruns']}{'d' + str(dct['depth']) if 'depth' in dct else ''}")]
+                            tasks = [(field, target_var, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}_{d.div}_{dct['pvalruns']}{'d' + str(dct['depth']) if 'depth' in dct else ''}pc={d.pc}")]
                             print(f"Starting {field}_{target_var}_{m}  ...", d.id)
                             for __, __, __, __, __ in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
                                 d = d >> apply(cross_val_predict, _.alg)(predictions_field)
@@ -212,7 +223,7 @@ if __name__ == '__main__':
                             # LOO shaps @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
                             if not loo_flag:
                                 continue
-                            tasks = zip(repeat((field, target_var, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}_{d.div}{'d' + str(dct['depth']) if 'depth' in dct else ''}")), range(len(runs)))
+                            tasks = zip(repeat((field, target_var, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}_{d.div}{'d' + str(dct['depth']) if 'depth' in dct else ''}pc={d.pc}")), range(len(runs)))
                             # d["contribs_accumulator"] = d["values_accumulator"] = None
                             print()
                             for (fi, pa, vi, __, __), i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
