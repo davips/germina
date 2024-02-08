@@ -138,6 +138,8 @@ def clean_for_dalex(d, storages, storage_to_be_updated, verbose=False, target="E
     d = d >> apply(lambda df, tgt: df.drop([tgt], axis=1), tgt=target).X0
     d = d >> apply(lambda X0: [col.replace("[", "").replace("]", "").replace("<", "").replace(" ", "_").replace(":", "_").replace(".", "_").replace("-", "_").replace("(", "").replace(")", "").replace("{", "").replace("}", "").replace(";", "").replace(",", "") for col in X0.columns]).Xcols
     d = d >> apply(lambda X0, Xcols: X0.rename(columns=dict(zip(X0.columns, Xcols)))).X
+    d["Xor"] = _.X
+    d = d >> apply(lambda df, tgt: df[tgt], tgt=target).yor
     if alias == "EBF":
         d = d >> apply(lambda X: pd.get_dummies(X["delivery_mode"])["vaginal"].astype(int)).delivery_mode
         d = d >> apply(join, df=_.X, other=_.delivery_mode).X

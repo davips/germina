@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from argvsucks import handle_command_line
 from lightgbm import LGBMClassifier as LGBMc
+from lightgbm import LGBMRegressor as LGBMr
 from mlxtend.classifier import Perceptron
 from pandas import DataFrame
 from scipy import stats
@@ -21,6 +22,7 @@ from sklearn.ensemble import ExtraTreesClassifier as ETc, StackingClassifier, Vo
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.linear_model import LogisticRegression
+from sklearn.manifold import MDS
 from sklearn.metrics import average_precision_score, make_scorer
 from sklearn.model_selection import LeaveOneOut, permutation_test_score, StratifiedKFold, cross_val_predict
 from sklearn.neighbors import KNeighborsClassifier
@@ -31,7 +33,7 @@ from sklearn.tree import DecisionTreeClassifier
 
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.dataset import join
-from germina.loader import load_from_csv, clean_for_dalex, get_balance, start_reses, ccc, aaa, bbb
+from germina.loader import load_from_csv, clean_for_dalex, get_balance, start_reses, ccc, aaa, bbb, cut
 from germina.runner import ch
 from hdict import hdict, apply, _
 
@@ -45,7 +47,7 @@ algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc,
 if __name__ == '__main__':
     load = argv[argv.index("load") + 1] if "load" in argv else False
     __ = enable_iterative_imputer
-    dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="", measures=list, algs=list, loo=False, div=int, depth=int, dataset=False, pc=int)
+    dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="", measures=list, algs=list, loo=False, div=int, depth=int, dataset=False, datasetr=False, pc=int, md=int, noage=False, reg=False)
     print(datetime.now())
     pprint(dct, sort_dicts=False)
     print()
@@ -66,7 +68,10 @@ if __name__ == '__main__':
         shuffle=True,
         index="id_estudo", join="inner", n_jobs=20, return_name=False, deterministic=True, force_row_wise=True,
         osf_filename="germina-osf-request---davi121023",
-        pc=dct["pc"]
+        pc=dct["pc"],
+        md=dct["md"],
+        noage=dct["noage"],
+        reg=dct["reg"]
     )
     cfg = hdict(d)
     for noncfg in ["index", "join", "n_jobs", "return_name", "osf_filename"]:
@@ -113,6 +118,15 @@ if __name__ == '__main__':
                     d = d >> apply(join, df=_.osf, other=_[field]).df
                     d = ch(d, storages, storage_to_be_updated)
 
+                    if d.noage:
+                        if "idade_crianca_dias_t1" in d.df:
+                            d.apply(lambda df: df.drop(["idade_crianca_dias_t1"], axis=1), out="df")
+                        if "idade_crianca_dias_t2" in d.df:
+                            d.apply(lambda df: df.drop(["idade_crianca_dias_t2"], axis=1), out="df")
+                        if "idade_crianca_dias_t3" in d.df:
+                            d.apply(lambda df: df.drop(["idade_crianca_dias_t3"], axis=1), out="df")
+                        d = ch(d, storages, storage_to_be_updated)
+
                     d = clean_for_dalex(d, storages, storage_to_be_updated, field, target=d.target_var, alias=d.target_var, keep=d.cols, field=field)
                     d = d >> apply(lambda X: X.copy(deep=True)).X0
                     d = d >> apply(lambda y: y.copy(deep=True)).y0
@@ -131,6 +145,12 @@ if __name__ == '__main__':
                         d = ch(d, storages, storage_to_be_updated)
                         d[o].to_csv(f"/home/davi/git/germina/results/{o}_{target_var}.csv")
 
+                    if dct["datasetr"]:
+                        o = f"datasetr_{field}"
+                        d.apply(lambda Xor, yor: pd.concat([Xor, yor], axis=1), out=o)
+                        d = ch(d, storages, storage_to_be_updated)
+                        d[o].to_csv(f"/home/davi/git/germina/results/{o}_{target_var}.csv")
+
                     d["X00"] = _.X
                     algsdct = {k: algs["kNN" if k.endswith("-NN") else k] for k in d.algs}
                     for alg_name, alg in algsdct.items():
@@ -138,7 +158,7 @@ if __name__ == '__main__':
                         d["alg_name"] = alg_name
 
                         d["X"] = _.X00
-                        if d.pc > 0 or alg_name[-2:] in ["VC", "NN", "LR"]:
+                        if d.pc > 0 or d.md > 0 or alg_name[-2:] in ["VC", "NN", "LR"]:
                             d = d >> apply(StandardScaler).stdscl
                             d = ch(d, storages, storage_to_be_updated)
                             d = d >> apply(StandardScaler.fit_transform, _.stdscl)("X")
@@ -151,7 +171,15 @@ if __name__ == '__main__':
                             d = ch(d, storages, storage_to_be_updated)
                             d = d >> apply(PCA.fit_transform, _.pca)("X")
                             d = ch(d, storages, storage_to_be_updated)
-                            d = d >> apply(lambda X: DataFrame(X))("X")
+                            d = d >> apply(lambda X: DataFrame(X, columns=[str(i) for i in range(X.shape[1])]))("X")
+                            d = ch(d, storages, storage_to_be_updated)
+                        if d.md > 0:
+                            d["n_components"] = d.md
+                            d = d >> apply(MDS).mds
+                            d = ch(d, storages, storage_to_be_updated)
+                            d = d >> apply(MDS.fit_transform, _.mds)("X")
+                            d = ch(d, storages, storage_to_be_updated)
+                            d = d >> apply(lambda X: DataFrame(X, columns=[str(i) for i in range(X.shape[1])]))("X")
                             d = ch(d, storages, storage_to_be_updated)
 
                         d[f"X_{field}_{target_var}_{alg_name}"] = _.X
@@ -206,11 +234,18 @@ if __name__ == '__main__':
                             score_field, permscores_field, pval_field = f"{prefix}_score", f"{prefix}_permscores", f"{prefix}_pval"
                             predictions_field = f"{field}_{target_var}_{alg_name}_predictions"
 
-                            tasks = [(field, target_var, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}_{d.div}_{dct['pvalruns']}{'d' + str(dct['depth']) if 'depth' in dct else ''}pc={d.pc}")]
+                            tasks = [(field, target_var, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}_{d.div}_{dct['pvalruns']}{'d' + str(dct['depth']) if 'depth' in dct else ''}pc={d.pc}md={d.md}")]
                             print(f"Starting {field}_{target_var}_{m}  ...", d.id)
                             for __, __, __, __, __ in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
                                 d = d >> apply(cross_val_predict, _.alg)(predictions_field)
                                 d = ch(d, storages, storage_to_be_updated)
+
+                                print(" hit miss <<<<<<<<<<<<<<<<")
+                                for yr, h in zip(d.yor, d[predictions_field] == d.y):
+                                    print(f"{yr},{int(h)}")
+                                print()
+                                continue
+
                                 d = d >> apply(permutation_test_score, _.alg)(score_field, permscores_field, pval_field)
                                 d = ch(d, storages, storage_to_be_updated)
                                 d = d >> apply(ccc, d_score=_[score_field], d_pval=_[pval_field]).res
@@ -223,7 +258,7 @@ if __name__ == '__main__':
                             # LOO shaps @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
                             if not loo_flag:
                                 continue
-                            tasks = zip(repeat((field, target_var, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}_{d.div}{'d' + str(dct['depth']) if 'depth' in dct else ''}pc={d.pc}")), range(len(runs)))
+                            tasks = zip(repeat((field, target_var, f"{vif=}", m, f"trees={d.n_estimators}_{alg_name}_{d.div}{'d' + str(dct['depth']) if 'depth' in dct else ''}pc={d.pc}md={d.md}")), range(len(runs)))
                             # d["contribs_accumulator"] = d["values_accumulator"] = None
                             print()
                             for (fi, pa, vi, __, __), i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
