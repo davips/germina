@@ -240,11 +240,11 @@ if __name__ == '__main__':
                                 d = d >> apply(cross_val_predict, _.alg)(predictions_field)
                                 d = ch(d, storages, storage_to_be_updated)
 
-                                print(" hit miss <<<<<<<<<<<<<<<<")
-                                for yr, h in zip(d.yor, d[predictions_field] == d.y):
-                                    print(f"{yr},{int(h)}")
-                                print()
-                                continue
+                                # print(" hit miss <<<<<<<<<<<<<<<<")
+                                # for yr, h in zip(d.yor, d[predictions_field]):
+                                #     print(f"{int(h)}")
+                                # print()
+                                # continue
 
                                 d = d >> apply(permutation_test_score, _.alg)(score_field, permscores_field, pval_field)
                                 d = ch(d, storages, storage_to_be_updated)
