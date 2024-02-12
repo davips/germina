@@ -1,26 +1,10 @@
-from pprint import pprint
-
-from lightgbm import LGBMClassifier as LGBMc, LGBMRegressor as LGBMr
-import pandas as pd
-from lange import ap, gp
-from matplotlib import pyplot as plt
-from pandas import read_csv, DataFrame
-from sklearn.decomposition import PCA
-from sklearn.manifold import MDS
-from sklearn.model_selection import permutation_test_score, LeaveOneOut, StratifiedKFold
-from xgboost import XGBClassifier
-import numpy as np
-
-from itertools import product
-
 import matplotlib.pyplot as plt
-
-from sklearn import datasets
-from sklearn.ensemble import VotingClassifier
+import numpy as np
+import pandas as pd
+from lightgbm import LGBMClassifier as LGBMc
+from pandas import read_csv
 from sklearn.inspection import DecisionBoundaryDisplay
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import SVC
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.manifold import MDS
 
 n_wrongmodels = [np.array([0])] * 3
 n_wrongmodels[1] = np.array([(5.3 * (float(v) + 1)) ** 1.43 for v in """5
@@ -575,6 +559,7 @@ for sp in [1, 2]:
     age = df["idade_crianca_dias_t2"]
     yr = df["bayley_8_t2"]
 
+    # TODO: n_wrongmodels for scale-based splits
     # hiidx = df.index[yr >= 100.0]  # non arbitrary scale-based
     # loidx = df.index[yr < 100.0]
     # hiidx = df.index[yr >= 107.5]  # scale-based
@@ -583,41 +568,21 @@ for sp in [1, 2]:
     loidx = df.index[yr <= 99.06]
 
     print("sp:", sp, "balance:", len(loidx), len(hiidx))
-    X = pd.concat([df.loc[loidx], df.loc[hiidx]])
-    del X["bayley_8_t2"]
+    X0 = pd.concat([df.loc[loidx], df.loc[hiidx]])
+    del X0["bayley_8_t2"]
     # del X["idade_crianca_dias_t2"]
     hiy = yr[hiidx].astype(int) * 0 + 1
     loy = yr[loidx].astype(int) * 0
     y = pd.concat([loy, hiy])
-    X = MDS(random_state=0).fit_transform(X)
+    X = MDS(random_state=0).fit_transform(X0)
 
-    # Training classifiers ###################################################
-    # clf1 = DecisionTreeClassifier(max_depth=4)
-    # clf2 = KNeighborsClassifier(n_neighbors=7)
-    # clf3 = SVC(gamma=0.1, kernel="rbf", probability=True)
-    # eclf = VotingClassifier(
-    #     estimators=[("dt", clf1), ("knn", clf2), ("svc", clf3)],
-    #     voting="soft",
-    #     weights=[2, 1, 2],
-    # )
-    # clf1.fit(X, y)
-    # clf2.fit(X, y)
-    # clf3.fit(X, y)
-    # eclf.fit(X, y)
-
-    # clfs = [clf1, clf2, clf3, eclf]
-    # f, axarr = plt.subplots(2, 2, sharex="col", sharey="row", figsize=(10, 8))
-    clfs = [LGBMc(n_estimators=64, n_jobs=8).fit(X, y)]
+    clf = LGBMc(n_estimators=64, n_jobs=8).fit(X, y)  # TODO: train on all variables (X0)
     f, axarr = plt.subplots(1, 1, sharex="col", sharey="row", figsize=(10, 8))
 
-    for idx, clf, tt in zip(product([0, 1], [0, 1]), clfs, ["LGBM", "Decision Tree (depth=4)", "KNN (k=7)", "Kernel SVM", "Soft Voting"], ):
-        # DecisionBoundaryDisplay.from_estimator(clf, X, alpha=0.4, ax=axarr[idx[0], idx[1]], response_method="predict")
-        # axarr[idx[0], idx[1]].scatter(X[:, 0], X[:, 1], c=y, s=20, edgecolor="k")
-        # axarr[idx[0], idx[1]].set_title(tt)
-        DecisionBoundaryDisplay.from_estimator(clf, X, alpha=0.4, ax=axarr, response_method="predict")
-        b = y.astype(bool)
-        axarr.scatter(X[b, 0], X[b, 1], label="High", c="green", s=n_wrongmodels[sp][b], edgecolor="k", alpha=0.6)
-        axarr.scatter(X[~b, 0], X[~b, 1], label="Low", c="purple", s=n_wrongmodels[sp][~b], edgecolor="k", alpha=0.6)
-        axarr.set_title(f"Decision Boundary for LightGBM classifier T{sp}. Size: # of models missing the target")
+    DecisionBoundaryDisplay.from_estimator(clf, X, alpha=0.4, ax=axarr, response_method="predict")
+    b = y.astype(bool)
+    axarr.scatter(X[b, 0], X[b, 1], label="High", c="green", s=n_wrongmodels[sp][b], edgecolor="k", alpha=0.6)
+    axarr.scatter(X[~b, 0], X[~b, 1], label="Low", c="purple", s=n_wrongmodels[sp][~b], edgecolor="k", alpha=0.6)
+    axarr.set_title(f"Decision Boundary for LightGBM classifier T{sp}. Size: # of models missing the target")
     plt.legend()
     plt.show()
