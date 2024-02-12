@@ -246,6 +246,12 @@ if __name__ == '__main__':
                                 # print()
                                 # continue
 
+                                # print(" MDS <<<<<<<<<<<<<<<<")
+                                # for x in MDS(random_state=0).fit_transform(d.X):
+                                #     print(f"{','.join(str(x) for x in x.tolist())}")
+                                # print()
+                                # continue
+
                                 d = d >> apply(permutation_test_score, _.alg)(score_field, permscores_field, pval_field)
                                 d = ch(d, storages, storage_to_be_updated)
                                 d = d >> apply(ccc, d_score=_[score_field], d_pval=_[pval_field]).res
