@@ -1,11 +1,15 @@
+from pprint import pprint
+
 from lightgbm import LGBMClassifier as LGBMc, LGBMRegressor as LGBMr
 import pandas as pd
 from lange import ap, gp
-from pandas import read_csv
+from matplotlib import pyplot as plt
+from pandas import read_csv, DataFrame
 from sklearn.decomposition import PCA
 from sklearn.manifold import MDS
 from sklearn.model_selection import permutation_test_score, LeaveOneOut, StratifiedKFold
 from xgboost import XGBClassifier
+import numpy as np
 
 a = [x.split("\t")[0] for x in """Veillonella_sp_T11011_6	4.6%
 Klebsiella_aerogenes	4.9%
@@ -87,8 +91,10 @@ Veillonella_parvula	54.9%
 Streptococcus_salivarius	60.2%
 Klebsiella_pneumoniae	63.4%
 Escherichia_coli	78.9%""".split("\n")]
-
+ax = axd = None
+rejcolor = "gray"
 for sp in [1, 2]:
+    scolab = f"Balanced Accuracy T{sp}"
     df = read_csv(f"/home/davi/git/germina/results/datasetr_species{sp}_bayley_8_t2.csv", index_col="id_estudo")
     # df.drop(a, axis="columns", inplace=True)
     # df.drop(b, axis="columns", inplace=True)
@@ -99,9 +105,11 @@ for sp in [1, 2]:
     age = df["idade_crianca_dias_t2"]
     yr = df["bayley_8_t2"]
 
+    # hiidx = df.index[yr >= 100.0]  # non arbitrary scale-based
+    # loidx = df.index[yr < 100.0]
     # hiidx = df.index[yr >= 107.5]  # scale-based
     # loidx = df.index[yr <= 92.5]
-    hiidx = df.index[yr >= 107.86] # sample-based
+    hiidx = df.index[yr >= 107.86]  # sample-based
     loidx = df.index[yr <= 99.06]
 
     print("sp:", sp, "balance:", len(loidx), len(hiidx))
@@ -116,42 +124,70 @@ for sp in [1, 2]:
     trees = 64
     r = {0: 0, 1: 0}
     t = r.copy()
+    lst = []
+    newindex = []
     for idx in X.index:
         X = X0.drop(idx, axis="rows")
         y = y0.drop(idx, axis="rows")
         alg = LGBMc(n_estimators=trees, n_jobs=1)
+        # alg = LGBMr(n_estimators=trees, n_jobs=1)
+        # score, permscores, pval = permutation_test_score(alg, X=X, y=y, cv=StratifiedKFold(n_splits=10), scoring="r2", n_permutations=1, n_jobs=1)
         alg.fit(X, y)
         x = X0.loc[[idx], :]
         label = y0.loc[idx]
-        prediction = alg.predict(x)
+        prediction = alg.predict(x)[0]
+        prob = np.max(alg.predict_proba(x))
+        newindex.append(idx)
+        lst.append([prob, label, prediction, int(label == prediction)])
         if prediction == label:
             r[label] += 1
         t[label] += 1
 
+    # sem "nao sei"
     acc0 = r[0] / t[0]
     acc1 = r[1] / t[1]
     score = (acc0 + acc1) / 2
-
-    # alg = LGBMr(n_estimators=trees, n_jobs=1)
-    # score, permscores, pval = permutation_test_score(alg, X=X, y=y, cv=StratifiedKFold(n_splits=10), scoring="r2", n_permutations=1, n_jobs=1)
-
     print(f"\t", trees, "score:", score, sep="\t")
+    print("---------------------")
 
-"""
-all
-(502, 80)
-sp: 1 balance: 143 141
-	1.0		64	score:	0.5422535211267606	0.5
-(440, 118)
-sp: 2 balance: 128 126
-	1.0		64	score:	0.6181102362204725	0.5
+    # continue
 
->20%
-(502, 24)
-sp: 1 balance: 143 141				64	score:	0.5316901408450704	0.5
+    # com "nao sei"
+    res = DataFrame(lst, columns=["prob", "label", "prediction", "hit"], index=newindex)
+    # print(res)
+    lst = []
+    for rejection_width in ap[0.01, 0.02, ..., 1]:
+        res2 = res[abs(res["prob"] - 0.5) > rejection_width / 2]
+        n = len(res2)
+        if res2.empty:
+            continue
 
->40%
-(502, 12)
-sp: 1 balance: 143 141				64	score:	0.5316901408450704	0.5
+        r = {0: 0, 1: 0}
+        t = r.copy()
+        for idx in res2.index:
+            re = res2.loc[idx]
+            label = re["label"]
+            if re["hit"]:
+                r[label] += 1
+            t[label] += 1
+        if 0 in t.values():
+            continue
+        acc0 = r[0] / t[0]
+        acc1 = r[1] / t[1]
+        score = (acc0 + acc1) / 2
+        # print(f"\tP>{cutoff}\t{res2.shape}\t{trees} trees score:", score, sep="\t")
+        lst.append([rejection_width, 100 * score, 100 * (len(res) - n) / len(res)])
+    nlab = f"Rejected Instances T{sp}"
+    cusco = DataFrame(lst, columns=["Rejection Width", scolab, nlab])
+    ax = cusco.plot(x="Rejection Width", y=scolab, kind="line", ax=ax, ylabel="Balanced Accuracy")
+    ax.legend(bbox_to_anchor=(0.3, 1.15))
+    if axd is None:
+        axd = ax.twinx()
+    else:
+        rejcolor = "black"
+    cusco.plot(x="Rejection Width", y=nlab, kind="line", ax=axd, c=rejcolor, ylabel="Rejected Instances (%)")
+    axd.legend(bbox_to_anchor=(1.1, 1.15))
+    print("------------------------------------------")
+    print()
 
-"""
+plt.show()
