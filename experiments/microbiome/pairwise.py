@@ -84,7 +84,6 @@ def step(df, handle_last_as_y, trees, target_variable, hstack, i):
 
         # test set
         tmp = hstack(baby, Xy_tr)
-        # TODO diff
         fltr = filter(tmp)
         pairs_Xy_ts = tmp[fltr]
         pairs_X_ts = pairs_Xy_ts[:, :-1]
@@ -152,6 +151,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         age = df["idade_crianca_dias_t2"]
 
         d = hdict(sp=sp, df=df, handle_last_as_y=handle_last_as_y, trees=trees, target_variable=targetvar, hstack=hstack)
+        d.hosh.show()
 
         for __ in (Scheduler(db, timeout=60) << [d.id]) if sched else [d.id]:
             d.apply(step, i=-1, out=("bacc_c", "bacc_r", "r2_c", "r2_r", "hits_c", "hits_r", "tot"))

@@ -15,12 +15,13 @@ def pairwise_diff(A, B, pct=False):
            [ 0.59598816,  0.25325908],
            [-0.17630855, -0.64296886]])
     """
+    B_last_col = pairwise_hstack(A, B)[:, -1:] if pct else None
     A = A[:, np.newaxis, :]
     B = B[np.newaxis, :, :]
     D = A - B
     D = D.reshape(-1, D.shape[2])
     if pct:
-        return np.hstack((D, D / B[:, -1:]))
+        return np.hstack((D, D[:, -1:] / B_last_col))
     else:
         return D
 
