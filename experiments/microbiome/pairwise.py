@@ -52,7 +52,12 @@ def interpolate_for_regression(targets, conditions):
     return np.mean(candidates)
 
 
-def substep(df, idx, z_lst_c, z_lst_r, hits_c, hits_r, tot):
+def substep(df, idx, z_lst_c, z_lst_r, hits_c, hits_r, tot, trees, delta, diff, handle_last_as_y):
+    filter = lambda tmp: (tmp[:, -1] < -delta) | (tmp[:, -1] >= delta)
+    if diff:
+        hstack = lambda a, b: pairwise_diff(a, b, pct=handle_last_as_y == "%")
+    else:
+        hstack = lambda a, b: pairwise_hstack(a, b, handle_last_as_y=handle_last_as_y)
     z_lst_c, z_lst_r = copy.deepcopy(z_lst_c), copy.deepcopy(z_lst_r)
     hits_c, hits_r = copy.deepcopy(hits_c), copy.deepcopy(hits_r)
     tot = copy.deepcopy(tot)
@@ -92,7 +97,6 @@ def substep(df, idx, z_lst_c, z_lst_r, hits_c, hits_r, tot):
 
     # interpolation
     targets = Xy_tr[fltr, -1]
-
     baby_z_c = interpolate_for_classification(targets, conditions=2 * pairs_z_ts_c - 1)
     baby_z_r = interpolate_for_regression(targets, conditions=pairs_z_ts_r)
     z_lst_c.append(baby_z_c)
@@ -107,7 +111,7 @@ def substep(df, idx, z_lst_c, z_lst_r, hits_c, hits_r, tot):
     return z_lst_c, z_lst_r, hits_c, hits_r, tot
 
 
-def step(d, db, storages, sched, df, handle_last_as_y, trees, target_variable, hstack, i):
+def step(d, db, storages, sched, df, handle_last_as_y, trees, target_variable, i):
     y = df[target_variable].to_numpy()
     hits_c, hits_r = {0: 0, 1: 0}, {0: 0, 1: 0}
     tot = {0: 0, 1: 0}
@@ -143,11 +147,6 @@ pprint(dct)
 trees, delta, pct, diff, demo, sched, perms, targetvar = dct["trees"], dct["delta"], dct["pct"], dct["diff"], dct["demo"], dct["sched"], dct["perms"], dct["targetvar"]
 rnd = np.random.default_rng(0)
 handle_last_as_y = "%" if pct else True
-filter = lambda tmp: (tmp[:, -1] < -delta) | (tmp[:, -1] >= delta)
-if diff:
-    hstack = lambda a, b: pairwise_diff(a, b, pct=handle_last_as_y == "%")
-else:
-    hstack = lambda a, b: pairwise_hstack(a, b, handle_last_as_y=handle_last_as_y)
 
 with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_uri, ondup="skip") as near_storage, sopen(remote_cache_uri, ondup="skip") as remote_storage, sopen(schedule_uri) as db):
     storages = {
@@ -162,10 +161,10 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             df = df[::15]
         age = df["idade_crianca_dias_t2"]
 
-        d = hdict(sp=sp, df=df, handle_last_as_y=handle_last_as_y, trees=trees, target_variable=targetvar, hstack=hstack)
+        d = hdict(sp=sp, df=df, handle_last_as_y=handle_last_as_y, trees=trees, target_variable=targetvar, delta=delta, diff=diff)
         d.hosh.show()
 
-        ret = step(d, db, storages, sched, df=df, handle_last_as_y=handle_last_as_y, trees=trees, target_variable=targetvar, hstack=hstack, i=1)
+        ret = step(d, db, storages, sched, df=df, handle_last_as_y=handle_last_as_y, trees=trees, target_variable=targetvar, i=1)
         if ret:
             bacc_c, bacc_r, r2_c, r2_r, hits_c, hits_r, tot = ret
             print(f"\r{sp=} {delta=} {trees=} {bacc_c=:4.3f} {bacc_r=:4.3f} {r2_c=:4.3f} {r2_r=:4.3f} {hits_c=}  {hits_r=} {tot=}\t{d.hosh.ansi}", flush=True)
@@ -175,7 +174,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         for i in ap[1, 2, ..., perms]:
             df_shuffled = df.copy()
             df_shuffled[targetvar] = rnd.permutation(df[targetvar].values)
-            ret = step(d, db, storages, sched, df=df_shuffled, handle_last_as_y=handle_last_as_y, trees=trees, target_variable=targetvar, hstack=hstack, i=i)
+            ret = step(d, db, storages, sched, df=df_shuffled, handle_last_as_y=handle_last_as_y, trees=trees, target_variable=targetvar, i=i)
             if ret:
                 bacc_c, bacc_r, r2_c, r2_r, hits_c, hits_r, tot = ret
                 scores_dct["bacc_c"].append(bacc_c)
