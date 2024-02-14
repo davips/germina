@@ -1,8 +1,10 @@
 import copy
+from functools import partial
 from itertools import repeat
 from pprint import pprint
 from sys import argv
 
+from sklearn.ensemble import ExtraTreesClassifier as ETc, ExtraTreesRegressor as ETr
 import numpy as np
 import pandas as pd
 from argvsucks import handle_command_line
@@ -12,21 +14,16 @@ from scipy.stats import ttest_1samp
 from shelchemy import sopen
 from shelchemy.scheduler import Scheduler
 from sklearn.metrics import r2_score
+from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.pairwise import pairwise_diff, pairwise_hstack
 from germina.runner import ch
 from hdict import hdict
-
-if "rf" in argv:
-    from sklearn.ensemble import RandomForestClassifier as LGBMc, RandomForestRegressor as LGBMr
-
-    # REMINDER: we are using LGBMc,LGBMr as aliases to the actual selected algorithms to avoid changing the caching of `substep()` previous results
-    rf = True
-else:
-    from lightgbm import LGBMClassifier as LGBMc, LGBMRegressor as LGBMr
-
-    rf = False
+from sklearn.ensemble import RandomForestClassifier as RFc, RandomForestRegressor as RFr
+from lightgbm import LGBMClassifier as LGBMc, LGBMRegressor as LGBMr
+from xgboost import XGBClassifier as XGBc, XGBRegressor as XGBr
 
 
 def interpolate_for_classification(targets, conditions):
@@ -62,15 +59,13 @@ def interpolate_for_regression(targets, conditions):
     return np.mean(candidates)
 
 
-def substep(df, idx, z_lst_c, z_lst_r, hits_c, hits_r, tot, trees, delta, diff, handle_last_as_y):
+def substep(df, idx, trees, delta, diff, handle_last_as_y, algname):
+    algname = "argment passed just to mark which is the algorithm"
     filter = lambda tmp: (tmp[:, -1] < -delta) | (tmp[:, -1] >= delta)
     if diff:
         hstack = lambda a, b: pairwise_diff(a, b, pct=handle_last_as_y == "%")
     else:
         hstack = lambda a, b: pairwise_hstack(a, b, handle_last_as_y=handle_last_as_y)
-    z_lst_c, z_lst_r = copy.deepcopy(z_lst_c), copy.deepcopy(z_lst_r)
-    hits_c, hits_r = copy.deepcopy(hits_c), copy.deepcopy(hits_r)
-    tot = copy.deepcopy(tot)
 
     # current baby
     baby = df.loc[[idx], :].to_numpy()
@@ -87,8 +82,8 @@ def substep(df, idx, z_lst_c, z_lst_r, hits_c, hits_r, tot, trees, delta, diff, 
     pairs_y_tr_c = (pairs_Xy_tr[:, -1] >= 0).astype(int)
     pairs_y_tr_r = pairs_Xy_tr[:, -1]
 
-    alg_c = LGBMc(n_estimators=trees, n_jobs=-1, random_state=0)
-    alg_r = LGBMr(n_estimators=trees, n_jobs=-1, random_state=0)
+    alg_c = algclass_c()
+    alg_r = algclass_r()
     alg_c.fit(pairs_X_tr, pairs_y_tr_c)
     alg_r.fit(pairs_X_tr, pairs_y_tr_r)
 
@@ -109,16 +104,8 @@ def substep(df, idx, z_lst_c, z_lst_r, hits_c, hits_r, tot, trees, delta, diff, 
     targets = Xy_tr[fltr, -1]
     baby_z_c = interpolate_for_classification(targets, conditions=2 * pairs_z_ts_c - 1)
     baby_z_r = interpolate_for_regression(targets, conditions=pairs_z_ts_r)
-    z_lst_c.append(baby_z_c)
-    z_lst_r.append(baby_z_r)
 
-    expected = int(baby_y >= 100)
-    predicted_c = int(baby_z_c >= 100)
-    predicted_r = int(baby_z_r >= 100)
-    hits_c[expected] += int(expected == predicted_c)
-    hits_r[expected] += int(expected == predicted_r)
-    tot[expected] += 1
-    return z_lst_c, z_lst_r, hits_c, hits_r, tot
+    return baby_y, baby_z_c, baby_z_r
 
 
 def step(d, db, storages, sched):
@@ -126,37 +113,72 @@ def step(d, db, storages, sched):
     hits_c, hits_r = {0: 0, 1: 0}, {0: 0, 1: 0}
     tot = {0: 0, 1: 0}
     z_lst_c, z_lst_r = [], []
-    d = d >> dict(z_lst_c=z_lst_c, z_lst_r=z_lst_r, hits_c=hits_c, hits_r=hits_r, tot=tot)
-    tasks = zip(repeat(d.id + ("_RF" if rf else "")), d.df.index)
+    tasks = zip(repeat(d.id), d.df.index)
     ansi = d.hosh.ansi
     for c, (id, idx) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
         if not sched:
-            print(f" permutation: {d.i:8}\t\t{ansi} babies: {100 * c / len(d.df):8.5f}%", end="\n", flush=True)
-        d.apply(substep, idx=idx, out=("z_lst_c", "z_lst_r", "hits_c", "hits_r", "tot"))
+            print(f"\r Permutation: {d.i:8}\t\t{ansi} babies: {100 * c / len(d.df):8.5f}%", end="", flush=True)
+        d.apply(substep, idx=idx, out=("substep"))
         d = ch(d, storages)
+        if sched:
+            continue
+
+        baby_y, baby_z_c, baby_z_r = d.substep
+        z_lst_c.append(baby_z_c)
+        z_lst_r.append(baby_z_r)
+
+        expected = int(baby_y >= 100)
+        predicted_c = int(baby_z_c >= 100)
+        predicted_r = int(baby_z_r >= 100)
+
+        hits_c[expected] += int(expected == predicted_c)
+        hits_r[expected] += int(expected == predicted_r)
+        tot[expected] += 1
+
     if sched:
         return
-    z_c = np.array(d.z_lst_c)
-    z_r = np.array(d.z_lst_r)
+    z_c = np.array(z_lst_c)
+    z_r = np.array(z_lst_r)
 
-    acc0 = d.hits_c[0] / d.tot[0]
-    acc1 = d.hits_c[1] / d.tot[1]
+    acc0 = hits_c[0] / tot[0]
+    acc1 = hits_c[1] / tot[1]
     bacc_c = (acc0 + acc1) / 2
 
-    acc0 = d.hits_r[0] / d.tot[0]
-    acc1 = d.hits_r[1] / d.tot[1]
+    acc0 = hits_r[0] / tot[0]
+    acc1 = hits_r[1] / tot[1]
     bacc_r = (acc0 + acc1) / 2
 
     r2_c = r2_score(y, z_c)
     r2_r = r2_score(y, z_r)
-    return bacc_c, bacc_r, r2_c, r2_r, d.hits_c, d.hits_r, d.tot
+    return bacc_c, bacc_r, r2_c, r2_r, hits_c, hits_r, tot
 
 
-dct = handle_command_line(argv, delta=float, trees=int, pct=False, diff=False, demo=False, sched=False, perms=1, targetvar=str)
+dct = handle_command_line(argv, delta=float, trees=int, pct=False, diff=False, demo=False, sched=False, perms=1, targetvar=str, jobs=int, alg=str, seed=0)
 pprint(dct)
-trees, delta, pct, diff, demo, sched, perms, targetvar = dct["trees"], dct["delta"], dct["pct"], dct["diff"], dct["demo"], dct["sched"], dct["perms"], dct["targetvar"]
+trees, delta, pct, diff, demo, sched, perms, targetvar, jobs, alg, seed = dct["trees"], dct["delta"], dct["pct"], dct["diff"], dct["demo"], dct["sched"], dct["perms"], dct["targetvar"], dct["jobs"], dct["alg"], dct["seed"]
 rnd = np.random.default_rng(0)
 handle_last_as_y = "%" if pct else True
+if alg == "rf":
+    algclass_c = partial(RFc, n_estimators=trees, random_state=seed, n_jobs=jobs)
+    algclass_r = partial(RFr, n_estimators=trees, random_state=seed, n_jobs=jobs)
+elif alg == "lgbm":
+    algclass_c = partial(LGBMc, n_estimators=trees, random_state=seed, n_jobs=jobs)
+    algclass_r = partial(LGBMr, n_estimators=trees, random_state=seed, n_jobs=jobs)
+elif alg == "et":
+    algclass_c = partial(ETc, n_estimators=trees, random_state=seed, n_jobs=jobs)
+    algclass_r = partial(ETr, n_estimators=trees, random_state=seed, n_jobs=jobs)
+elif alg == "xg":
+    algclass_c = partial(XGBc, n_estimators=trees, random_state=seed, n_jobs=jobs)
+    algclass_r = partial(XGBr, n_estimators=trees, random_state=seed, n_jobs=jobs)
+elif alg == "cart":
+    algclass_c = partial(DecisionTreeClassifier, random_state=seed, n_jobs=jobs)
+    algclass_r = partial(DecisionTreeRegressor, random_state=seed, n_jobs=jobs)
+elif alg.endswith("nn"):
+    k = int(alg[:-2])
+    algclass_c = partial(KNeighborsClassifier, n_neighbors=k, n_jobs=jobs)
+    algclass_r = partial(KNeighborsRegressor, n_neighbors=k, n_jobs=jobs)
+else:
+    raise Exception(f"Unknown algorithm {alg}. Options: rf,lgbm")
 
 with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_uri, ondup="skip") as near_storage, sopen(remote_cache_uri, ondup="skip") as remote_storage, sopen(schedule_uri) as db):
     storages = {
@@ -169,11 +191,11 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         df = read_csv(f"results/datasetr_species{sp}_bayley_8_t2.csv", index_col="id_estudo")
         df.sort_values(targetvar, inplace=True, ascending=True, kind="stable")
         if demo:
-            df = pd.concat([df.iloc[:15], df.iloc[-15:]], axis="rows")
+            df = pd.concat([df.iloc[:30], df.iloc[-30:]], axis="rows")
         age = df["idade_crianca_dias_t2"]
 
-        d = hdict(sp=sp, df=df, handle_last_as_y=handle_last_as_y, trees=trees, target_variable=targetvar, delta=delta, diff=diff, i=0)
-        d.show()
+        d = hdict(sp=sp, df=df, handle_last_as_y=handle_last_as_y, trees=trees, target_variable=targetvar, delta=delta, diff=diff, i=0, algname=alg)
+        d.hosh.show()
 
         ret = step(d, db, storages, sched)
         if ret:
