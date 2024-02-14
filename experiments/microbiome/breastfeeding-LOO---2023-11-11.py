@@ -256,7 +256,7 @@ if __name__ == '__main__':
         dfmodel["age"] = dfmodel["type-age"].str.slice(-2)
         dfmodel["type"] = dfmodel["type-age"].str.slice(0, -2)
         del dfmodel["type-age"]
-        dfmodel.sort_values("score", ascending=False, inplace=True)
+        dfmodel.sort_values("score", ascending=False, inplace=True, kind="stable")
         dfmodel.rename(columns={"score": m}, inplace=True)
         dfmodel.to_csv(f"/home/davi/git/germina/results/model-performance-{m}-trees={d.n_estimators}-perms={d.n_permutations}-{d.id}--LOO.csv")
         print(dfmodel)

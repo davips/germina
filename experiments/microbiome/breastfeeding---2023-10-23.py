@@ -183,13 +183,13 @@ if not sched:
         df = DataFrame(res[m])
         df[["field", "delivery_mode", "measure"]] = df["description"].str.split('-', expand=True)
         del df["description"]
-        df.sort_values("p-value", inplace=True)
+        df.sort_values("p-value", inplace=True, kind="stable")
         print(df)
         df.to_csv(f"/tmp/breastfeed-paper-scores-pvalues-{vif}-{m}.csv")
 
         df = DataFrame(d.res_importances[m])
         df[["field", "delivery_mode", "measure"]] = df["description"].str.split('-', expand=True)
         del df["description"]
-        df.sort_values("importance_mean", ascending=False, inplace=True)
+        df.sort_values("importance_mean", ascending=False, inplace=True, kind="stable")
         print(df)
         df.to_csv(f"/tmp/breastfeed-paper-importances-{vif}-{m}.csv")

@@ -220,7 +220,7 @@ class OrdinalClassifier(
                 self.classes_ = classes  # setter converts to np.array from index
 
         else:  #this is most likely path but handle other two cases above.
-            self.classes_ = np.sort(np.unique(y))
+            self.classes_ = np.sort(np.unique(y), kind="stable")
 
         # ok, now order is set.  Now, reverse it unless it was supplied
 

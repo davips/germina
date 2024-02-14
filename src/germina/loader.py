@@ -81,7 +81,7 @@ def load_from_osf(d, storages, storage_to_be_updated, path, vif, filename, vars_
                 t_candidate = f"{v}_t{i}"
                 if t_candidate in d.fullosf:
                     vars.append(t_candidate)
-        vars.sort()
+        vars.sort(kind="stable")
         d = d >> apply(lambda fullosf, vs: fullosf[vs], vs=vars)(field)
     if vif:
         print(f"Apply VIF to '{field}' ----------------------------------------------------------------------------------------------------------------------------")
@@ -179,7 +179,7 @@ def importances(res_importances, importances, descr1, descr2, scoring, X):
     newscoring = {}
     for k, lst in res_importances[scoring].items():
         newscoring[k] = lst.copy()
-    for i in importances.importances_mean.argsort()[::-1]:
+    for i in importances.importances_mean.argsort(kind="stable")[::-1]:
         if importances.importances_mean[i] - importances.importances_std[i] > 0:
             newscoring["description"].append(f"{descr1}-{descr2}-{scoring}")
             newscoring["variable"].append(X.columns[i])

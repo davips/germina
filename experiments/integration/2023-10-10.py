@@ -101,7 +101,7 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
             sub = f"{v}_t{i}"
             if sub in d.df_osf_full:
                 osf_except_dropped_vars.append(sub)
-    osf_except_dropped_vars.sort()
+    osf_except_dropped_vars.sort(kind="stable")
     d["undropped_osf_vars"] = osf_except_dropped_vars
     d = d >> apply(lambda df_osf_full, undropped_osf_vars: df_osf_full[undropped_osf_vars]).df_undropped_osf
     d = ch(d, storages, to_be_updated)
@@ -218,7 +218,7 @@ with sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_stor
                 d = d >> apply(permutation_importance).importances
                 d = ch(d, storages, to_be_updated)
                 r = d.importances
-                for i in r.importances_mean.argsort()[::-1]:
+                for i in r.importances_mean.argsort(kind="stable")[::-1]:
                     if r.importances_mean[i] - r.importances_std[i] > 0:
                         print(f"importance   \t                 \t{r.importances_mean[i]:.6f}\t{r.importances_std[i]:.6f}\t{m:22}\t{d.target_var:20}\t{d.X.columns[i]}")
                 print()

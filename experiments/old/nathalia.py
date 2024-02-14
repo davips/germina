@@ -37,7 +37,7 @@ print()
 print()
 print()
 nans = df.isna().sum(axis=1)
-print(nans.sort_values().to_string())
+print(nans.sort_values(kind="stable").to_string())
 
 print("Drop NaN rows")
 print(df)

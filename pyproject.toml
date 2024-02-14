@@ -7,7 +7,7 @@ readme = "README.md"
 packages = [{include = "germina", from = "src"}]
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "3.11.2"
 matplotlib = "^3.7.1"
 datasets = "^2.11.0"
 pymysql = "^1.0.3"
@@ -30,7 +30,7 @@ dalex = "^1.6.0"
 plotly = "^5.18.0"
 hosh = "^3.230705.5"
 shelchemy = "2.231111.3"
-hdict = "^2.230721.7"
+hdict = "^2.230721.8"
 gradient-descent-the-ultimate-optimizer = "^1.0"
 torchvision = "^0.16.2"
 

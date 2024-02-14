@@ -4,6 +4,7 @@ from pprint import pprint
 from sys import argv
 
 import numpy as np
+import pandas as pd
 from argvsucks import handle_command_line
 from lange import ap
 from lightgbm import LGBMClassifier as LGBMc, LGBMRegressor as LGBMr
@@ -156,13 +157,13 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
     for sp in [1, 2]:
         print(f"{sp=} <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
         df = read_csv(f"results/datasetr_species{sp}_bayley_8_t2.csv", index_col="id_estudo")
-        df.sort_values(targetvar, inplace=True, ascending=True)
+        df.sort_values(targetvar, inplace=True, ascending=True, kind="stable")
         if demo:
-            df = df[::15]
+            df = pd.concat([df.iloc[:15], df.iloc[-15:]], axis="rows")
         age = df["idade_crianca_dias_t2"]
 
         d = hdict(sp=sp, df=df, handle_last_as_y=handle_last_as_y, trees=trees, target_variable=targetvar, delta=delta, diff=diff, i=0)
-        d.hosh.show()
+        d.show()
 
         ret = step(d, db, storages, sched)
         if ret:
