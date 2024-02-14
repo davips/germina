@@ -78,8 +78,8 @@ def substep(df, idx, z_lst_c, z_lst_r, hits_c, hits_r, tot, trees, delta, diff, 
     pairs_y_tr_c = (pairs_Xy_tr[:, -1] >= 0).astype(int)
     pairs_y_tr_r = pairs_Xy_tr[:, -1]
 
-    alg_c = LGBMc(n_estimators=trees, n_jobs=-1)
-    alg_r = LGBMr(n_estimators=trees, n_jobs=-1)
+    alg_c = LGBMc(n_estimators=trees, n_jobs=-1, random_state=0)
+    alg_r = LGBMr(n_estimators=trees, n_jobs=-1, random_state=0)
     alg_c.fit(pairs_X_tr, pairs_y_tr_c)
     alg_r.fit(pairs_X_tr, pairs_y_tr_r)
 
@@ -118,10 +118,11 @@ def step(d, db, storages, sched):
     tot = {0: 0, 1: 0}
     z_lst_c, z_lst_r = [], []
     d = d >> dict(z_lst_c=z_lst_c, z_lst_r=z_lst_r, hits_c=hits_c, hits_r=hits_r, tot=tot)
-    tasks = zip(repeat(d.id), df.index)
+    tasks = zip(repeat(d.id), d.df.index)
+    ansi = d.hosh.ansi
     for c, (id, idx) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
         if not sched:
-            print(f"\r permutation: {i:8}\t\t{d.hosh.ansi} babies: {100 * c / len(df):8.5f}%", end="", flush=True)
+            print(f" permutation: {d.i:8}\t\t{ansi} babies: {100 * c / len(d.df):8.5f}%", end="\n", flush=True)
         d.apply(substep, idx=idx, out=("z_lst_c", "z_lst_r", "hits_c", "hits_r", "tot"))
         d = ch(d, storages)
     if sched:
@@ -175,7 +176,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         for i in ap[1, 2, ..., perms]:
             df_shuffled = df.copy()
             df_shuffled[targetvar] = rnd.permutation(df[targetvar].values)
-            d["i"] = i
+            d["i", "df"] = i, df_shuffled
             ret = step(d, db, storages, sched)
             if ret:
                 bacc_c, bacc_r, r2_c, r2_r, hits_c, hits_r, tot = ret
