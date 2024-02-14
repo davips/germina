@@ -111,18 +111,17 @@ def substep(df, idx, z_lst_c, z_lst_r, hits_c, hits_r, tot, trees, delta, diff, 
     return z_lst_c, z_lst_r, hits_c, hits_r, tot
 
 
-def step(d, db, storages, sched, df, handle_last_as_y, trees, target_variable, i):
-    y = df[target_variable].to_numpy()
+def step(d, db, storages, sched):
+    y = d.df[d.target_variable].to_numpy()
     hits_c, hits_r = {0: 0, 1: 0}, {0: 0, 1: 0}
     tot = {0: 0, 1: 0}
     z_lst_c, z_lst_r = [], []
-    c = 0
-    d = d >> dict(z_lst_c=z_lst_c, z_lst_r=z_lst_r, hits_c=hits_c, hits_r=hits_r, tot=tot, i=i)
+    d = d >> dict(z_lst_c=z_lst_c, z_lst_r=z_lst_r, hits_c=hits_c, hits_r=hits_r, tot=tot)
     tasks = zip(repeat(d.id), df.index)
     for c, (id, idx) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
         if not sched:
             print(f"\r permutation: {i:8}\t\t{d.hosh.ansi} babies: {100 * c / len(df):8.5f}%", end="", flush=True)
-        d.apply(substep, df, idx, out=("z_lst_c", "z_lst_r", "hits_c", "hits_r", "tot"))
+        d.apply(substep, idx=idx, out=("z_lst_c", "z_lst_r", "hits_c", "hits_r", "tot"))
         d = ch(d, storages)
     if sched:
         return
@@ -155,32 +154,34 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         "local": local_storage,
     }
     for sp in [1, 2]:
+        print(f"{sp=} <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
         df = read_csv(f"results/datasetr_species{sp}_bayley_8_t2.csv", index_col="id_estudo")
         df.sort_values(targetvar, inplace=True, ascending=True)
         if demo:
             df = df[::15]
         age = df["idade_crianca_dias_t2"]
 
-        d = hdict(sp=sp, df=df, handle_last_as_y=handle_last_as_y, trees=trees, target_variable=targetvar, delta=delta, diff=diff)
+        d = hdict(sp=sp, df=df, handle_last_as_y=handle_last_as_y, trees=trees, target_variable=targetvar, delta=delta, diff=diff, i=0)
         d.hosh.show()
 
-        ret = step(d, db, storages, sched, df=df, handle_last_as_y=handle_last_as_y, trees=trees, target_variable=targetvar, i=1)
+        ret = step(d, db, storages, sched)
         if ret:
-            bacc_c, bacc_r, r2_c, r2_r, hits_c, hits_r, tot = ret
-            print(f"\r{sp=} {delta=} {trees=} {bacc_c=:4.3f} {bacc_r=:4.3f} {r2_c=:4.3f} {r2_r=:4.3f} {hits_c=}  {hits_r=} {tot=}\t{d.hosh.ansi}", flush=True)
+            bacc_c0, bacc_r0, r2_c0, r2_r0, hits_c0, hits_r0, tot0 = ret
+            print(f"\r{sp=} {delta=} {trees=} {bacc_c0=:4.3f} {bacc_r0=:4.3f} {r2_c0=:4.3f} {r2_r0=:4.3f} {hits_c0=}  {hits_r0=} {tot0=}\t{d.hosh.ansi}", flush=True)
 
         # permutation test
         scores_dct = dict(bacc_c=[], bacc_r=[], r2_c=[], r2_r=[])
         for i in ap[1, 2, ..., perms]:
             df_shuffled = df.copy()
             df_shuffled[targetvar] = rnd.permutation(df[targetvar].values)
-            ret = step(d, db, storages, sched, df=df_shuffled, handle_last_as_y=handle_last_as_y, trees=trees, target_variable=targetvar, i=i)
+            d["i"] = i
+            ret = step(d, db, storages, sched)
             if ret:
                 bacc_c, bacc_r, r2_c, r2_r, hits_c, hits_r, tot = ret
-                scores_dct["bacc_c"].append(bacc_c)
-                scores_dct["bacc_r"].append(bacc_r)
-                scores_dct["r2_c"].append(r2_c)
-                scores_dct["r2_r"].append(r2_r)
+                scores_dct["bacc_c"].append(bacc_c - bacc_c0)
+                scores_dct["bacc_r"].append(bacc_r - bacc_r0)
+                scores_dct["r2_c"].append(r2_c - r2_c0)
+                scores_dct["r2_r"].append(r2_r - r2_r0)
 
         if sched:
             print("Run again without providing flag `sched`.")
