@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 from argvsucks import handle_command_line
 from lange import ap
-from lightgbm import LGBMClassifier as LGBMc, LGBMRegressor as LGBMr
 from pandas import read_csv
 from scipy.stats import ttest_1samp
 from shelchemy import sopen
@@ -18,6 +17,16 @@ from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, sc
 from germina.pairwise import pairwise_diff, pairwise_hstack
 from germina.runner import ch
 from hdict import hdict
+
+if "rf" in argv:
+    from sklearn.ensemble import RandomForestClassifier as LGBMc, RandomForestRegressor as LGBMr
+
+    # REMINDER: we are using LGBMc,LGBMr as aliases to the actual selected algorithms to avoid changing the caching of `substep()` previous results
+    rf = True
+else:
+    from lightgbm import LGBMClassifier as LGBMc, LGBMRegressor as LGBMr
+
+    rf = False
 
 
 def interpolate_for_classification(targets, conditions):
@@ -118,7 +127,7 @@ def step(d, db, storages, sched):
     tot = {0: 0, 1: 0}
     z_lst_c, z_lst_r = [], []
     d = d >> dict(z_lst_c=z_lst_c, z_lst_r=z_lst_r, hits_c=hits_c, hits_r=hits_r, tot=tot)
-    tasks = zip(repeat(d.id), d.df.index)
+    tasks = zip(repeat(d.id + ("_RF" if rf else "")), d.df.index)
     ansi = d.hosh.ansi
     for c, (id, idx) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
         if not sched:
