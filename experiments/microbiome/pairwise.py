@@ -1,3 +1,4 @@
+import copy
 from itertools import repeat
 from pprint import pprint
 from sys import argv
@@ -51,79 +52,90 @@ def interpolate_for_regression(targets, conditions):
     return np.mean(candidates)
 
 
-def step(df, handle_last_as_y, trees, target_variable, hstack, i):
+def substep(df, idx, z_lst_c, z_lst_r, hits_c, hits_r, tot):
+    z_lst_c, z_lst_r = copy.deepcopy(z_lst_c), copy.deepcopy(z_lst_r)
+    hits_c, hits_r = copy.deepcopy(hits_c), copy.deepcopy(hits_r)
+    tot = copy.deepcopy(tot)
+
+    # current baby
+    baby = df.loc[[idx], :].to_numpy()
+    baby_x = baby[:, :-1]
+    baby_y = baby[0, -1]
+
+    # training set
+    # Xy_tr = df.to_numpy()
+    Xy_tr = df.drop(idx, axis="rows").to_numpy()
+    tmp = hstack(Xy_tr, Xy_tr)
+    pairs_Xy_tr = tmp[filter(tmp)]
+    pairs_X_tr = pairs_Xy_tr[:, :-1]
+
+    pairs_y_tr_c = (pairs_Xy_tr[:, -1] >= 0).astype(int)
+    pairs_y_tr_r = pairs_Xy_tr[:, -1]
+
+    alg_c = LGBMc(n_estimators=trees, n_jobs=-1)
+    alg_r = LGBMr(n_estimators=trees, n_jobs=-1)
+    alg_c.fit(pairs_X_tr, pairs_y_tr_c)
+    alg_r.fit(pairs_X_tr, pairs_y_tr_r)
+
+    # test set
+    tmp = hstack(baby, Xy_tr)
+    fltr = filter(tmp)
+    pairs_Xy_ts = tmp[fltr]
+    pairs_X_ts = pairs_Xy_ts[:, :-1]
+
+    pairs_y_ts_c = (pairs_Xy_ts[:, -1] >= 0).astype(int)
+    pairs_y_ts_r = pairs_Xy_ts[:, -1]
+
+    # predictions
+    pairs_z_ts_c = alg_c.predict(pairs_X_ts)
+    pairs_z_ts_r = alg_r.predict(pairs_X_ts)
+
+    # interpolation
+    targets = Xy_tr[fltr, -1]
+
+    baby_z_c = interpolate_for_classification(targets, conditions=2 * pairs_z_ts_c - 1)
+    baby_z_r = interpolate_for_regression(targets, conditions=pairs_z_ts_r)
+    z_lst_c.append(baby_z_c)
+    z_lst_r.append(baby_z_r)
+
+    expected = int(baby_y >= 100)
+    predicted_c = int(baby_z_c >= 100)
+    predicted_r = int(baby_z_r >= 100)
+    hits_c[expected] += int(expected == predicted_c)
+    hits_r[expected] += int(expected == predicted_r)
+    tot[expected] += 1
+    return z_lst_c, z_lst_r, hits_c, hits_r, tot
+
+
+def step(d, db, storages, sched, df, handle_last_as_y, trees, target_variable, hstack, i):
     y = df[target_variable].to_numpy()
     hits_c, hits_r = {0: 0, 1: 0}, {0: 0, 1: 0}
     tot = {0: 0, 1: 0}
     z_lst_c, z_lst_r = [], []
     c = 0
-    for idx in df.index:
-        if c % 15 == 0:
-            print(f"\r permutation: {i:8}\t babies: {100 * c / len(df):8.5f}%", end="", flush=True)
-        c += 1
+    d = d >> dict(z_lst_c=z_lst_c, z_lst_r=z_lst_r, hits_c=hits_c, hits_r=hits_r, tot=tot, i=i)
+    tasks = zip(repeat(d.id), df.index)
+    for c, (id, idx) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
+        if not sched:
+            print(f"\r permutation: {i:8}\t\t{d.hosh.ansi} babies: {100 * c / len(df):8.5f}%", end="", flush=True)
+        d.apply(substep, df, idx, out=("z_lst_c", "z_lst_r", "hits_c", "hits_r", "tot"))
+        d = ch(d, storages)
+    if sched:
+        return
+    z_c = np.array(d.z_lst_c)
+    z_r = np.array(d.z_lst_r)
 
-        # current baby
-        baby = df.loc[[idx], :].to_numpy()
-        baby_x = baby[:, :-1]
-        baby_y = baby[0, -1]
-
-        # training set
-        # Xy_tr = df.to_numpy()
-        Xy_tr = df.drop(idx, axis="rows").to_numpy()
-        tmp = hstack(Xy_tr, Xy_tr)
-        pairs_Xy_tr = tmp[filter(tmp)]
-        pairs_X_tr = pairs_Xy_tr[:, :-1]
-
-        pairs_y_tr_c = (pairs_Xy_tr[:, -1] >= 0).astype(int)
-        pairs_y_tr_r = pairs_Xy_tr[:, -1]
-
-        alg_c = LGBMc(n_estimators=trees, n_jobs=-1)
-        alg_r = LGBMr(n_estimators=trees, n_jobs=-1)
-        alg_c.fit(pairs_X_tr, pairs_y_tr_c)
-        alg_r.fit(pairs_X_tr, pairs_y_tr_r)
-
-        # test set
-        tmp = hstack(baby, Xy_tr)
-        fltr = filter(tmp)
-        pairs_Xy_ts = tmp[fltr]
-        pairs_X_ts = pairs_Xy_ts[:, :-1]
-
-        pairs_y_ts_c = (pairs_Xy_ts[:, -1] >= 0).astype(int)
-        pairs_y_ts_r = pairs_Xy_ts[:, -1]
-
-        # predictions
-        pairs_z_ts_c = alg_c.predict(pairs_X_ts)
-        pairs_z_ts_r = alg_r.predict(pairs_X_ts)
-
-        # interpolation
-        targets = Xy_tr[fltr, -1]
-
-        baby_z_c = interpolate_for_classification(targets, conditions=2 * pairs_z_ts_c - 1)
-        baby_z_r = interpolate_for_regression(targets, conditions=pairs_z_ts_r)
-        z_lst_c.append(baby_z_c)
-        z_lst_r.append(baby_z_r)
-
-        expected = int(baby_y >= 100)
-        predicted_c = int(baby_z_c >= 100)
-        predicted_r = int(baby_z_r >= 100)
-        hits_c[expected] += int(expected == predicted_c)
-        hits_r[expected] += int(expected == predicted_r)
-        tot[expected] += 1
-
-    z_c = np.array(z_lst_c)
-    z_r = np.array(z_lst_r)
-
-    acc0 = hits_c[0] / tot[0]
-    acc1 = hits_c[1] / tot[1]
+    acc0 = d.hits_c[0] / d.tot[0]
+    acc1 = d.hits_c[1] / d.tot[1]
     bacc_c = (acc0 + acc1) / 2
 
-    acc0 = hits_r[0] / tot[0]
-    acc1 = hits_r[1] / tot[1]
+    acc0 = d.hits_r[0] / d.tot[0]
+    acc1 = d.hits_r[1] / d.tot[1]
     bacc_r = (acc0 + acc1) / 2
 
     r2_c = r2_score(y, z_c)
     r2_r = r2_score(y, z_r)
-    return bacc_c, bacc_r, r2_c, r2_r, hits_c, hits_r, tot
+    return bacc_c, bacc_r, r2_c, r2_r, d.hits_c, d.hits_r, d.tot
 
 
 dct = handle_command_line(argv, delta=float, trees=int, pct=False, diff=False, demo=False, sched=False, perms=1, targetvar=str)
@@ -131,7 +143,7 @@ pprint(dct)
 trees, delta, pct, diff, demo, sched, perms, targetvar = dct["trees"], dct["delta"], dct["pct"], dct["diff"], dct["demo"], dct["sched"], dct["perms"], dct["targetvar"]
 rnd = np.random.default_rng(0)
 handle_last_as_y = "%" if pct else True
-filter = lambda tmp: (tmp[:, -1] < -delta) | (tmp[:, -1] > delta)
+filter = lambda tmp: (tmp[:, -1] < -delta) | (tmp[:, -1] >= delta)
 if diff:
     hstack = lambda a, b: pairwise_diff(a, b, pct=handle_last_as_y == "%")
 else:
@@ -147,31 +159,33 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         df = read_csv(f"results/datasetr_species{sp}_bayley_8_t2.csv", index_col="id_estudo")
         df.sort_values(targetvar, inplace=True, ascending=True)
         if demo:
-            df = df[::10]
+            df = df[::15]
         age = df["idade_crianca_dias_t2"]
 
         d = hdict(sp=sp, df=df, handle_last_as_y=handle_last_as_y, trees=trees, target_variable=targetvar, hstack=hstack)
         d.hosh.show()
 
-        for __ in (Scheduler(db, timeout=60) << [d.id]) if sched else [d.id]:
-            d.apply(step, i=-1, out=("bacc_c", "bacc_r", "r2_c", "r2_r", "hits_c", "hits_r", "tot"))
-            d = ch(d, storages)
-            print(f"\r{sp=} {delta=} {trees=} {d.bacc_c=:4.3f} {d.bacc_r=:4.3f} {d.r2_c=:4.3f} {d.r2_r=:4.3f} {d.hits_c=}  {d.hits_r=} {d.tot=}\t{d.hosh.ansi}", flush=True)
+        ret = step(d, db, storages, sched, df=df, handle_last_as_y=handle_last_as_y, trees=trees, target_variable=targetvar, hstack=hstack, i=1)
+        if ret:
+            bacc_c, bacc_r, r2_c, r2_r, hits_c, hits_r, tot = ret
+            print(f"\r{sp=} {delta=} {trees=} {bacc_c=:4.3f} {bacc_r=:4.3f} {r2_c=:4.3f} {r2_r=:4.3f} {hits_c=}  {hits_r=} {tot=}\t{d.hosh.ansi}", flush=True)
 
         # permutation test
         scores_dct = dict(bacc_c=[], bacc_r=[], r2_c=[], r2_r=[])
-        tasks = zip(repeat(d.id), ap[1, 2, ..., perms])
-        for did, i in (Scheduler(db, timeout=60) << tasks) if sched else tasks:
+        for i in ap[1, 2, ..., perms]:
             df_shuffled = df.copy()
             df_shuffled[targetvar] = rnd.permutation(df[targetvar].values)
+            ret = step(d, db, storages, sched, df=df_shuffled, handle_last_as_y=handle_last_as_y, trees=trees, target_variable=targetvar, hstack=hstack, i=i)
+            if ret:
+                bacc_c, bacc_r, r2_c, r2_r, hits_c, hits_r, tot = ret
+                scores_dct["bacc_c"].append(bacc_c)
+                scores_dct["bacc_r"].append(bacc_r)
+                scores_dct["r2_c"].append(r2_c)
+                scores_dct["r2_r"].append(r2_r)
 
-            d.apply(step, i=i, out=("bacc_c", "bacc_r", "r2_c", "r2_r", "hits_c", "hits_r", "tot"))
-            d = ch(d, storages)
-
-            scores_dct["bacc_c"].append(d.bacc_c)
-            scores_dct["bacc_r"].append(d.bacc_r)
-            scores_dct["r2_c"].append(d.r2_c)
-            scores_dct["r2_r"].append(d.r2_r)
+        if sched:
+            print("Run again without providing flag `sched`.")
+            continue
 
         print(f"\r{sp=} p-values: ", end="")
         for measure, scores in scores_dct.items():
