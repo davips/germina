@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from argvsucks import handle_command_line
 from lange import ap
-from pandas import read_csv
+from pandas import read_csv, DataFrame
 from scipy.stats import ttest_1samp
 from shelchemy import sopen
 from shelchemy.scheduler import Scheduler
@@ -18,8 +18,9 @@ from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
+from germina.dataset import eeg_t2_vars
 from germina.pairwise import pairwise_diff, pairwise_hstack
-from germina.runner import ch
+from germina.runner import ch, sgid2estudoid
 from hdict import hdict
 from sklearn.ensemble import RandomForestClassifier as RFc, RandomForestRegressor as RFr
 from lightgbm import LGBMClassifier as LGBMc, LGBMRegressor as LGBMr
@@ -27,6 +28,9 @@ from xgboost import XGBClassifier as XGBc, XGBRegressor as XGBr
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import IterativeImputer
+
 
 def interpolate_for_classification(targets, conditions):
     """
@@ -157,7 +161,31 @@ def step(d, db, storages, sched):
 
 dct = handle_command_line(argv, delta=float, trees=int, pct=False, diff=False, demo=False, sched=False, perms=1, targetvar=str, jobs=int, alg=str, seed=0, prefix=str, sufix=str)
 pprint(dct)
+if "geneeg" in argv:
+    extra = ["idade_crianca_dias_t2", dct["targetvar"]]
+    # Single
+    dfwor = read_csv("data/workshop111223.csv")
+    dfwor.set_index("id_estudo", inplace=True)
+    dfsin = dfwor[eeg_t2_vars + extra]
+    dfsin = dfsin.dropna(axis="rows", how="any")
+    dfsin.to_csv(f"/home/davi/git/germina/results/single_or_dyadic_is1_{dct['targetvar']}.csv")
+
+    # Dyadic
+    dfsyn = read_csv("data/eeg-synapse-reduced.csv")
+    dfsyn = sgid2estudoid(dfsyn)
+    dfdya: DataFrame = dfsyn.join(dfwor[extra], how="inner")
+    # dfdya.drop([458,427,455,501], axis="rows", inplace=True)
+    dfdya.drop([458, 501, 455, 427], axis="rows", inplace=True)
+    idx = dfdya.count(axis="rows").sort_values() > 47  # Accept 10% of babies with NaN for a single variable
+    dfdya = dfdya.loc[:, idx]
+    # print(dfdya.count(axis="columns").sort_values())
+    # print(dfdya.count(axis="rows").sort_values().tolist())
+    # dfdya.fillna()
+    dfdya.to_csv(f"/home/davi/git/germina/results/single_or_dyadic_is2_{dct['targetvar']}.csv")
+    exit()
+
 trees, delta, pct, diff, demo, sched, perms, targetvar, jobs, alg, seed, prefix, sufix = dct["trees"], dct["delta"], dct["pct"], dct["diff"], dct["demo"], dct["sched"], dct["perms"], dct["targetvar"], dct["jobs"], dct["alg"], dct["seed"], dct["prefix"], dct["sufix"]
+
 rnd = np.random.default_rng(0)
 handle_last_as_y = "%" if pct else True
 if alg == "rf":
@@ -232,3 +260,14 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                 p = ttest_1samp(scores, popmean=0, alternative="greater")[1]
                 print(f"  {measure}={p:4.3f}", end="")
         print("\n")
+
+"""
+# filtered species
+p=0;s="sched";t=1200;a=lgbm;pre="results/datasetr_species";suf="_bayley_8_t2.csv"; ps; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=-1 perms=$p diff $s; ps; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=-1 perms=$p $s; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=-1 perms=$p pct $s; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=-1 perms=$p pct diff $s; # filtered species
+
+# full species
+p=0;s="sched";t=1200;a=lgbm;pre="results/datasetr_fromtsv_species";suf="_bayley_8_t2.csv"; ps; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=-1 perms=$p diff $s; ps; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=-1 perms=$p $s; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=-1 perms=$p pct $s; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=-1 perms=$p pct diff $s; # full species
+
+# gera EEG CSVs: single=1 dyadic=2
+poetry run python experiments/microbiome/pairwise.py geneeg targetvar=bayley_8_t2
+"""
