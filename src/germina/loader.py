@@ -9,7 +9,7 @@ import pandas as pd
 from germina.nan import remove_nan_rows_cols
 from sklearn import clone
 from sklearn.impute import IterativeImputer
-from sklearn.metrics._scorer import _ProbaScorer
+# from sklearn.metrics._scorer import _ProbaScorer
 
 from germina.dataset import join
 from hdict import apply, _, field

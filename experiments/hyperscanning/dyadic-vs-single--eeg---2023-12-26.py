@@ -304,3 +304,11 @@ if __name__ == '__main__':
         print(grouped.columns)
         print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
         grouped.to_csv(f"/home/davi/git/germina/results/shap-{m}-tr{d.n_estimators}-perms{d.n_permutations}-{d.id}--LOO.csv")
+
+
+"""s.o.s
+Acuracia de EEG single:
+poetry run python experiments/hyperscanning/dyadic-vs-single--eeg---2023-12-26.py pvalruns=20 importanceruns=0 imputertrees=0 seed=0 target=ibq_soot_t2  measures=r2 algs=PRF div=-1 trees=640 field=eegsin k=5 nested=RFc
+Acuracia de EEG dyadic:
+poetry run python experiments/hyperscanning/dyadic-vs-single--eeg---2023-12-26.py pvalruns=20 importanceruns=0 imputertrees=0 seed=0 target=ibq_soot_t2  measures=r2 algs=PRF div=-1 trees=640 field=eegsyn k=5 nested=RFc
+"""

@@ -1,35 +1,34 @@
-import copy
 from functools import partial
 from itertools import repeat
 from pprint import pprint
 from sys import argv
 
-from sklearn.ensemble import ExtraTreesClassifier as ETc, ExtraTreesRegressor as ETr
 import numpy as np
 import pandas as pd
 from argvsucks import handle_command_line
+from hdict import hdict
 from lange import ap
-from pandas import read_csv, DataFrame
+from lightgbm import LGBMClassifier as LGBMc, LGBMRegressor as LGBMr
+from pandas import read_csv
 from scipy.stats import ttest_1samp
 from shelchemy import sopen
 from shelchemy.scheduler import Scheduler
-from sklearn.metrics import r2_score
-from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
-from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
-
-from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
-from germina.dataset import eeg_t2_vars
-from germina.pairwise import pairwise_diff, pairwise_hstack
-from germina.runner import ch, sgid2estudoid
-from hdict import hdict
+from sklearn.ensemble import ExtraTreesClassifier as ETc, ExtraTreesRegressor as ETr
 from sklearn.ensemble import RandomForestClassifier as RFc, RandomForestRegressor as RFr
-from lightgbm import LGBMClassifier as LGBMc, LGBMRegressor as LGBMr
-from xgboost import XGBClassifier as XGBc, XGBRegressor as XGBr
-
-from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import Pipeline
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
+from sklearn.metrics import r2_score
+from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
+from xgboost import XGBClassifier as XGBc, XGBRegressor as XGBr
+
+from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
+from germina.pairwise import pairwise_diff, pairwise_hstack
+from germina.runner import ch
+
+__ = enable_iterative_imputer
 
 
 def interpolate_for_classification(targets, conditions):
@@ -65,22 +64,25 @@ def interpolate_for_regression(targets, conditions):
     return np.mean(candidates)
 
 
-def substep(df, idx, trees, delta, diff, handle_last_as_y, algname):
+def substep(baby, Xy_tr, trees, delta, diff, handle_last_as_y, algname, trees_imp):
     algname = "argment passed just to mark which is the algorithm"
+    print("processing", end="", flush=True)
     filter = lambda tmp: (tmp[:, -1] < -delta) | (tmp[:, -1] >= delta)
     if diff:
         hstack = lambda a, b: pairwise_diff(a, b, pct=handle_last_as_y == "%")
     else:
         hstack = lambda a, b: pairwise_hstack(a, b, handle_last_as_y=handle_last_as_y)
 
-    # current baby
-    baby = df.loc[[idx], :].to_numpy()
-    baby_x = baby[:, :-1]
-    baby_y = baby[0, -1]
+    nans = Xy_tr.isna().sum().sum() > 0
+    if nans > 0:
+        # Setting n_nearest_features << n_features, skip_complete=True or increasing tol can help to reduce its computational cost.
+        Xy_tr = imp.fit_transform(Xy_tr)  # First, fit using label info.
+        imp.fit(Xy_tr[:, :-1])  # Then fit without labels to be able to use on the test instance.
+        babyx = imp.transform(baby[:, :-1])
+        baby[:, :-1] = babyx
+    else:
+        Xy_tr = Xy_tr.to_numpy()
 
-    # training set
-    # Xy_tr = df.to_numpy()
-    Xy_tr = df.drop(idx, axis="rows").to_numpy()
     tmp = hstack(Xy_tr, Xy_tr)
     pairs_Xy_tr = tmp[filter(tmp)]
     pairs_X_tr = pairs_Xy_tr[:, :-1]
@@ -111,7 +113,7 @@ def substep(df, idx, trees, delta, diff, handle_last_as_y, algname):
     baby_z_c = interpolate_for_classification(targets, conditions=2 * pairs_z_ts_c - 1)
     baby_z_r = interpolate_for_regression(targets, conditions=pairs_z_ts_r)
 
-    return baby_y, baby_z_c, baby_z_r
+    return baby[0, -1], baby_z_c, baby_z_r
 
 
 def step(d, db, storages, sched):
@@ -124,7 +126,15 @@ def step(d, db, storages, sched):
     for c, (id, idx) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
         if not sched:
             print(f"\r Permutation: {d.i:8}\t\t{ansi} baby {idx}: {100 * c / len(d.df):8.5f}%", end="", flush=True)
-        d.apply(substep, idx=idx, out="substep")
+
+        # current baby | training set
+        baby = d.df.loc[[idx], :].to_numpy()
+        # baby_x = baby[:, :-1]
+        baby_y = baby[0, -1]
+        Xy_tr, baby = d.df.drop(idx, axis="rows"), baby
+
+        # Core:
+        d.apply(substep, baby, Xy_tr, out="substep")
         d = ch(d, storages)
         if sched:
             continue
@@ -159,35 +169,13 @@ def step(d, db, storages, sched):
     return bacc_c, bacc_r, r2_c, r2_r, hits_c, hits_r, tot
 
 
-dct = handle_command_line(argv, delta=float, trees=int, pct=False, diff=False, demo=False, sched=False, perms=1, targetvar=str, jobs=int, alg=str, seed=0, prefix=str, sufix=str)
+dct = handle_command_line(argv, delta=float, trees=int, pct=False, diff=False, demo=False, sched=False, perms=1, targetvar=str, jobs=int, alg=str, seed=0, prefix=str, sufix=str, trees_imp=int)
 pprint(dct)
-if "geneeg" in argv:
-    extra = ["idade_crianca_dias_t2", dct["targetvar"]]
-    # Single
-    dfwor = read_csv("data/workshop111223.csv")
-    dfwor.set_index("id_estudo", inplace=True)
-    dfsin = dfwor[eeg_t2_vars + extra]
-    dfsin = dfsin.dropna(axis="rows", how="any")
-    dfsin.to_csv(f"/home/davi/git/germina/results/single_or_dyadic_is1_{dct['targetvar']}.csv")
-
-    # Dyadic
-    dfsyn = read_csv("data/eeg-synapse-reduced.csv")
-    dfsyn = sgid2estudoid(dfsyn)
-    dfdya: DataFrame = dfsyn.join(dfwor[extra], how="inner")
-    # dfdya.drop([458,427,455,501], axis="rows", inplace=True)
-    dfdya.drop([458, 501, 455, 427], axis="rows", inplace=True)
-    idx = dfdya.count(axis="rows").sort_values() > 47  # Accept 10% of babies with NaN for a single variable
-    dfdya = dfdya.loc[:, idx]
-    # print(dfdya.count(axis="columns").sort_values())
-    # print(dfdya.count(axis="rows").sort_values().tolist())
-    # dfdya.fillna()
-    dfdya.to_csv(f"/home/davi/git/germina/results/single_or_dyadic_is2_{dct['targetvar']}.csv")
-    exit()
-
-trees, delta, pct, diff, demo, sched, perms, targetvar, jobs, alg, seed, prefix, sufix = dct["trees"], dct["delta"], dct["pct"], dct["diff"], dct["demo"], dct["sched"], dct["perms"], dct["targetvar"], dct["jobs"], dct["alg"], dct["seed"], dct["prefix"], dct["sufix"]
+trees, delta, pct, diff, demo, sched, perms, targetvar, jobs, alg, seed, prefix, sufix, trees_imp = dct["trees"], dct["delta"], dct["pct"], dct["diff"], dct["demo"], dct["sched"], dct["perms"], dct["targetvar"], dct["jobs"], dct["alg"], dct["seed"], dct["prefix"], dct["sufix"], dct["trees_imp"]
 
 rnd = np.random.default_rng(0)
 handle_last_as_y = "%" if pct else True
+imp = IterativeImputer(LGBMr(n_estimators=trees_imp, random_state=seed, n_jobs=jobs), random_state=seed)
 if alg == "rf":
     algclass_c = partial(RFc, n_estimators=trees, random_state=seed, n_jobs=jobs)
     algclass_r = partial(RFr, n_estimators=trees, random_state=seed, n_jobs=jobs)
@@ -261,15 +249,16 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                 print(f"  {measure}={p:4.3f}", end="")
         print("\n")
 
-"""
-# filtered species
-p=0;s="sched";t=1200;a=lgbm;pre="results/datasetr_species";suf="_bayley_8_t2.csv"; ps; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=-1 perms=$p diff $s; ps; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=-1 perms=$p $s; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=-1 perms=$p pct $s; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=-1 perms=$p pct diff $s; # filtered species
-p=0;s="";t=1200;a=lgbm;pre="results/datasetr_species";suf="_bayley_8_t2.csv"; ps; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=1 perms=$p diff $s; ps; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=1 perms=$p $s; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=1 perms=$p pct $s; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=1 perms=$p pct diff $s; # filtered species
+"""s.o.s
+# filtered species t1|t2
+p=0;s="sched";t=1200;a=lgbm;pre="results/datasetr_species";suf="_bayley_8_t2.csv"; ps; time poetry run python experiments/microbiome/pairwise_v2.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=-1 perms=$p diff $s; ps; time poetry run python experiments/microbiome/pairwise_v2.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=-1 perms=$p $s; time poetry run python experiments/microbiome/pairwise_v2.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=-1 perms=$p pct $s; time poetry run python experiments/microbiome/pairwise_v2.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=-1 perms=$p pct diff $s; # filtered species
+p=0;s="";t=1200;a=lgbm;pre="results/datasetr_species";suf="_bayley_8_t2.csv"; ps; time poetry run python experiments/microbiome/pairwise_v2.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=1 perms=$p diff $s; ps; time poetry run python experiments/microbiome/pairwise_v2.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=1 perms=$p $s; time poetry run python experiments/microbiome/pairwise_v2.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=1 perms=$p pct $s; time poetry run python experiments/microbiome/pairwise_v2.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=1 perms=$p pct diff $s; # filtered species
 
-# full species
-p=0;s="sched";t=1200;a=lgbm;pre="results/datasetr_fromtsv_species";suf="_bayley_8_t2.csv"; ps; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=-1 perms=$p diff $s; ps; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=-1 perms=$p $s; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=-1 perms=$p pct $s; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=-1 perms=$p pct diff $s; # full species
-p=0;s="";t=1200;a=lgbm;pre="results/datasetr_fromtsv_species";suf="_bayley_8_t2.csv"; ps; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=1 perms=$p diff $s; ps; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=1 perms=$p $s; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=1 perms=$p pct $s; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=1 perms=$p pct diff $s; # full species
+# full species t1|t2
+p=0;s="sched";t=1200;a=lgbm;pre="results/datasetr_fromtsv_species";suf="_bayley_8_t2.csv"; ps; time poetry run python experiments/microbiome/pairwise_v2.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=-1 perms=$p diff $s; ps; time poetry run python experiments/microbiome/pairwise_v2.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=-1 perms=$p $s; time poetry run python experiments/microbiome/pairwise_v2.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=-1 perms=$p pct $s; time poetry run python experiments/microbiome/pairwise_v2.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=-1 perms=$p pct diff $s; # full species
+p=0;s="";t=1200;a=lgbm;pre="results/datasetr_fromtsv_species";suf="_bayley_8_t2.csv"; ps; time poetry run python experiments/microbiome/pairwise_v2.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=1 perms=$p diff $s; ps; time poetry run python experiments/microbiome/pairwise_v2.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=1 perms=$p $s; time poetry run python experiments/microbiome/pairwise_v2.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=1 perms=$p pct $s; time poetry run python experiments/microbiome/pairwise_v2.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=1 perms=$p pct diff $s; # full species
 
-# gera EEG CSVs: single=1 dyadic=2
-poetry run python experiments/microbiome/pairwise.py geneeg targetvar=bayley_8_t2
+# eeg single|dyadic
+p=0;s="sched";t=1200;a=lgbm;pre="results/single_or_dyadic_is";suf="_bayley_8_t2.csv"; ps; time poetry run python experiments/microbiome/pairwise_v2.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=-1 perms=$p diff $s; ps; time poetry run python experiments/microbiome/pairwise_v2.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=-1 perms=$p $s; time poetry run python experiments/microbiome/pairwise_v2.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=-1 perms=$p pct $s; time poetry run python experiments/microbiome/pairwise_v2.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=-1 perms=$p pct diff $s; # eeg
+p=0;s="";t=1200;a=lgbm;pre="results/single_or_dyadic_is";suf="_bayley_8_t2.csv"; ps; time poetry run python experiments/microbiome/pairwise_v2.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=1 perms=$p diff $s; ps; time poetry run python experiments/microbiome/pairwise_v2.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=1 perms=$p $s; time poetry run python experiments/microbiome/pairwise_v2.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=1 perms=$p pct $s; time poetry run python experiments/microbiome/pairwise_v2.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=1 perms=$p pct diff $s; # eeg
 """

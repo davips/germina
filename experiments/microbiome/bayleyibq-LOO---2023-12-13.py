@@ -8,10 +8,11 @@ import dalex as dx
 import numpy as np
 import pandas as pd
 from argvsucks import handle_command_line
+from hdict import hdict, apply, _
 from lightgbm import LGBMClassifier as LGBMc
-from lightgbm import LGBMRegressor as LGBMr
 from mlxtend.classifier import Perceptron
 from pandas import DataFrame
+from pandas import read_csv
 from scipy import stats
 from shelchemy import sopen
 from shelchemy.scheduler import Scheduler
@@ -33,9 +34,8 @@ from sklearn.tree import DecisionTreeClassifier
 
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.dataset import join
-from germina.loader import load_from_csv, clean_for_dalex, get_balance, start_reses, ccc, aaa, bbb, cut
+from germina.loader import load_from_csv, clean_for_dalex, get_balance, start_reses, ccc
 from germina.runner import ch
-from hdict import hdict, apply, _
 
 warnings.filterwarnings('ignore')
 # RFc,LGBMc,ETc,prunedRFc,prunedLGBMc,prunedETc,prunedCART,SVC,CART,1-NN,5-NN,25-NN,LR
@@ -47,7 +47,7 @@ algs = {"RFc": RandomForestClassifier, "LGBMc": LGBMc, "ETc": ETc,
 if __name__ == '__main__':
     load = argv[argv.index("load") + 1] if "load" in argv else False
     __ = enable_iterative_imputer
-    dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="", measures=list, algs=list, loo=False, div=int, depth=int, dataset=False, datasetr=False, pc=int, md=int, noage=False, reg=False)
+    dct = handle_command_line(argv, pvalruns=int, importanceruns=int, imputertrees=int, seed=int, target=str, trees=int, vif=False, nans=False, sched=False, up="", measures=list, algs=list, loo=False, div=int, depth=int, dataset=False, datasetr=False, datasetr_fromtsv=False, pc=int, md=int, noage=False, reg=False)
     print(datetime.now())
     pprint(dct, sort_dicts=False)
     print()
@@ -150,6 +150,22 @@ if __name__ == '__main__':
                         d.apply(lambda Xor, yor: pd.concat([Xor, yor], axis=1), out=o)
                         d = ch(d, storages, storage_to_be_updated)
                         d[o].to_csv(f"/home/davi/git/germina/results/{o}_{target_var}.csv")
+                        exit()
+                    if dct["datasetr_fromtsv"]:
+                        df1 = read_csv("data/full/T1_especies_original.tsv", sep=" ")
+                        df1.set_index("id_estudo", inplace=True)
+                        df1 = df1.join(d.Xor["idade_crianca_dias_t2"], how="inner")
+                        df1 = df1.join(d.yor, how="inner")
+                        o = f"datasetr_fromtsv_species1"
+                        df1.to_csv(f"/home/davi/git/germina/results/{o}_{target_var}.csv")
+
+                        df2 = read_csv("data/full/T2_especies_original.tsv", sep=" ")
+                        df2.set_index("id_estudo", inplace=True)
+                        df2 = df2.join(d.Xor["idade_crianca_dias_t2"], how="inner")
+                        df2 = df2.join(d.yor, how="inner")
+                        o = f"datasetr_fromtsv_species2"
+                        df2.to_csv(f"/home/davi/git/germina/results/{o}_{target_var}.csv")
+                        exit()
 
                     d["X00"] = _.X
                     algsdct = {k: algs["kNN" if k.endswith("-NN") else k] for k in d.algs}
@@ -381,3 +397,8 @@ if __name__ == '__main__':
         print(grouped.columns)
         print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
         grouped.to_csv(f"/home/davi/git/germina/results/shap-{m}-tr{d.n_estimators}-perms{d.n_permutations}-{d.id}--LOO.csv")
+
+"""s.o.s
+Gera csv de full species:
+poetry run python experiments/microbiome/bayleyibq-LOO---2023-12-13.py pvalruns=1 importanceruns=0 imputertrees=0 seed=0 target=bayley_8_t2  measures=balanced_accuracy algs=RFc div=2 depth=3 trees=64 pc=0 md=0 datasetr_fromtsv
+"""
