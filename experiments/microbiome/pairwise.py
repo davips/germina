@@ -25,6 +25,8 @@ from sklearn.ensemble import RandomForestClassifier as RFc, RandomForestRegresso
 from lightgbm import LGBMClassifier as LGBMc, LGBMRegressor as LGBMr
 from xgboost import XGBClassifier as XGBc, XGBRegressor as XGBr
 
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
 
 def interpolate_for_classification(targets, conditions):
     """
@@ -177,6 +179,10 @@ elif alg.endswith("nn"):
     k = int(alg[:-2])
     algclass_c = partial(KNeighborsClassifier, n_neighbors=k, n_jobs=jobs)
     algclass_r = partial(KNeighborsRegressor, n_neighbors=k, n_jobs=jobs)
+elif alg.endswith("NN"):
+    k = int(alg[:-2])
+    algclass_c = partial(Pipeline, steps=[('scaler', StandardScaler()), ('svc', KNeighborsClassifier(n_neighbors=k, n_jobs=jobs))])
+    algclass_r = partial(Pipeline, steps=[('scaler', StandardScaler()), ('svc', KNeighborsRegressor(n_neighbors=k, n_jobs=jobs))])
 else:
     raise Exception(f"Unknown algorithm {alg}. Options: rf,lgbm")
 
