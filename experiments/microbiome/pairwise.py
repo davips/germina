@@ -117,8 +117,8 @@ def step(d, db, storages, sched):
     ansi = d.hosh.ansi
     for c, (id, idx) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
         if not sched:
-            print(f"\r Permutation: {d.i:8}\t\t{ansi} babies: {100 * c / len(d.df):8.5f}%", end="", flush=True)
-        d.apply(substep, idx=idx, out=("substep"))
+            print(f"\r Permutation: {d.i:8}\t\t{ansi} baby {idx}: {100 * c / len(d.df):8.5f}%", end="", flush=True)
+        d.apply(substep, idx=idx, out="substep")
         d = ch(d, storages)
         if sched:
             continue
@@ -153,9 +153,9 @@ def step(d, db, storages, sched):
     return bacc_c, bacc_r, r2_c, r2_r, hits_c, hits_r, tot
 
 
-dct = handle_command_line(argv, delta=float, trees=int, pct=False, diff=False, demo=False, sched=False, perms=1, targetvar=str, jobs=int, alg=str, seed=0)
+dct = handle_command_line(argv, delta=float, trees=int, pct=False, diff=False, demo=False, sched=False, perms=1, targetvar=str, jobs=int, alg=str, seed=0, prefix=str, sufix=str)
 pprint(dct)
-trees, delta, pct, diff, demo, sched, perms, targetvar, jobs, alg, seed = dct["trees"], dct["delta"], dct["pct"], dct["diff"], dct["demo"], dct["sched"], dct["perms"], dct["targetvar"], dct["jobs"], dct["alg"], dct["seed"]
+trees, delta, pct, diff, demo, sched, perms, targetvar, jobs, alg, seed, prefix, sufix = dct["trees"], dct["delta"], dct["pct"], dct["diff"], dct["demo"], dct["sched"], dct["perms"], dct["targetvar"], dct["jobs"], dct["alg"], dct["seed"], dct["prefix"], dct["sufix"]
 rnd = np.random.default_rng(0)
 handle_last_as_y = "%" if pct else True
 if alg == "rf":
@@ -188,7 +188,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
     }
     for sp in [1, 2]:
         print(f"{sp=} <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-        df = read_csv(f"results/datasetr_species{sp}_bayley_8_t2.csv", index_col="id_estudo")
+        df = read_csv(f"{prefix}{sp}{sufix}", index_col="id_estudo")
         df.sort_values(targetvar, inplace=True, ascending=True, kind="stable")
         if demo:
             df = pd.concat([df.iloc[:30], df.iloc[-30:]], axis="rows")
@@ -220,8 +220,9 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             print("Run again without providing flag `sched`.")
             continue
 
-        print(f"\r{sp=} p-values: ", end="")
-        for measure, scores in scores_dct.items():
-            p = ttest_1samp(scores, popmean=0, alternative="greater")[1]
-            print(f"\t{measure}={p:4.3f}", end="")
-        print()
+        if scores_dct:
+            print(f"\n{sp=} p-values: ", end="")
+            for measure, scores in scores_dct.items():
+                p = ttest_1samp(scores, popmean=0, alternative="greater")[1]
+                print(f"  {measure}={p:4.3f}", end="")
+        print("\n")
