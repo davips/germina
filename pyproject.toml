@@ -30,7 +30,7 @@ dalex = "^1.6.0"
 plotly = "^5.18.0"
 hosh = "^3.230705.5"
 shelchemy = "2.231111.3"
-hdict = "^2.230721.8"
+hdict = "^2.240216.1"
 gradient-descent-the-ultimate-optimizer = "^1.0"
 torchvision = "^0.16.2"
 
