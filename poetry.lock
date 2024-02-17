@@ -1223,13 +1223,13 @@ test = ["objgraph", "psutil"]
 
 [[package]]
 name = "hdict"
-version = "2.240216.1"
+version = "2.240217.0"
 description = "A versatile dictionary based on a novel paradigm useful for computing, caching, experiments, distributed data, among others."
 optional = false
 python-versions = ">=3.10,<4.0"
 files = [
-    {file = "hdict-2.240216.1-py3-none-any.whl", hash = "sha256:8b83dac4efeb15ea4c18abc207848195e2742955de08d60930c2363d98e5c6cf"},
-    {file = "hdict-2.240216.1.tar.gz", hash = "sha256:4ad776f334298fa0d7a0f87908735cc45c2a1581dea8624df27a6cb127ee4025"},
+    {file = "hdict-2.240217.0-py3-none-any.whl", hash = "sha256:25df176f55d56584f747ff7019087bffed00731f3f518012d9a667fb23e6576c"},
+    {file = "hdict-2.240217.0.tar.gz", hash = "sha256:17480434aae2a37f53bfa9c54f01165f13dd67891df32c0d154f297ec892fb4a"},
 ]
 
 [package.dependencies]
@@ -4228,4 +4228,4 @@ full = []
 [metadata]
 lock-version = "2.0"
 python-versions = "3.11.2"
-content-hash = "fb4c753e93af8ba1399125b36701dbbca32f32e19bd841566d9de034ed667b23"
+content-hash = "c351c19a386236823875633682413a917f5a91c03e1497149e94e241ac0d5932"

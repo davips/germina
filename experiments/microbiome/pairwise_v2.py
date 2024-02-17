@@ -11,10 +11,9 @@ from shelchemy import sopen
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.loo import loo
 
-dct = handle_command_line(argv, delta=float, trees=int, pct=False, diff=False, demo=False, sched=False, perms=1, targetvar=str, jobs=int, alg=str, seed=0, prefix=str, sufix=str, trees_imp=int, feats=int, tfsel=int)
+dct = handle_command_line(argv, delta=float, trees=int, pct=False, demo=False, sched=False, perms=1, targetvar=str, jobs=int, alg=str, seed=0, prefix=str, sufix=str, trees_imp=int, feats=int, tfsel=int, forward=False, pairwise=str)
 print(dct)
-trees, delta, pct, diff, demo, sched, perms, targetvar, jobs, alg, seed, prefix, sufix, trees_imp, feats, tfsel = dct["trees"], dct["delta"], dct["pct"], dct["diff"], dct["demo"], dct["sched"], dct["perms"], dct["targetvar"], dct["jobs"], dct["alg"], dct["seed"], dct["prefix"], dct["sufix"], dct["trees_imp"], dct["feats"], dct["tfsel"]
-pairwise = "difference" if diff else "concatenation"
+trees, delta, pct, demo, sched, perms, targetvar, jobs, alg, seed, prefix, sufix, trees_imp, feats, tfsel, forward, pairwise = dct["trees"], dct["delta"], dct["pct"], dct["demo"], dct["sched"], dct["perms"], dct["targetvar"], dct["jobs"], dct["alg"], dct["seed"], dct["prefix"], dct["sufix"], dct["trees_imp"], dct["feats"], dct["tfsel"], dct["forward"], dct["pairwise"]
 rnd = np.random.default_rng(0)
 handle_last_as_y = "%" if pct else True
 with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_uri, ondup="skip") as near_storage, sopen(remote_cache_uri, ondup="skip") as remote_storage, sopen(schedule_uri) as db):
@@ -30,15 +29,17 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         if demo:
             take = min(df.shape[0] // 2, 30)
             df = pd.concat([df.iloc[:take], df.iloc[-take:]], axis="rows")
+        print(df.shape, "<<<<<<<<<<<<<<<<<")
         age = df["idade_crianca_dias_t2"]
         ret = loo(df, permutation=0, pairwise=pairwise, threshold=delta, rejection_threshold=0,
                   alg=alg, n_estimators=trees,
-                  n_estimators_fsel_imput=tfsel, forward_fsel=True, k_features_fsel=feats, k_folds_fsel=5,
+                  n_estimators_imp=trees_imp,
+                  n_estimators_fsel=tfsel, forward_fsel=forward, k_features_fsel=feats, k_folds_fsel=4,
                   db=db, storages=storages, sched=sched,
                   seed=seed, jobs=jobs)
         if ret:
-            d, bacc_c0, bacc_r0, r2_c0, r2_r0, hits_c0, hits_r0, tot_c0, tot_r0, rj_c0,rj_r0 = ret
-            print(f"\r{sp=} {delta=} {trees=} {bacc_c0=:4.3f} {bacc_r0=:4.3f} | {r2_c0=:4.3f} {r2_r0=:4.3f} {hits_c0=}  {hits_r0=} {tot_c0=} {tot_r0=}\t{d.hosh.ansi} | {rj_c0=} {rj_r0=}", flush=True)
+            d, bacc_c0, bacc_r0, r2_c0, r2_r0, hits_c0, hits_r0, tot0, tot_c0, tot_r0, rj_c0, rj_r0 = ret
+            print(f"\r{sp=} {delta=} {trees=} {bacc_c0=:4.3f} {bacc_r0=:4.3f} | {r2_c0=:4.3f} {r2_r0=:4.3f} {hits_c0=}  {hits_r0=} {tot0=} {tot_c0=} {tot_r0=}\t{d.hosh.ansi} | {rj_c0=} {rj_r0=}", flush=True)
 
         # permutation test
         scores_dct = dict(bacc_c=[], bacc_r=[], r2_c=[], r2_r=[])
@@ -47,11 +48,11 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             df_shuffled[targetvar] = rnd.permutation(df[targetvar].values)
             ret = loo(df_shuffled, permutation, pairwise=pairwise, threshold=delta, rejection_threshold=0,
                       alg=alg, n_estimators=trees,
-                      n_estimators_fsel_imput=tfsel, forward_fsel=True, k_features_fsel=feats, k_folds_fsel=5,
+                      n_estimators_fsel_imput=tfsel, forward_fsel=forward, k_features_fsel=feats, k_folds_fsel=4,
                       db=db, storages=storages, sched=sched,
                       seed=seed, jobs=jobs)
             if ret:
-                d, bacc_c, bacc_r, r2_c, r2_r, hits_c, hits_r, tot_c, tot_r, rj_c,rj_r = ret
+                d, bacc_c, bacc_r, r2_c, r2_r, hits_c, hits_r, tot, tot_c, tot_r, rj_c, rj_r = ret
                 scores_dct["bacc_c"].append(bacc_c - bacc_c0)
                 scores_dct["bacc_r"].append(bacc_r - bacc_r0)
                 scores_dct["r2_c"].append(r2_c - r2_c0)
