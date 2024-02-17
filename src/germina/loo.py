@@ -189,8 +189,8 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
     tot, tot_c, tot_r = {0: 0, 1: 0}, {0: 0, 1: 0}, {0: 0, 1: 0}
     y, y_c, y_r, z_lst_c, z_lst_r = [], [], [], [], []
     ansi = d.hosh.ansi
-    tasks = zip(repeat(d.id), repeat(permutation), df.index)
-    for c, (id, per, idx) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
+    tasks = zip(repeat(pairwise), repeat(d.id), repeat(permutation), df.index)
+    for c, (pw, id, per, idx) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
         if not sched:
             print(f"\r Permutation: {permutation:8}\t\t{ansi} baby {idx}: {c:3} {100 * c / len(df):8.5f}%             ", end="", flush=True)
 
