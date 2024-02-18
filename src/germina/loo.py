@@ -13,7 +13,7 @@ from sklearn.impute import IterativeImputer
 from sklearn.metrics import r2_score
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 from xgboost import XGBClassifier as XGBc, XGBRegressor as XGBr
 
@@ -134,6 +134,11 @@ def train_r(pairs_X_tr, pairs_y_tr_r, alg_train, n_estimators_train, seed, jobs)
     return alg_r
 
 
+def contrib2prediction(contrib):
+    class_index = np.argmax(contrib, axis=1)
+    return LabelEncoder().inverse_transform(class_index)
+
+
 def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, rejection_threshold: float,
         alg, n_estimators,
         n_estimators_imp,
@@ -187,7 +192,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
               seed=seed, _jobs_=jobs)
     hits_c, hits_r = {0: 0, 1: 0}, {0: 0, 1: 0}
     tot, tot_c, tot_r = {0: 0, 1: 0}, {0: 0, 1: 0}, {0: 0, 1: 0}
-    y, y_c, y_r, z_lst_c, z_lst_r = [], [], [], [], []
+    y, y_c, y_r, z_lst_c, z_lst_r, shap_c, shap_r = [], [], [], [], [], [], []
     ansi = d.hosh.ansi
     tasks = zip(repeat(pairwise), repeat(d.id), repeat(permutation), df.index)
     for c, (pw, id, per, idx) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
@@ -246,7 +251,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
             # test set
             Xts = baby[:, :-1]
 
-        # train
+        # training
         d.apply(train_c, Xtr, ytr_c, jobs=_._jobs_, out="result_train_c")
         d = ch(d, storages)
         if not sched:
@@ -258,7 +263,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
         if sched:
             continue
 
-        # predictions
+        # prediction
         zts_c = alg_c.predict(Xts)
         zts_r = alg_r.predict(Xts)
 
@@ -288,6 +293,32 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
             hits_r[expected] += int(expected == predicted_r)
             tot_r[expected] += 1
 
+        # SHAP
+        if  False and permutation == 0:
+            # print(contrib2prediction()
+            # shap_c.append(alg_c.predict(Xts, pred_contrib=True).tolist())
+            # shap_r.append(alg_r.predict(Xts, pred_contrib=True).tolist())
+
+            shap_c = alg_c.predict(Xts, pred_contrib=True)
+            shap_r = alg_r.predict(Xts, pred_contrib=True)
+            print()
+            print()
+            print("____________________________________________")
+            print()
+            print(Xts.shape)
+            print()
+            print("+++++++++++++++++++++++++++++++++++++")
+            print()
+            print(DataFrame(shap_c))
+            print()
+            print("-------------------------------")
+            print()
+            print(DataFrame(shap_r))
+            print()
+            # 1 - transforma em toshaps (um por bebe de treino, pois parearam com o bebe de teste pra criar o teste pareado)
+            # ...
+            exit()
+
     if sched:
         return
     z_c = np.array(z_lst_c)
@@ -306,4 +337,4 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
 
     rj_c = (len(y) - len(y_c)) / len(y)
     rj_r = (len(y) - len(y_r)) / len(y)
-    return d, bacc_c, bacc_r, r2_c, r2_r, hits_c, hits_r, tot, tot_c, tot_r, rj_c, rj_r
+    return d, bacc_c, bacc_r, r2_c, r2_r, hits_c, hits_r, tot, tot_c, tot_r, rj_c, rj_r, shap_c, shap_r
