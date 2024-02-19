@@ -144,7 +144,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
         n_estimators_imp,
         n_estimators_fsel, forward_fsel, k_features_fsel, k_folds_fsel,
         db, storages: dict, sched: bool,
-        seed, jobs: int):
+        seed, jobs: int, pct:bool):
     """
     Perform LOO on both a classifier and a regressor.
 
@@ -174,15 +174,19 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
         raise Exception(f"Not implemented for {pairwise=}")
 
     # helper functions
-    handle_last_as_y = True
+    handle_last_as_y = "%" if pct else True
     filter = lambda tmp: (tmp[:, -1] < -threshold) | (tmp[:, -1] >= threshold)
     if pairwise == "difference":
         hstack = lambda a, b: pairwise_diff(a, b, pct=handle_last_as_y == "%")
     elif pairwise == "concatenation":
         hstack = lambda a, b: pairwise_hstack(a, b, handle_last_as_y=handle_last_as_y)
-    else:
-        pairwise = False
+    elif pairwise == "none":
+        if pct:
+            raise Exception(f"Just use delta=9 instead of pct,delta=0.1  (assuming you are looking for 20% increase")
         df = df.loc[(df.iloc[:, -1] < 100 - threshold) | (df.iloc[:, -1] >= 100 + threshold)]
+        pairwise = False
+    else:
+        raise Exception(f"Not implemented for {pairwise=}")
 
     if df.isna().sum().sum() == 0:
         n_estimators_imp = 0

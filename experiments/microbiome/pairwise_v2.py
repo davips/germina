@@ -15,7 +15,6 @@ dct = handle_command_line(argv, noage=False, delta=float, trees=int, pct=False, 
 print(dct)
 noage, trees, delta, pct, demo, sched, perms, targetvar, jobs, alg, seed, prefix, sufix, trees_imp, feats, tfsel, forward, pairwise, sps = dct["noage"], dct["trees"], dct["delta"], dct["pct"], dct["demo"], dct["sched"], dct["perms"], dct["targetvar"], dct["jobs"], dct["alg"], dct["seed"], dct["prefix"], dct["sufix"], dct["trees_imp"], dct["feats"], dct["tfsel"], dct["forward"], dct["pairwise"], dct["sps"]
 rnd = np.random.default_rng(0)
-handle_last_as_y = "%" if pct else True
 with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_uri, ondup="skip") as near_storage, sopen(remote_cache_uri, ondup="skip") as remote_storage, sopen(schedule_uri) as db):
     storages = {
         # "remote": remote_storage,
@@ -40,7 +39,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                   n_estimators_imp=trees_imp,
                   n_estimators_fsel=tfsel, forward_fsel=forward, k_features_fsel=feats, k_folds_fsel=4,
                   db=db, storages=storages, sched=sched,
-                  seed=seed, jobs=jobs)
+                  seed=seed, jobs=jobs, pct=pct)
         if ret:
             d, bacc_c, bacc_r, r2_c, r2_r, hits_c, hits_r, tot, tot_c, tot_r, rj_c, rj_r, shap_c, shap_r = ret
             print(f"\r{sp=} {delta=} {trees=} {bacc_c=:4.3f} {bacc_r=:4.3f} | {r2_c=:4.3f} {r2_r=:4.3f} {hits_c=}  {hits_r=} {tot=} {tot_c=} {tot_r=}\t{d.hosh.ansi} | {rj_c=} {rj_r=} | {shap_c=} {shap_r=}", flush=True)
@@ -55,7 +54,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                       n_estimators_imp=trees_imp,
                       n_estimators_fsel=tfsel, forward_fsel=forward, k_features_fsel=feats, k_folds_fsel=4,
                       db=db, storages=storages, sched=sched,
-                      seed=seed, jobs=jobs)
+                      seed=seed, jobs=jobs, pct=pct)
             if ret:
                 d, bacc_cp, bacc_rp, r2_cp, r2_rp, hits_cp, hits_rp, totp, tot_cp, tot_rp, rj_cp, rj_rp, shap_c, shap_r = ret
                 scores_dct["bacc_c"].append(bacc_cp - bacc_c)
