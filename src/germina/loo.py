@@ -164,8 +164,6 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
 
     (https://docutils.sourceforge.io/docs/ref/rst/restructuredtext.html)
     """
-    if df.isna().sum().sum() == 0:
-        n_estimators_imp = 0
     if k_features_fsel >= df.shape[1] - 1:
         n_estimators_fsel = 0
         forward_fsel = False
@@ -184,6 +182,11 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
         hstack = lambda a, b: pairwise_hstack(a, b, handle_last_as_y=handle_last_as_y)
     else:
         pairwise = False
+        df = df.loc[(df.iloc[:, -1] < 100 - threshold) | (df.iloc[:, -1] >= 100 + threshold)]
+
+    if df.isna().sum().sum() == 0:
+        n_estimators_imp = 0
+    print(df.shape, "<<<<<<<<<<<<<<<<<<<<")
 
     # LOO
     d = hdict(df=df, alg_train=alg, n_estimators_train=n_estimators,
@@ -294,7 +297,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
             tot_r[expected] += 1
 
         # SHAP
-        if  False and permutation == 0:
+        if False and permutation == 0:
             # print(contrib2prediction()
             # shap_c.append(alg_c.predict(Xts, pred_contrib=True).tolist())
             # shap_r.append(alg_r.predict(Xts, pred_contrib=True).tolist())
