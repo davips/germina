@@ -144,7 +144,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
         n_estimators_imp,
         n_estimators_fsel, forward_fsel, k_features_fsel, k_folds_fsel,
         db, storages: dict, sched: bool,
-        seed, jobs: int, pct:bool):
+        seed, jobs: int, pct: bool):
     """
     Perform LOO on both a classifier and a regressor.
 
@@ -201,8 +201,8 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
     tot, tot_c, tot_r = {0: 0, 1: 0}, {0: 0, 1: 0}, {0: 0, 1: 0}
     y, y_c, y_r, z_lst_c, z_lst_r, shap_c, shap_r = [], [], [], [], [], [], []
     ansi = d.hosh.ansi
-    tasks = zip(repeat(pairwise), repeat(d.id), repeat(permutation), df.index)
-    for c, (pw, id, per, idx) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
+    tasks = zip(repeat([threshold, rejection_threshold]), repeat(pairwise), repeat(d.id), repeat(permutation), df.index)
+    for c, (ths, pw, id, per, idx) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
         if not sched:
             print(f"\r Permutation: {permutation:8}\t\t{ansi} baby {idx}: {c:3} {100 * c / len(df):8.5f}%             ", end="", flush=True)
 
