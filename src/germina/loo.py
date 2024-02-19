@@ -144,7 +144,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
         n_estimators_imp,
         n_estimators_fsel, forward_fsel, k_features_fsel, k_folds_fsel,
         db, storages: dict, sched: bool,
-        seed, jobs: int, pct: bool):
+        seed, jobs: int, pct: bool, center: float):
     """
     Perform LOO on both a classifier and a regressor.
 
@@ -155,7 +155,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
     :param threshold:   minimal distance between labels to make a difference between `high` and `low`
                         pairs with distance lesser than `threshold` will be discarded
                         TODO: option for relative distance `concatenation%`, `difference%`
-    :param rejection_threshold: The model will refuse to answer when predicted value is within `100 +- rejection_threshold`.
+    :param rejection_threshold: The model will refuse to answer when predicted value is within `center +- rejection_threshold`.
     :param db:
     :param storages:
     :param sched:
@@ -183,7 +183,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
     elif pairwise == "none":
         if pct:
             raise Exception(f"Just use delta=9 instead of pct,delta=0.1  (assuming you are looking for 20% increase")
-        df = df.loc[(df.iloc[:, -1] < 100 - threshold) | (df.iloc[:, -1] >= 100 + threshold)]
+        df = df.loc[(df.iloc[:, -1] < center - threshold) | (df.iloc[:, -1] >= center + threshold)]
         pairwise = False
     else:
         raise Exception(f"Not implemented for {pairwise=}")
@@ -284,19 +284,19 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
             baby_z_r = zts_r[0]
 
         # evaluate on accepted instances
-        expected = int(baby_y[0] >= 100)
+        expected = int(baby_y[0] >= center)
         tot[expected] += 1
         y.append(baby_y[0])
-        if abs(baby_z_c - 100) >= rejection_threshold:
+        if abs(baby_z_c - center) >= rejection_threshold:
             y_c.append(baby_y[0])
             z_lst_c.append(baby_z_c)
-            predicted_c = int(baby_z_c >= 100)
+            predicted_c = int(baby_z_c >= center)
             hits_c[expected] += int(expected == predicted_c)
             tot_c[expected] += 1
-        if abs(baby_z_r - 100) >= rejection_threshold:
+        if abs(baby_z_r - center) >= rejection_threshold:
             y_r.append(baby_y[0])
             z_lst_r.append(baby_z_r)
-            predicted_r = int(baby_z_r >= 100)
+            predicted_r = int(baby_z_r >= center)
             hits_r[expected] += int(expected == predicted_r)
             tot_r[expected] += 1
 
@@ -328,20 +328,28 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
 
     if sched:
         return
+
+    # classification
+    if tot[0] == 0 or tot[1] == 0:
+        print(f"Possible problems with `center`. Resulted in class total with zero value: {tot=} {center=}")
+        rj_c, rj_r, bacc_c, bacc_r = None, None, None, None
+    elif tot_r[0] == 0 or tot_c[1] == 0:
+        print(f"Possible problems with `rejection_threshold`. Resulted in class total with zero value: {tot_c=} {tot_r=} {rejection_threshold=}")
+        rj_c, rj_r, bacc_c, bacc_r = None, None, None, None
+    else:
+        rj_c = (len(y) - len(y_c)) / len(y)
+        rj_r = (len(y) - len(y_r)) / len(y)
+        acc0 = hits_c[0] / tot_c[0]
+        acc1 = hits_c[1] / tot_c[1]
+        bacc_c = (acc0 + acc1) / 2
+        acc0 = hits_r[0] / tot_r[0]
+        acc1 = hits_r[1] / tot_r[1]
+        bacc_r = (acc0 + acc1) / 2
+
+    # regression
     z_c = np.array(z_lst_c)
     z_r = np.array(z_lst_r)
-
-    acc0 = hits_c[0] / tot_c[0]
-    acc1 = hits_c[1] / tot_c[1]
-    bacc_c = (acc0 + acc1) / 2
-
-    acc0 = hits_r[0] / tot_r[0]
-    acc1 = hits_r[1] / tot_r[1]
-    bacc_r = (acc0 + acc1) / 2
-
     r2_c = r2_score(y_c, z_c)
     r2_r = r2_score(y_r, z_r)
 
-    rj_c = (len(y) - len(y_c)) / len(y)
-    rj_r = (len(y) - len(y_r)) / len(y)
     return d, bacc_c, bacc_r, r2_c, r2_r, hits_c, hits_r, tot, tot_c, tot_r, rj_c, rj_r, shap_c, shap_r
