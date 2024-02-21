@@ -144,28 +144,29 @@ if __name__ == '__main__':
                         d.apply(lambda X, y: pd.concat([X, y], axis=1), out=o)
                         d = ch(d, storages, storage_to_be_updated)
                         d[o].to_csv(f"/home/davi/git/germina/results/{o}_{target_var}.csv")
-
+                        continue
                     if dct["datasetr"]:
                         o = f"datasetr_{field}"
                         d.apply(lambda Xor, yor: pd.concat([Xor, yor], axis=1), out=o)
                         d = ch(d, storages, storage_to_be_updated)
                         d[o].to_csv(f"/home/davi/git/germina/results/{o}_{target_var}.csv")
-                        exit()
+                        continue
                     if dct["datasetr_fromtsv"]:
+                        tt = 2 if target_var.endswith("2") else 3
                         df1 = read_csv("data/full/T1_especies_original.tsv", sep=" ")
                         df1.set_index("id_estudo", inplace=True)
-                        df1 = df1.join(d.Xor["idade_crianca_dias_t2"], how="inner")
+                        df1 = df1.join(d.Xor[f"idade_crianca_dias_t{tt}"], how="inner")
                         df1 = df1.join(d.yor, how="inner")
                         o = f"datasetr_fromtsv_species1"
                         df1.to_csv(f"/home/davi/git/germina/results/{o}_{target_var}.csv")
 
                         df2 = read_csv("data/full/T2_especies_original.tsv", sep=" ")
                         df2.set_index("id_estudo", inplace=True)
-                        df2 = df2.join(d.Xor["idade_crianca_dias_t2"], how="inner")
+                        df2 = df2.join(d.Xor[f"idade_crianca_dias_t{tt}"], how="inner")
                         df2 = df2.join(d.yor, how="inner")
                         o = f"datasetr_fromtsv_species2"
                         df2.to_csv(f"/home/davi/git/germina/results/{o}_{target_var}.csv")
-                        exit()
+                        continue
 
                     d["X00"] = _.X
                     algsdct = {k: algs["kNN" if k.endswith("-NN") else k] for k in d.algs}
