@@ -21,13 +21,13 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
     0.717211440...
     >>> c = b.reshape(len(b), 1)
     >>> X = np.hstack([a, c])
-    >>> alg = PairwiseClassifier(threshold=20, threshold_interpolation=False, center=me, random_state=0, n_jobs=-1)
+    >>> alg = PairwiseClassifier(threshold=20, extreme_pairing=False, center=me, random_state=0, n_jobs=-1)
     >>> np.mean(cross_val_score(alg, X, y, cv=StratifiedKFold()))  # doctest:+ELLIPSIS +NORMALIZE_WHITESPACE
     0.748901940...
     """
 
     def __init__(self, n_estimators=100, random_state=None,
-                 pairwise="concatenation", threshold_interpolation=False,
+                 pairwise="concatenation", extreme_pairing=False,
                  pct=False, threshold=0, center=0, n_jobs=1):
         self.n_estimators = n_estimators
         self.n_jobs = n_jobs
@@ -35,7 +35,7 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
         self.pairwise = pairwise
         self.threshold = threshold
         self.pct = pct
-        self.threshold_interpolation = threshold_interpolation
+        self.extreme_pairing = extreme_pairing
         self.center = center
         # TODO: complete all alg args here
         self.alg = LGBMc(n_estimators=n_estimators, random_state=random_state, n_jobs=n_jobs, deterministic=True, force_row_wise=True)
@@ -88,7 +88,7 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
             ytr = (w >= self.center).astype(int)
 
         self.alg.fit(Xtr, ytr)
-        self.Xw_tr = self.Xw[abs(self.Xw[:, -1] - self.center) >= self.threshold] if self.threshold_interpolation else self.Xw
+        self.Xw_tr = self.Xw[abs(self.Xw[:, -1] - self.center) >= self.threshold] if self.extreme_pairing else self.Xw
         return self
 
     def predict(self, X):
@@ -98,7 +98,6 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
         X = Xw_ts[:, :-1]  # discard label to avoid data leakage
 
         handle_last_as_y = "%" if self.pct else True
-        filter = lambda tmp: (tmp < -self.threshold) | (tmp >= self.threshold)
         pairwise = True
         if self.pairwise == "difference":
             pairs = lambda a, b: pairwise_diff(a, b)

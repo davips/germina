@@ -139,7 +139,7 @@ def contrib2prediction(contrib):
     return LabelEncoder().inverse_transform(class_index)
 
 
-def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, rejection_threshold: float,
+def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, rejection_threshold: float, extreme_pairing_onprediction: float,
         alg, n_estimators,
         n_estimators_imp,
         n_estimators_fsel, forward_fsel, k_features_fsel, k_folds_fsel,
@@ -175,15 +175,17 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
 
     # helper functions
     handle_last_as_y = "%" if pct else True
-    filter = lambda tmp: (tmp[:, -1] < -threshold) | (tmp[:, -1] >= threshold)
+    filter = lambda tmp: abs(tmp[:, -1]) >= threshold
     if pairwise == "difference":
-        hstack = lambda a, b: pairwise_diff(a, b, pct=handle_last_as_y == "%")
+        pairs = lambda a, b: pairwise_diff(a, b, pct=handle_last_as_y == "%")
+        pairs_ts = lambda a, b: pairwise_diff(a, b)
     elif pairwise == "concatenation":
-        hstack = lambda a, b: pairwise_hstack(a, b, handle_last_as_y=handle_last_as_y)
+        pairs = lambda a, b: pairwise_hstack(a, b, handle_last_as_y=handle_last_as_y)
+        pairs_ts = lambda a, b: pairwise_hstack(a, b)
     elif pairwise == "none":
         if pct:
             raise Exception(f"Just use delta=9 instead of pct,delta=0.1  (assuming you are looking for 20% increase")
-        df = df.loc[(df.iloc[:, -1] < center - threshold) | (df.iloc[:, -1] >= center + threshold)]
+        df = df.loc[abs(df.iloc[:, -1] - center) >= threshold]
         pairwise = False
     else:
         raise Exception(f"Not implemented for {pairwise=}")
@@ -214,6 +216,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
             continue  # skip NaN labels
         baby_y = baby_y.to_numpy()
         baby = babydf.to_numpy()
+        babyx = baby[:, :-1]
         Xy_tr = df.drop(idx, axis="rows")
 
         # missing value imputation
@@ -238,16 +241,15 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
 
         if pairwise:  # pairwise transformation
             # training set
-            tmp = hstack(Xy_tr, Xy_tr)
+            tmp = pairs(Xy_tr, Xy_tr)
             pairs_Xy_tr = tmp[filter(tmp)]
             Xtr = pairs_Xy_tr[:, :-1]
             ytr_c = (pairs_Xy_tr[:, -1] >= 0).astype(int)
             ytr_r = pairs_Xy_tr[:, -1]
             # test set
-            tmp = hstack(baby, Xy_tr)
-            fltr = filter(tmp)
-            Xy_ts = tmp[fltr]
-            Xts = Xy_ts[:, :-1]
+            if extreme_pairing_onprediction:
+                Xy_tr = Xy_tr[abs(Xy_tr[:, -1] - center) >= threshold]
+            Xts = pairs_ts(babyx, Xy_tr[:,:-1])
             # true values for pairs (they are irrelevant):
             # yts_c = (Xy_ts[:, -1] >= 0).astype(int)
             # yts_r = Xy_ts[:, -1]
@@ -276,7 +278,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
 
         if pairwise:
             # interpolation
-            targets = Xy_tr[fltr, -1]
+            targets = Xy_tr[:, -1]
             baby_z_c = interpolate_for_classification(targets, conditions=2 * zts_c - 1)
             baby_z_r = interpolate_for_regression(targets, conditions=zts_r)
         else:
