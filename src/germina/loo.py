@@ -58,7 +58,7 @@ def interpolate_for_regression(targets, conditions):
 
 def imputer(alg, n_estimators, seed, jobs):
     if alg == "lgbm":
-        return IterativeImputer(LGBMr(n_estimators=n_estimators, random_state=seed, n_jobs=jobs), random_state=seed)
+        return IterativeImputer(LGBMr(n_estimators=n_estimators, random_state=seed, n_jobs=jobs, deterministic=True, force_row_wise=True), random_state=seed)
     elif alg.endswith("knn"):
         return IterativeImputer(Pipeline(steps=[('scaler', StandardScaler()), ('knn', KNeighborsRegressor(n_neighbors=n_estimators, n_jobs=jobs))]), random_state=seed)
     else:
@@ -77,7 +77,7 @@ def imputation(Xy_tr, baby, alg_imp, n_estimators_imp, seed, jobs):
 
 def selector(forward, alg, n_estimators, k_features, k_folds, seed, jobs):
     if alg == "lgbm":
-        return sfs(LGBMr(n_estimators=n_estimators, random_state=seed, n_jobs=1), k_features=k_features, forward=forward, verbose=0, cv=k_folds, n_jobs=jobs, scoring='r2')
+        return sfs(LGBMr(n_estimators=n_estimators, random_state=seed, n_jobs=1, deterministic=True, force_row_wise=True), k_features=k_features, forward=forward, verbose=0, cv=k_folds, n_jobs=jobs, scoring='r2')
     elif alg == "knn":
         return sfs(Pipeline(steps=[('scaler', StandardScaler()), ('knn', KNeighborsRegressor(n_neighbors=n_estimators, n_jobs=1))]), k_features=k_features, forward=forward, verbose=0, cv=k_folds, n_jobs=jobs, scoring='r2')
     else:
