@@ -253,7 +253,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
             # yts_r = Xy_ts[:, -1]
         else:
             Xtr = Xy_tr[:, :-1]
-            ytr_c = (Xy_tr[:, -1] >= 0).astype(int)
+            ytr_c = (Xy_tr[:, -1] >= center).astype(int)
             ytr_r = Xy_tr[:, -1]
             # test set
             Xts = baby[:, :-1]
@@ -280,7 +280,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
             baby_z_c = interpolate_for_classification(targets, conditions=2 * zts_c - 1)
             baby_z_r = interpolate_for_regression(targets, conditions=zts_r)
         else:
-            baby_z_c = (zts_c * 200)[0]
+            baby_z_c = zts_c[0]
             baby_z_r = zts_r[0]
 
         # evaluate on accepted instances
