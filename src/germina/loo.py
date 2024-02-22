@@ -243,6 +243,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
             # training set
             tmp = pairs(Xy_tr, Xy_tr)
             pairs_Xy_tr = tmp[filter(tmp)]
+            # print(pairs_Xy_tr.shape, "!!!!!!!!!!!!!!!!!")
             Xtr = pairs_Xy_tr[:, :-1]
             ytr_c = (pairs_Xy_tr[:, -1] >= 0).astype(int)
             ytr_r = pairs_Xy_tr[:, -1]

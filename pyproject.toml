@@ -29,7 +29,7 @@ torch = {version = ">=2.0.0, !=2.0.1, !=2.1.0"}
 dalex = "^1.6.0"
 plotly = "^5.18.0"
 hosh = "^3.230705.5"
-shelchemy = "^2.240219.1"
+shelchemy = "^2.240219.2"
 gradient-descent-the-ultimate-optimizer = "^1.0"
 torchvision = "^0.16.2"
 hdict = "^2.240217.0"

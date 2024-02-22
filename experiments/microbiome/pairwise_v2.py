@@ -29,9 +29,15 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         if demo:
             take = min(df.shape[0] // 2, 30)
             df = pd.concat([df.iloc[:take], df.iloc[-take:]], axis="rows")
-        age = df["idade_crianca_dias_t2"]
+        if targetvar.endswith("t2"):
+            agevar = "idade_crianca_dias_t2"
+        elif targetvar.endswith("t3"):
+            agevar = "idade_crianca_dias_t3"
+        else:
+            raise Exception(f"Unexpected timepoint suffix for target '{targetvar}'.")
+        age = df[agevar]
         if noage:
-            del df["idade_crianca_dias_t2"]  #####################################
+            del df[agevar]  #####################################
         # df = df[["idade_crianca_dias_t2", "bayley_8_t2"]]
         print(df.shape, "<<<<<<<<<<<<<<<<<")
         ret = loo(df, permutation=0, pairwise=pairwise, threshold=delta, rejection_threshold=0, extreme_pairing_onprediction=x,
