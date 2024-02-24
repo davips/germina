@@ -107,9 +107,14 @@ if __name__ == '__main__':
                 for target_var in d.target_vars.split(","):
                     cols = [target_var]
                     if target_var.endswith("t2"):
+                        tt = 2
                         cols.append("idade_crianca_dias_t2")
                     elif target_var.endswith("t3"):
+                        tt = 3
                         cols.append("idade_crianca_dias_t3")
+                    elif target_var.endswith("t4"):
+                        tt = 4
+                        cols.append("idade_crianca_dias_t4")
                     else:
                         raise Exception(f"Unexpected suffix for target '{target_var}'.")
                     d["target_var"] = target_var
@@ -125,6 +130,8 @@ if __name__ == '__main__':
                             d.apply(lambda df: df.drop(["idade_crianca_dias_t2"], axis=1), out="df")
                         if "idade_crianca_dias_t3" in d.df:
                             d.apply(lambda df: df.drop(["idade_crianca_dias_t3"], axis=1), out="df")
+                        if "idade_crianca_dias_t4" in d.df:
+                            d.apply(lambda df: df.drop(["idade_crianca_dias_t4"], axis=1), out="df")
                         d = ch(d, storages, storage_to_be_updated)
 
                     d = clean_for_dalex(d, storages, storage_to_be_updated, field, target=d.target_var, alias=d.target_var, keep=d.cols, field=field)
@@ -152,9 +159,9 @@ if __name__ == '__main__':
                         d[o].to_csv(f"/home/davi/git/germina/results/{o}_{target_var}.csv")
                         continue
                     if dct["datasetr_fromtsv"]:
-                        tt = 2 if target_var.endswith("2") else 3
                         df1 = read_csv("data/full/T1_especies_original.tsv", sep=" ")
                         df1.set_index("id_estudo", inplace=True)
+
                         df1 = df1.join(d.Xor[f"idade_crianca_dias_t{tt}"], how="inner")
                         df1 = df1.join(d.yor, how="inner")
                         o = f"datasetr_fromtsv_species1"

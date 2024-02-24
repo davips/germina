@@ -33,14 +33,16 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             agevar = "idade_crianca_dias_t2"
         elif targetvar.endswith("t3"):
             agevar = "idade_crianca_dias_t3"
+        elif targetvar.endswith("t4"):
+            agevar = "idade_crianca_dias_t4"
         else:
             raise Exception(f"Unexpected timepoint suffix for target '{targetvar}'.")
-        age = df[agevar]
+        # age = df[agevar]
         if noage:
             del df[agevar]  #####################################
         # df = df[["idade_crianca_dias_t2", "bayley_8_t2"]]
         print(df.shape, "<<<<<<<<<<<<<<<<<")
-        ret = loo(df, permutation=0, pairwise=pairwise, threshold=delta, rejection_threshold=0, extreme_pairing_onprediction=x,
+        ret = loo(df, permutation=0, pairwise=pairwise, threshold=delta, rejection_threshold__inpct=0, extreme_pairing_onprediction=x,
                   alg=alg, n_estimators=trees,
                   n_estimators_imp=trees_imp,
                   n_estimators_fsel=tfsel, forward_fsel=forward, k_features_fsel=feats, k_folds_fsel=4,
@@ -55,7 +57,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         for permutation in ap[1, 2, ..., perms]:
             df_shuffled = df.copy()
             df_shuffled[targetvar] = rnd.permutation(df[targetvar].values)
-            ret = loo(df_shuffled, permutation, pairwise=pairwise, threshold=delta, rejection_threshold=0, extreme_pairing_onprediction=x,
+            ret = loo(df_shuffled, permutation, pairwise=pairwise, threshold=delta, rejection_threshold__inpct=0, extreme_pairing_onprediction=x,
                       alg=alg, n_estimators=trees,
                       n_estimators_imp=trees_imp,
                       n_estimators_fsel=tfsel, forward_fsel=forward, k_features_fsel=feats, k_folds_fsel=4,

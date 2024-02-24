@@ -139,7 +139,7 @@ def contrib2prediction(contrib):
     return LabelEncoder().inverse_transform(class_index)
 
 
-def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, rejection_threshold: float, extreme_pairing_onprediction: float,
+def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, rejection_threshold__inpct: float, extreme_pairing_onprediction: float,
         alg, n_estimators,
         n_estimators_imp,
         n_estimators_fsel, forward_fsel, k_features_fsel, k_folds_fsel,
@@ -155,7 +155,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
     :param threshold:   minimal distance between labels to make a difference between `high` and `low`
                         pairs with distance lesser than `threshold` will be discarded
                         TODO: option for relative distance `concatenation%`, `difference%`
-    :param rejection_threshold: The model will refuse to answer when predicted value is within `center +- rejection_threshold`.
+    :param rejection_threshold__inpct: The model will refuse to answer when predicted value is within `center +- rejection_threshold`.
     :param db:
     :param storages:
     :param sched:
@@ -184,8 +184,9 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
         pairs_ts = lambda a, b: pairwise_hstack(a, b)
     elif pairwise == "none":
         if pct:
-            raise Exception(f"Just use delta=9 instead of pct,delta=0.1  (assuming you are looking for 20% increase")
-        df = df.loc[abs(df.iloc[:, -1] - center) >= threshold]
+            df = df.loc[abs(df.iloc[:, -1] / center - 1) >= threshold]
+        else:
+            df = df.loc[abs(df.iloc[:, -1] - center) >= threshold]
         pairwise = False
     else:
         raise Exception(f"Not implemented for {pairwise=}")
@@ -203,7 +204,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
     tot, tot_c, tot_r = {0: 0, 1: 0}, {0: 0, 1: 0}, {0: 0, 1: 0}
     y, y_c, y_r, z_lst_c, z_lst_r, shap_c, shap_r = [], [], [], [], [], [], []
     ansi = d.hosh.ansi
-    tasks = zip(repeat([threshold, rejection_threshold]), repeat(pairwise), repeat(d.id), repeat(permutation), df.index)
+    tasks = zip(repeat([threshold, rejection_threshold__inpct]), repeat(pairwise), repeat(d.id), repeat(permutation), df.index)
     for c, (ths, pw, id, per, idx) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
         if not sched:
             print(f"\r Permutation: {permutation:8}\t\t{ansi} baby {idx}: {c:3} {100 * c / len(df):8.5f}%             ", end="", flush=True)
@@ -243,14 +244,16 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
             # training set
             tmp = pairs(Xy_tr, Xy_tr)
             pairs_Xy_tr = tmp[filter(tmp)]
-            # print(pairs_Xy_tr.shape, "!!!!!!!!!!!!!!!!!")
             Xtr = pairs_Xy_tr[:, :-1]
             ytr_c = (pairs_Xy_tr[:, -1] >= 0).astype(int)
             ytr_r = pairs_Xy_tr[:, -1]
             # test set
             if extreme_pairing_onprediction:
-                Xy_tr = Xy_tr[abs(Xy_tr[:, -1] - center) >= threshold]
-            Xts = pairs_ts(babyx, Xy_tr[:,:-1])
+                if pct:
+                    Xy_tr = Xy_tr[abs(Xy_tr[:, -1] / center - 1) >= threshold]
+                else:
+                    Xy_tr = Xy_tr[abs(Xy_tr[:, -1] - center) >= threshold]
+            Xts = pairs_ts(babyx, Xy_tr[:, :-1])
             # true values for pairs (they are irrelevant):
             # yts_c = (Xy_ts[:, -1] >= 0).astype(int)
             # yts_r = Xy_ts[:, -1]
@@ -266,42 +269,43 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
         d = ch(d, storages)
         if not sched:
             print(f"\r Permutation: {permutation:8}\t\t{ansi} baby {idx}: {c:3} {100 * c / len(df):8.5f}%             ", end="", flush=True)
-        d.apply(train_r, Xtr, ytr_r, jobs=_._jobs_, out="result_train_r")
-        d = ch(d, storages)
-        alg_c, alg_r = d.result_train_c, d.result_train_r
+        # d.apply(train_r, Xtr, ytr_r, jobs=_._jobs_, out="result_train_r")
+        # d = ch(d, storages)
+        # alg_c, alg_r = d.result_train_c, d.result_train_r
+        alg_c = d.result_train_c
 
         if sched:
             continue
 
         # prediction
         zts_c = alg_c.predict(Xts)
-        zts_r = alg_r.predict(Xts)
+        # zts_r = alg_r.predict(Xts)
 
         if pairwise:
             # interpolation
             targets = Xy_tr[:, -1]
             baby_z_c = interpolate_for_classification(targets, conditions=2 * zts_c - 1)
-            baby_z_r = interpolate_for_regression(targets, conditions=zts_r)
+            # baby_z_r = interpolate_for_regression(targets, conditions=zts_r)
         else:
             baby_z_c = zts_c[0]
-            baby_z_r = zts_r[0]
+            # baby_z_r = zts_r[0]
 
         # evaluate on accepted instances
         expected = int(baby_y[0] >= center)
         tot[expected] += 1
         y.append(baby_y[0])
-        if abs(baby_z_c - center) >= rejection_threshold:
+        if abs(baby_z_c / center - 1) >= rejection_threshold__inpct:
             y_c.append(baby_y[0])
             z_lst_c.append(baby_z_c)
             predicted_c = int(baby_z_c >= center)
             hits_c[expected] += int(expected == predicted_c)
             tot_c[expected] += 1
-        if abs(baby_z_r - center) >= rejection_threshold:
-            y_r.append(baby_y[0])
-            z_lst_r.append(baby_z_r)
-            predicted_r = int(baby_z_r >= center)
-            hits_r[expected] += int(expected == predicted_r)
-            tot_r[expected] += 1
+        # if abs(baby_z_r - center) >= rejection_threshold:
+        #     y_r.append(baby_y[0])
+        #     z_lst_r.append(baby_z_r)
+        #     predicted_r = int(baby_z_r >= center)
+        #     hits_r[expected] += int(expected == predicted_r)
+        #     tot_r[expected] += 1
 
         # SHAP
         if False and permutation == 0:
@@ -310,7 +314,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
             # shap_r.append(alg_r.predict(Xts, pred_contrib=True).tolist())
 
             shap_c = alg_c.predict(Xts, pred_contrib=True)
-            shap_r = alg_r.predict(Xts, pred_contrib=True)
+            # shap_r = alg_r.predict(Xts, pred_contrib=True)
             print()
             print()
             print("____________________________________________")
@@ -335,24 +339,25 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
     # classification
     if tot[0] == 0 or tot[1] == 0:
         print(f"Possible problems with `center`. Resulted in class total with zero value: {tot=} {center=}")
-        rj_c, rj_r, bacc_c, bacc_r = None, None, None, None
-    elif tot_r[0] == 0 or tot_c[1] == 0:
-        print(f"Possible problems with `rejection_threshold`. Resulted in class total with zero value: {tot_c=} {tot_r=} {rejection_threshold=}")
-        rj_c, rj_r, bacc_c, bacc_r = None, None, None, None
+        rj_c = rj_r = bacc_c = bacc_r = -1
+    # elif tot_r[0] == 0 or tot_c[1] == 0:
+    elif tot_c[1] == 0:
+        print(f"Possible problems with `rejection_threshold`. Resulted in class total with zero value: {tot_c=} {tot_r=} {rejection_threshold__inpct=}")
+        rj_c = rj_r = bacc_c = bacc_r = -1
     else:
         rj_c = (len(y) - len(y_c)) / len(y)
-        rj_r = (len(y) - len(y_r)) / len(y)
+        # rj_r = (len(y) - len(y_r)) / len(y)
         acc0 = hits_c[0] / tot_c[0]
         acc1 = hits_c[1] / tot_c[1]
         bacc_c = (acc0 + acc1) / 2
-        acc0 = hits_r[0] / tot_r[0]
-        acc1 = hits_r[1] / tot_r[1]
-        bacc_r = (acc0 + acc1) / 2
+        # acc0 = hits_r[0] / tot_r[0]
+        # acc1 = hits_r[1] / tot_r[1]
+        # bacc_r = (acc0 + acc1) / 2
 
     # regression
     z_c = np.array(z_lst_c)
-    z_r = np.array(z_lst_r)
+    # z_r = np.array(z_lst_r)
     r2_c = r2_score(y_c, z_c)
-    r2_r = r2_score(y_r, z_r)
-
+    # r2_r = r2_score(y_r, z_r)
+    bacc_r = rj_r = r2_r = -1
     return d, bacc_c, bacc_r, r2_c, r2_r, hits_c, hits_r, tot, tot_c, tot_r, rj_c, rj_r, shap_c, shap_r

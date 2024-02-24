@@ -26,7 +26,7 @@ from sklearn.tree import DecisionTreeClassifier
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.dataset import join, eeg_t2_vars
 from germina.loader import load_from_csv, clean_for_dalex, get_balance, start_reses, ccc, aaa, bbb, load_from_synapse
-from germina.pairwiserf import PairwiseRF
+from germina.pairwiseclassifier import PairwiseClassifier
 from germina.runner import ch
 from hdict import hdict, apply, _
 
