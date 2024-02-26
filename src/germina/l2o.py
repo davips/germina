@@ -65,14 +65,16 @@ def imputer(alg, n_estimators, seed, jobs):
         raise Exception(f"Unknown {alg=}")
 
 
-def imputation(Xy_tr, baby, alg_imp, n_estimators_imp, seed, jobs):
+def imputation(Xy_tr, babya, babyb, alg_imp, n_estimators_imp, seed, jobs):
     print("\timputing", end="", flush=True)
     imp = imputer(alg_imp, n_estimators_imp, seed, jobs)
     Xy_tr = imp.fit_transform(Xy_tr)  # First, fit using label info.
     imp.fit(Xy_tr[:, :-1])  # Then fit without labels to be able to make a model compatible with the test instance.
-    babyx = imp.transform(baby[:, :-1])
-    baby[:, :-1] = babyx
-    return Xy_tr, baby
+    babyxa = imp.transform(babya[:, :-1])
+    babyxb = imp.transform(babyb[:, :-1])
+    babya[:, :-1] = babyxa
+    babyb[:, :-1] = babyxb
+    return Xy_tr, babya, babyb
 
 
 def selector(forward, alg, n_estimators, k_features, k_folds, seed, jobs):
@@ -84,14 +86,16 @@ def selector(forward, alg, n_estimators, k_features, k_folds, seed, jobs):
         raise Exception(f"Unknown {alg=}")
 
 
-def fselection(Xy_tr, baby, alg_fsel, n_estimators_fsel, forward_fsel, k_features_fsel, k_folds_fsel, seed, jobs):
+def fselection(Xy_tr, babya, babyb, alg_fsel, n_estimators_fsel, forward_fsel, k_features_fsel, k_folds_fsel, seed, jobs):
     print("\tselecting", end="", flush=True)
     sel = selector(forward_fsel, alg_fsel, n_estimators_fsel, k_features_fsel, k_folds_fsel, seed, jobs)
     X_tr = sel.fit_transform(Xy_tr[:, :-1], Xy_tr[:, -1])
-    babyx = sel.transform(baby[:, :-1])
-    baby = np.hstack([babyx, baby[:, -1:]])
+    babyxa = sel.transform(babya[:, :-1])
+    babyxb = sel.transform(babyb[:, :-1])
+    babya = np.hstack([babyxa, babya[:, -1:]])
+    babyb = np.hstack([babyxb, babyb[:, -1:]])
     Xy_tr = np.hstack([X_tr, Xy_tr[:, -1:]])
-    return Xy_tr, baby
+    return Xy_tr, babya, babyb
 
 
 def predictors(alg, n_estimators, seed, jobs):
@@ -120,11 +124,13 @@ def predictors(alg, n_estimators, seed, jobs):
 
 # Setting n_nearest_features << n_features, skip_complete=True or increasing tol can help to reduce its computational cost.
 
-def train_c(pairs_X_tr, pairs_y_tr_c, alg_train, n_estimators_train, seed, jobs):
+def train_c(pairs_X_tr, pairs_y_tr_c, Xts, alg_train, n_estimators_train, seed, jobs):
     print("\ttrainingC", end="", flush=True)
     alg_c = predictors(alg_train, n_estimators_train, seed, jobs)[0]
     alg_c.fit(pairs_X_tr, pairs_y_tr_c)
-    return alg_c
+    predicted_c = alg_c.predict(Xts)
+    predictedprobas_c = alg_c.predict_proba(Xts)
+    return predicted_c, predictedprobas_c
 
 
 def train_r(pairs_X_tr, pairs_y_tr_r, alg_train, n_estimators_train, seed, jobs):
@@ -139,12 +145,12 @@ def contrib2prediction(contrib):
     return LabelEncoder().inverse_transform(class_index)
 
 
-def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, rejection_threshold__inpct: float, extreme_pairing_onprediction: float,
+def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
         alg, n_estimators,
         n_estimators_imp,
         n_estimators_fsel, forward_fsel, k_features_fsel, k_folds_fsel,
         db, storages: dict, sched: bool,
-        seed, jobs: int, pct: bool, center: float):
+        seed, jobs: int):
     """
     Perform LOO on both a classifier and a regressor.
 
@@ -169,24 +175,21 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
         k_features_fsel = 0
         k_folds_fsel = 0
 
-    if pairwise not in {"none", "concatenation", "difference", "concatenation%", "difference%"}:  # TODO: %
+    if pairwise not in {"none", "concatenation", "difference"}:
         raise Exception(f"Not implemented for {pairwise=}")
 
+    df = df.sample(frac=1, random_state=seed)
+
     # helper functions
-    handle_last_as_y = "%" if pct else True
-    filter = lambda tmp, thr, me: abs(tmp[:, -1]) >= thr if me is None else abs(tmp[:, -1] / me) >= thr
+    # filter = lambda tmp, thr, me: (tmp[:, -1] < 0) | (tmp[:, -1] / me >= thr)
+    # filter = lambda tmp, thr, me: abs(tmp[:, -1] / me) >= thr
+    filter = lambda tmp, thr: abs(tmp[:, -1]) >= thr
     if pairwise == "difference":
-        pairs = lambda a, b: pairwise_diff(a, b, pct=handle_last_as_y == "%")
+        pairs = lambda a, b: pairwise_diff(a, b)
         pairs_ts = lambda a, b: pairwise_diff(a, b)
     elif pairwise == "concatenation":
-        pairs = lambda a, b: pairwise_hstack(a, b, handle_last_as_y=handle_last_as_y)
+        pairs = lambda a, b: pairwise_hstack(a, b, handle_last_as_y=True)
         pairs_ts = lambda a, b: pairwise_hstack(a, b)
-    elif pairwise == "none":
-        if pct:
-            df = df.loc[abs(df.iloc[:, -1] / center - 1) >= threshold]
-        else:
-            df = df.loc[abs(df.iloc[:, -1] - center) >= threshold]
-        pairwise = False
     else:
         raise Exception(f"Not implemented for {pairwise=}")
 
@@ -200,129 +203,87 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
               alg_fsel=alg, n_estimators_fsel=n_estimators_fsel, forward_fsel=forward_fsel, k_features_fsel=k_features_fsel, k_folds_fsel=k_folds_fsel,
               seed=seed, _jobs_=jobs)
     hits_c, hits_r = {0: 0, 1: 0}, {0: 0, 1: 0}
-    tot, tot_c, tot_r = {0: 0, 1: 0}, {0: 0, 1: 0}, {0: 0, 1: 0}
-    y, y_c, y_r, z_lst_c, z_lst_r, shap_c, shap_r = [], [], [], [], [], [], []
+    tot, tot_c = {0: 0, 1: 0}, {0: 0, 1: 0}
+    y, y_c, z_lst_c, shap_c = [], [], [], []
     ansi = d.hosh.ansi
-    tasks = zip(repeat([threshold, rejection_threshold__inpct]), repeat(pairwise), repeat(d.id), repeat(permutation), df.index)
-    for c, (ths, pw, id, per, idx) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
+    odd = df.index[1::2]
+    even = df.index[::2]
+    paired = zip(odd, even)
+    tasks = zip(repeat(threshold), repeat(pairwise), repeat(d.id), repeat(permutation), paired)
+    bacc_c = 0
+    for c, (ths, pw, id, per, (idxa, idxb)) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
         if not sched:
-            print(f"\r Permutation: {permutation:8}\t\t{ansi} baby {idx}: {c:3} {100 * c / len(df):8.5f}%             ", end="", flush=True)
+            print(f"\r Permutation: {permutation:8}\t\t{ansi} pair {idxa, idxb}: {c:3} {100 * c / len(df):8.5f}% {bacc_c:5.3f}          ", end="", flush=True)
 
-        # prepare current baby and training set
-        babydf = df.loc[[idx], :]
-        # baby_x = babydf.iloc[:, :-1]
-        baby_y = babydf.iloc[0, -1:]
-        if baby_y.isna().sum().sum() > 0:
+        # prepare current pair of babies and training set
+        babydfa = df.loc[[idxa], :]
+        babydfb = df.loc[[idxb], :]
+        baby_ya = babydfa.iloc[0, -1:]
+        baby_yb = babydfb.iloc[0, -1:]
+        if baby_ya.isna().sum().sum() > 0 or baby_yb.isna().sum().sum() > 0:
             continue  # skip NaN labels
-        baby_y = baby_y.to_numpy()
-        baby = babydf.to_numpy()
-        babyx = baby[:, :-1]
-        Xy_tr = df.drop(idx, axis="rows")
+        baby_ya = baby_ya.to_numpy()
+        baby_yb = baby_yb.to_numpy()
+        babya = babydfa.to_numpy()
+        babyb = babydfb.to_numpy()
+        Xy_tr = df.drop([idxa, idxb], axis="rows")
 
         # missing value imputation
         if n_estimators_imp > 0:
-            # Xy_tr, baby = imputation(Xy_tr, baby, alg, n_estimators_fsel_imput, seed, jobs)
-            d.apply(imputation, Xy_tr, baby, jobs=_._jobs_, out="result_imput")
+            d.apply(imputation, Xy_tr, babya, babyb, jobs=_._jobs_, out="result_imput")
             d = ch(d, storages)
             if not sched:
-                print(f"\r Permutation: {permutation:8}\t\t{ansi} baby {idx}: {c:3} {100 * c / len(df):8.5f}%             ", end="", flush=True)
-            Xy_tr, baby = d.result_imput
+                print(f"\r Permutation: {permutation:8}\t\t{ansi} pair {idxa, idxb}: {c:3} {100 * c / len(df):8.5f}% {bacc_c:5.3f}          ", end="", flush=True)
+            Xy_tr, babya, babyb = d.result_imput
         else:
             Xy_tr = Xy_tr.to_numpy()
 
         # feature selection
         if k_features_fsel > 0:
-            # Xy_tr, baby = fselection(Xy_tr, baby, alg, n_estimators_fsel_imput, forward_fsel, k_features_fsel, k_folds_fsel, seed, jobs)
-            d.apply(fselection, Xy_tr, baby, jobs=_._jobs_, out="result_fsel")
+            d.apply(fselection, Xy_tr, babya, babyb, jobs=_._jobs_, out="result_fsel")
             d = ch(d, storages)
             if not sched:
-                print(f"\r Permutation: {permutation:8}\t\t{ansi} baby {idx}: {c:3} {100 * c / len(df):8.5f}%             ", end="", flush=True)
-            Xy_tr, baby = d.result_fsel
+                print(f"\r Permutation: {permutation:8}\t\t{ansi} pair {idxa, idxb}: {c:3} {100 * c / len(df):8.5f}% {bacc_c:5.3f}          ", end="", flush=True)
+            Xy_tr, babya, babyb = d.result_fsel
+        babyxa = babya[:, :-1]
+        babyxb = babyb[:, :-1]
 
-        if center == -9999:
-            if pct:
-                raise Exception(f"cannot use {pct=} with {center=}. however, threshold must be like `0.2`.")
-            me = center = np.mean(Xy_tr[:, -1])
-            print(f"CCCCCCCCC  {center=}  CCCCCCC")
-        else:
-            me = None
-
-        if pairwise:  # pairwise transformation
-            # training set
-            tmp = pairs(Xy_tr, Xy_tr)
-            pairs_Xy_tr = tmp[filter(tmp, threshold, me)]
-            Xtr = pairs_Xy_tr[:, :-1]
-            ytr_c = (pairs_Xy_tr[:, -1] >= 0).astype(int)
-            ytr_r = pairs_Xy_tr[:, -1]
-            # test set
-            if extreme_pairing_onprediction:
-                if pct:
-                    Xy_tr = Xy_tr[abs(Xy_tr[:, -1] / center - 1) >= threshold]
-                else:
-                    Xy_tr = Xy_tr[abs(Xy_tr[:, -1] - center) >= threshold]
-
-            Xts = pairs_ts(babyx, Xy_tr[:, :-1])
-            # Xts_a = pairs_ts(babyx, Xy_tr[:, :-1])
-            # Xts_b = pairs_ts(Xy_tr[:, :-1], babyx)
-            # Xts = np.vstack([Xts_a, Xts_b])
-
-            # true values for pairs (they are irrelevant):
-            # yts_c = (Xy_ts[:, -1] >= 0).astype(int)
-            # yts_r = Xy_ts[:, -1]
-        else:
-            Xtr = Xy_tr[:, :-1]
-            ytr_c = (Xy_tr[:, -1] >= center).astype(int)
-            ytr_r = Xy_tr[:, -1]
-            # test set
-            Xts = baby[:, :-1]
+        # pairwise transformation
+        # training set
+        # me = np.mean(Xy_tr[:, -1])
+        tmp = pairs(Xy_tr, Xy_tr)
+        pairs_Xy_tr = tmp[filter(tmp, threshold)]  # exclui pares com alvos próximos
+        Xtr = pairs_Xy_tr[:, :-1]
+        ytr_c = (pairs_Xy_tr[:, -1] >= 0).astype(int)
+        # print(sum(ytr_c.tolist()), len(ytr_c.tolist()))
+        # test set
+        Xts = pairs_ts(babyxa, babyxb)
 
         # training
-        d.apply(train_c, Xtr, ytr_c, jobs=_._jobs_, out="result_train_c")
+        d.apply(train_c, Xtr, ytr_c, Xts, jobs=_._jobs_, out="result_train_c")
         d = ch(d, storages)
         if not sched:
-            print(f"\r Permutation: {permutation:8}\t\t{ansi} baby {idx}: {c:3} {100 * c / len(df):8.5f}%             ", end="", flush=True)
-        # d.apply(train_r, Xtr, ytr_r, jobs=_._jobs_, out="result_train_r")
-        # d = ch(d, storages)
-        # alg_c, alg_r = d.result_train_c, d.result_train_r
-        alg_c = d.result_train_c
+            print(f"\r Permutation: {permutation:8}\t\t{ansi} pair {idxa, idxb}: {c:3} {100 * c / len(df):8.5f}% {bacc_c:5.3f}          ", end="", flush=True)
 
         if sched:
             continue
 
         # prediction
-        zts_c = alg_c.predict(Xts)
-        # zts_r = alg_r.predict(Xts)
+        predicted_c, predictedprobas_c = d.result_train_c
+        predicted_c = predicted_c[0]
 
-        if pairwise:
-            # interpolation
-            conditions = 2 * zts_c - 1
-
-            # conditions[len(Xy_tr):] = -conditions[len(Xy_tr):]
-            # targets = np.hstack([Xy_tr[:, -1], Xy_tr[:, -1]])
-            targets = Xy_tr[:, -1]
-
-            baby_z_c = interpolate_for_classification(targets, conditions)
-            # baby_z_r = interpolate_for_regression(targets, conditions=zts_r)
-        else:
-            baby_z_c = zts_c[0]
-            # baby_z_r = zts_r[0]
-
-        # evaluate on accepted instances
-        expected = int(baby_y[0] >= center)
+        # evaluate
+        expected = int(baby_ya[0] >= baby_yb[0])
         tot[expected] += 1
-        y.append(baby_y[0])
-        if abs(baby_z_c / center - 1) >= rejection_threshold__inpct:
-            y_c.append(baby_y[0])
-            z_lst_c.append(baby_z_c)
-            predicted_c = int(baby_z_c >= center)
-            hits_c[expected] += int(expected == predicted_c)
-            tot_c[expected] += 1
-        # if abs(baby_z_r - center) >= rejection_threshold:
-        #     y_r.append(baby_y[0])
-        #     z_lst_r.append(baby_z_r)
-        #     predicted_r = int(baby_z_r >= center)
-        #     hits_r[expected] += int(expected == predicted_r)
-        #     tot_r[expected] += 1
+        z_lst_c.append(predicted_c)
+        hits_c[expected] += int(expected == predicted_c)
+        tot_c[expected] += 1
+
+        # temporary accuracy
+        if tot_c[0] * tot_c[1] > 0:
+            acc0 = hits_c[0] / tot_c[0]
+            acc1 = hits_c[1] / tot_c[1]
+            bacc_c = (acc0 + acc1) / 2
 
         # SHAP
         if False and permutation == 0:
@@ -355,28 +316,15 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
 
     # classification
     if tot[0] == 0 or tot[1] == 0:
-        print(f"Possible problems with `center`. Resulted in class total with zero value: {tot=} {center=}")
-        rj_c = rj_r = bacc_c = bacc_r = -1
-    # elif tot_r[0] == 0 or tot_c[1] == 0:
+        print(f"Resulted in class total with zero value: {tot=}")
+        bacc_c = -1
     elif tot_c[1] == 0:
-        print(f"Possible problems with `rejection_threshold`. Resulted in class total with zero value: {tot_c=} {tot_r=} {rejection_threshold__inpct=}")
-        rj_c = rj_r = bacc_c = bacc_r = -1
+        print(f"Resulted in class total with zero value: {tot_c=}")
+        bacc_c = -1
     else:
-        rj_c = (len(y) - len(y_c)) / len(y)
-        # rj_r = (len(y) - len(y_r)) / len(y)
         acc0 = hits_c[0] / tot_c[0]
         acc1 = hits_c[1] / tot_c[1]
         bacc_c = (acc0 + acc1) / 2
-        # acc0 = hits_r[0] / tot_r[0]
-        # acc1 = hits_r[1] / tot_r[1]
-        # bacc_r = (acc0 + acc1) / 2
 
     # regression
-    z_c = np.array(z_lst_c)
-    # z_r = np.array(z_lst_r)
-    r2_c = r2_score(y_c, z_c)
-    # r2_r = r2_score(y_r, z_r)
-    bacc_r = rj_r = r2_r = -1
-    # print()
-    # print(y)
-    return d, bacc_c, bacc_r, r2_c, r2_r, hits_c, hits_r, tot, tot_c, tot_r, rj_c, rj_r, shap_c, shap_r
+    return d, bacc_c, hits_c, tot, tot_c, shap_c
