@@ -154,7 +154,6 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
     :param pairwise:    pairwise type: by `concatenation`, `difference`, or `none`
     :param threshold:   minimal distance between labels to make a difference between `high` and `low`
                         pairs with distance lesser than `threshold` will be discarded
-                        TODO: option for relative distance `concatenation%`, `difference%`
     :param rejection_threshold__inpct: The model will refuse to answer when predicted value is within `center +- rejection_threshold`.
     :param db:
     :param storages:
@@ -175,7 +174,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
 
     # helper functions
     handle_last_as_y = "%" if pct else True
-    filter = lambda tmp: abs(tmp[:, -1]) >= threshold
+    filter = lambda tmp, thr: abs(tmp[:, -1]) >= thr
     if pairwise == "difference":
         pairs = lambda a, b: pairwise_diff(a, b, pct=handle_last_as_y == "%")
         pairs_ts = lambda a, b: pairwise_diff(a, b)
@@ -240,10 +239,18 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
                 print(f"\r Permutation: {permutation:8}\t\t{ansi} baby {idx}: {c:3} {100 * c / len(df):8.5f}%             ", end="", flush=True)
             Xy_tr, baby = d.result_fsel
 
+        if center == -9999:
+            if pct:
+                raise Exception(f"cannot use {pct=} with {center=}. however, threshold must be like `0.2`.")
+            center = np.mean(Xy_tr[:, -1])
+            mx, mn = np.max(Xy_tr[:, -1]), np.min(Xy_tr[:, -1])
+            threshold = (mx - mn) * threshold
+            print(f"CCCCCCCCC  {center=}   {threshold=} CCCCCCC {mx=} {mn=}")
+
         if pairwise:  # pairwise transformation
             # training set
             tmp = pairs(Xy_tr, Xy_tr)
-            pairs_Xy_tr = tmp[filter(tmp)]
+            pairs_Xy_tr = tmp[filter(tmp, threshold)]
             Xtr = pairs_Xy_tr[:, :-1]
             ytr_c = (pairs_Xy_tr[:, -1] >= 0).astype(int)
             ytr_r = pairs_Xy_tr[:, -1]
