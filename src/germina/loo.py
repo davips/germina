@@ -253,7 +253,12 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
                     Xy_tr = Xy_tr[abs(Xy_tr[:, -1] / center - 1) >= threshold]
                 else:
                     Xy_tr = Xy_tr[abs(Xy_tr[:, -1] - center) >= threshold]
+
             Xts = pairs_ts(babyx, Xy_tr[:, :-1])
+            # Xts_a = pairs_ts(babyx, Xy_tr[:, :-1])
+            # Xts_b = pairs_ts(Xy_tr[:, :-1], babyx)
+            # Xts = np.vstack([Xts_a, Xts_b])
+
             # true values for pairs (they are irrelevant):
             # yts_c = (Xy_ts[:, -1] >= 0).astype(int)
             # yts_r = Xy_ts[:, -1]
@@ -283,8 +288,13 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
 
         if pairwise:
             # interpolation
+            conditions = 2 * zts_c - 1
+
+            # conditions[len(Xy_tr):] = -conditions[len(Xy_tr):]
+            # targets = np.hstack([Xy_tr[:, -1], Xy_tr[:, -1]])
             targets = Xy_tr[:, -1]
-            baby_z_c = interpolate_for_classification(targets, conditions=2 * zts_c - 1)
+
+            baby_z_c = interpolate_for_classification(targets, conditions)
             # baby_z_r = interpolate_for_regression(targets, conditions=zts_r)
         else:
             baby_z_c = zts_c[0]
@@ -360,4 +370,6 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
     r2_c = r2_score(y_c, z_c)
     # r2_r = r2_score(y_r, z_r)
     bacc_r = rj_r = r2_r = -1
+    # print()
+    # print(y)
     return d, bacc_c, bacc_r, r2_c, r2_r, hits_c, hits_r, tot, tot_c, tot_r, rj_c, rj_r, shap_c, shap_r

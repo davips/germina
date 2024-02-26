@@ -41,7 +41,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         if noage:
             del df[agevar]  #####################################
         # df = df[["idade_crianca_dias_t2", "bayley_8_t2"]]
-        print(df.shape, "<<<<<<<<<<<<<<<<<")
+        # print(df.shape, "<<<<<<<<<<<<<<<<<")
         ret = loo(df, permutation=0, pairwise=pairwise, threshold=delta, rejection_threshold__inpct=0, extreme_pairing_onprediction=x,
                   alg=alg, n_estimators=trees,
                   n_estimators_imp=trees_imp,
@@ -70,6 +70,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                 scores_dct["r2_c"].append(r2_cp - r2_c)
                 scores_dct["r2_r"].append(r2_rp - r2_r)
 
+        continue
         if sched:
             print("Run again without providing flag `sched`.")
             continue
