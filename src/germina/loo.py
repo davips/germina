@@ -174,7 +174,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
 
     # helper functions
     handle_last_as_y = "%" if pct else True
-    filter = lambda tmp, thr: abs(tmp[:, -1]) >= thr
+    filter = lambda tmp, thr, me: abs(tmp[:, -1]) >= thr if me is None else abs(tmp[:, -1] / me) >= thr
     if pairwise == "difference":
         pairs = lambda a, b: pairwise_diff(a, b, pct=handle_last_as_y == "%")
         pairs_ts = lambda a, b: pairwise_diff(a, b)
@@ -242,15 +242,15 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
         if center == -9999:
             if pct:
                 raise Exception(f"cannot use {pct=} with {center=}. however, threshold must be like `0.2`.")
-            center = np.mean(Xy_tr[:, -1])
-            mx, mn = np.max(Xy_tr[:, -1]), np.min(Xy_tr[:, -1])
-            threshold = (mx - mn) * threshold
-            print(f"CCCCCCCCC  {center=}   {threshold=} CCCCCCC {mx=} {mn=}")
+            me = center = np.mean(Xy_tr[:, -1])
+            print(f"CCCCCCCCC  {center=}  CCCCCCC")
+        else:
+            me = None
 
         if pairwise:  # pairwise transformation
             # training set
             tmp = pairs(Xy_tr, Xy_tr)
-            pairs_Xy_tr = tmp[filter(tmp, threshold)]
+            pairs_Xy_tr = tmp[filter(tmp, threshold, me)]
             Xtr = pairs_Xy_tr[:, :-1]
             ytr_c = (pairs_Xy_tr[:, -1] >= 0).astype(int)
             ytr_r = pairs_Xy_tr[:, -1]
