@@ -53,8 +53,7 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
         :return:
         """
         self.Xw = X if isinstance(X, np.ndarray) else np.array(X)
-        X = None
-        y = None
+        X = y = None
 
         handle_last_as_y = "%" if self.pct else True
         filter = lambda tmp: (tmp[:, -1] < -self.threshold) | (tmp[:, -1] >= self.threshold)
@@ -97,7 +96,6 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
         Xw_ts = X if isinstance(X, np.ndarray) else np.array(X)
         X = Xw_ts[:, :-1]  # discard label to avoid data leakage
 
-        handle_last_as_y = "%" if self.pct else True
         pairwise = True
         if self.pairwise == "difference":
             pairs = lambda a, b: pairwise_diff(a, b)
@@ -105,7 +103,7 @@ class PairwiseClassifier(BaseEstimator, ClassifierMixin):
             pairs = lambda a, b: pairwise_hstack(a, b)
         elif self.pairwise == "none":
             if self.pct:
-                raise Exception(f"Just use delta=9 instead of pct,delta=0.1  (assuming you are looking for 20% increase")
+                raise Exception(f"For no pairwise, just use delta=9 instead of pct,delta=0.1  (assuming you are looking for 10% increase")
             pairwise = False
         else:
             raise Exception(f"Not implemented for {self.pairwise=}")
