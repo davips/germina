@@ -34,7 +34,7 @@ vif, nans, sched, storage_to_be_updated = dct["vif"], dct["nans"], dct["sched"],
 
 with (sopen(local_cache_uri) as local_storage, sopen(near_cache_uri) as near_storage, sopen(remote_cache_uri) as remote_storage):
     storages = {
-        "remote": remote_storage,
+        # "remote": remote_storage,
         "near": near_storage,
         "local": local_storage,
     }

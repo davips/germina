@@ -16,8 +16,8 @@ noage, trees, delta, pct, demo, sched, perms, jobs, alg, seed, trees_imp, feats,
 rnd = np.random.default_rng(0)
 with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_uri, ondup="skip") as near_storage, sopen(remote_cache_uri, ondup="skip") as remote_storage, sopen(schedule_uri) as db):
     storages = {
-        "remote": remote_storage,
-        # "near": near_storage,
+        # "remote": remote_storage,
+        "near": near_storage,
         "local": local_storage,
     }
     for sp in sps:
