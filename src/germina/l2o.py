@@ -1,15 +1,51 @@
-from itertools import repeat
+from itertools import repeat, chain
 
-from hdict import hdict, _
+import numpy as np
+from lightgbm import LGBMClassifier as LGBMc
+from pairwiseprediction.classifier import PairwiseClassifier
 from pandas import DataFrame
 from shelchemy.scheduler import Scheduler
+from sklearn.ensemble import ExtraTreesClassifier as ETc
+from sklearn.ensemble import RandomForestClassifier as RFc
 from sklearn.experimental import enable_iterative_imputer
+from sklearn.tree import DecisionTreeClassifier
+from xgboost import XGBClassifier as XGBc
 
-from germina.loo import imputation, fselection, train_c
-from germina.pairwise import pairwise_diff, pairwise_hstack
+from germina.loo import imputation, fselection
 from germina.runner import ch
 
 __ = enable_iterative_imputer
+
+
+def predictors(alg):
+    match alg:
+        case "rf":
+            return RFc
+        case "lgbm":
+            return LGBMc
+        case "et":
+            return ETc
+        case "xg":
+            return XGBc
+        case "cart":
+            return DecisionTreeClassifier
+        case _:
+            raise Exception(f"Unknown {alg=}. Options: rf,lgbm,et,xg,cart")
+
+
+def trainpredict_c(Xwtr, Xwts,
+                   alg_train, pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction,
+                   n_estimators_train, seed, jobs):
+    print("\ttrainingC", end="", flush=True)
+    kwargs = dict(n_estimators=n_estimators_train, random_state=seed, n_jobs=jobs)
+    if alg_train == "lgbm":
+        kwargs["deterministic"] = kwargs["force_row_wise"] = True
+    alg_c = PairwiseClassifier(predictors(alg_train),
+                               pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction, **kwargs)
+    alg_c.fit(Xwtr)
+    predicted_c = alg_c.predict(Xwts, paired_rows=True)[::2]
+    predictedprobas_c = alg_c.predict_proba(Xwts, paired_rows=True)[::2]
+    return predicted_c, predictedprobas_c
 
 
 def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
@@ -41,7 +77,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
         k_features_fsel = 0
         k_folds_fsel = 0
 
-    if pairwise not in {"none", "concatenation", "difference"}:
+    if pairwise not in {"concatenation", "difference"}:
         raise Exception(f"Not implemented for {pairwise=}")
 
     df = df.sample(frac=1, random_state=seed)
@@ -50,21 +86,14 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
     # filter = lambda tmp, thr, me: (tmp[:, -1] < 0) | (tmp[:, -1] / me >= thr)
     # filter = lambda tmp, thr, me: abs(tmp[:, -1] / me) >= thr
     filter = lambda tmp, thr: abs(tmp[:, -1]) >= thr
-    if pairwise == "difference":
-        pairs = lambda a, b: pairwise_diff(a, b)
-        pairs_ts = lambda a, b: pairwise_diff(a, b)
-    elif pairwise == "concatenation":
-        pairs = lambda a, b: pairwise_hstack(a, b, handle_last_as_y=True)
-        pairs_ts = lambda a, b: pairwise_hstack(a, b)
-    else:
-        raise Exception(f"Not implemented for {pairwise=}")
 
     if df.isna().sum().sum() == 0:
         n_estimators_imp = 0
     print(df.shape, "<<<<<<<<<<<<<<<<<<<<")
 
     # LOO
-    d = hdict(df=df, alg_train=alg, n_estimators_train=n_estimators,
+    from hdict import hdict, _
+    d = hdict(df=df, alg_train=alg, pairing_style=pairwise, n_estimators_train=n_estimators, center=None, only_relevant_pairs_on_prediction=False, threshold=threshold, proportion=False,
               alg_imp=alg, n_estimators_imp=n_estimators_imp,
               alg_fsel=alg, n_estimators_fsel=n_estimators_fsel, forward_fsel=forward_fsel, k_features_fsel=k_features_fsel, k_folds_fsel=k_folds_fsel,
               seed=seed, _jobs_=jobs)
@@ -80,57 +109,50 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
     targetvar = df.columns[-1]
     for c, (ths, pw, id, per, (idxa, idxb)) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
         if not sched:
-            print(f"\r Permutation: {permutation:8}\t\t{ansi} pair {idxa, idxb}: {c:3} {100 * c / len(df):8.5f}% {bacc_c:5.3f}          ", end="", flush=True)
+            print(f"\r Permutation: {permutation:8}\t\t{ansi} pair {idxa, idxb}: {c:3} {50 * c / len(df):8.5f}% {bacc_c:5.3f}          ", end="", flush=True)
 
         # prepare current pair of babies and training set
         babydfa = df.loc[[idxa], :]
         babydfb = df.loc[[idxb], :]
         baby_ya = babydfa.iloc[0, -1:]
         baby_yb = babydfb.iloc[0, -1:]
+        # TODO remove babies with NaN labels in training set
         if baby_ya.isna().sum().sum() > 0 or baby_yb.isna().sum().sum() > 0:
-            continue  # skip NaN labels
+            continue  # skip NaN labels from testing set
         baby_ya = baby_ya.to_numpy()
         baby_yb = baby_yb.to_numpy()
         babya = babydfa.to_numpy()
         babyb = babydfb.to_numpy()
-        Xy_tr = df.drop([idxa, idxb], axis="rows")
 
+        Xw_tr = df.drop([idxa, idxb], axis="rows")
         # missing value imputation
         if n_estimators_imp > 0:
-            d.apply(imputation, Xy_tr, babya, babyb, jobs=_._jobs_, out="result_imput")
+            d.apply(imputation, Xw_tr, babya, babyb, jobs=_._jobs_, out="result_imput")
             d = ch(d, storages)
             if not sched:
-                print(f"\r Permutation: {permutation:8}\t\t{ansi} pair {idxa, idxb}: {c:3} {100 * c / len(df):8.5f}% {bacc_c:5.3f}          ", end="", flush=True)
-            Xy_tr, babya, babyb = d.result_imput
+                print(f"\r Permutation: {permutation:8}\t\t{ansi} pair {idxa, idxb}: {c:3} {50 * c / len(df):8.5f}% {bacc_c:5.3f}          ", end="", flush=True)
+            Xw_tr, babya, babyb = d.result_imput
         else:
-            Xy_tr = Xy_tr.to_numpy()
+            Xw_tr = Xw_tr.to_numpy()
 
         # feature selection
         if k_features_fsel > 0:
-            d.apply(fselection, Xy_tr, babya, babyb, jobs=_._jobs_, out="result_fsel")
+            d.apply(fselection, Xw_tr, babya, babyb, jobs=_._jobs_, out="result_fsel")
             d = ch(d, storages)
             if not sched:
-                print(f"\r Permutation: {permutation:8}\t\t{ansi} pair {idxa, idxb}: {c:3} {100 * c / len(df):8.5f}% {bacc_c:5.3f}          ", end="", flush=True)
-            Xy_tr, babya, babyb = d.result_fsel
+                print(f"\r Permutation: {permutation:8}\t\t{ansi} pair {idxa, idxb}: {c:3} {50 * c / len(df):8.5f}% {bacc_c:5.3f}          ", end="", flush=True)
+            Xw_tr, babya, babyb = d.result_fsel
         babyxa = babya[:, :-1]
         babyxb = babyb[:, :-1]
 
-        # pairwise transformation
-        # training set
-        # me = np.mean(Xy_tr[:, -1])
-        tmp = pairs(Xy_tr, Xy_tr)
-        pairs_Xy_tr = tmp[filter(tmp, threshold)]  # exclui pares com alvos próximos
-        Xtr = pairs_Xy_tr[:, :-1]
-        ytr_c = (pairs_Xy_tr[:, -1] >= 0).astype(int)
-        # print(sum(ytr_c.tolist()), len(ytr_c.tolist()))
-        # test set
-        Xts = pairs_ts(babyxa, babyxb)
-
-        # training
-        d.apply(train_c, Xtr, ytr_c, Xts, jobs=_._jobs_, out="result_train_c")
+        # training  Xwtr, Xwts,
+        #           alg_train, pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction,
+        #           n_estimators_train, seed, jobs
+        Xw_ts = np.vstack([babya, babyb])
+        d.apply(trainpredict_c, Xw_tr, Xw_ts, jobs=_._jobs_, out="result_train_c")
         d = ch(d, storages)
         if not sched:
-            print(f"\r Permutation: {permutation:8}\t\t{ansi} pair {idxa, idxb}: {c:3} {100 * c / len(df):8.5f}% {bacc_c:5.3f}          ", end="", flush=True)
+            print(f"\r Permutation: {permutation:8}\t\t{ansi} pair {idxa, idxb}: {c:3} {50 * c / len(df):8.5f}% {bacc_c:5.3f}          ", end="", flush=True)
 
         if sched:
             continue
