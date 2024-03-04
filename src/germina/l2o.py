@@ -55,17 +55,23 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
         db, storages: dict, sched: bool,
         seed, jobs: int):
     """
-    Perform LOO on both a classifier and a regressor.
-
-    Make two types of predictions for each model: binary, continuous.
+    Perform Leave-2-Out on a pairwise classifier.
 
     :param df:          Sample including target variable. Last column is the target variable.
-    :param pairwise:    pairwise type: by `concatenation`, `difference`, or `none`
-    :param threshold:   minimal distance between labels to make a difference between `high` and `low`
-                        pairs with distance lesser than `threshold` will be discarded
+    :param permutation: A number for this run.
+    :param pairwise:    Pairwise type: by `concatenation`, `difference`, or `none`.
+    :param threshold:   Minimal distance between labels to make a difference between `high` and `low` pairs with distance lesser than `threshold` will be discarded.
+    :param alg:
+    :param n_estimators:
+    :param n_estimators_imp:
+    :param n_estimators_fsel:
+    :param forward_fsel:
+    :param k_features_fsel:
+    :param k_folds_fsel:
     :param db:
     :param storages:
     :param sched:
+    :param seed:
     :param jobs: # of "threads"
     :return:
 
@@ -76,17 +82,9 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
         forward_fsel = False
         k_features_fsel = 0
         k_folds_fsel = 0
-
     if pairwise not in {"concatenation", "difference"}:
         raise Exception(f"Not implemented for {pairwise=}")
-
     df = df.sample(frac=1, random_state=seed)
-
-    # helper functions
-    # filter = lambda tmp, thr, me: (tmp[:, -1] < 0) | (tmp[:, -1] / me >= thr)
-    # filter = lambda tmp, thr, me: abs(tmp[:, -1] / me) >= thr
-    filter = lambda tmp, thr: abs(tmp[:, -1]) >= thr
-
     if df.isna().sum().sum() == 0:
         n_estimators_imp = 0
     print(df.shape, "<<<<<<<<<<<<<<<<<<<<")
@@ -101,13 +99,13 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
     tot, tot_c = {0: 0, 1: 0}, {0: 0, 1: 0}
     y, y_c, z_lst_c, shap_c = [], [], [], []
     ansi = d.hosh.ansi
-    odd = df.index[1::2]
-    even = df.index[::2]
-    paired = zip(odd, even)
-    tasks = zip(repeat(threshold), repeat(pairwise), repeat(d.id), repeat(permutation), paired)
+    pairs1 = zip(df.index[::2], df.index[1::2])
+    pairs2 = zip(df.index[1::2], df.index[2::2])
+    pairs = chain(pairs1, pairs2)
+    tasks = zip(repeat(alg), repeat(pairwise), repeat(threshold), repeat(d.id), repeat(permutation), pairs)
     bacc_c = 0
     targetvar = df.columns[-1]
-    for c, (ths, pw, id, per, (idxa, idxb)) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
+    for c, (alg0, pw0, thr0, id0, perm0, (idxa, idxb)) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
         if not sched:
             print(f"\r Permutation: {permutation:8}\t\t{ansi} pair {idxa, idxb}: {c:3} {50 * c / len(df):8.5f}% {bacc_c:5.3f}          ", end="", flush=True)
 
@@ -186,7 +184,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
             print()
             print("____________________________________________")
             print()
-            print(Xts.shape)
+            # print(Xts.shape)
             print()
             print("+++++++++++++++++++++++++++++++++++++")
             print()
