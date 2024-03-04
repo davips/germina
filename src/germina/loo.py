@@ -4,6 +4,7 @@ import numpy as np
 from hdict import hdict, _
 from lightgbm import LGBMClassifier as LGBMc, LGBMRegressor as LGBMr
 from mlxtend.feature_selection import SequentialFeatureSelector as sfs
+from pairwiseprediction.combination import pairwise_diff, pairwise_hstack
 from pandas import DataFrame
 from shelchemy.scheduler import Scheduler
 from sklearn.ensemble import ExtraTreesClassifier as ETc, ExtraTreesRegressor as ETr
@@ -17,7 +18,6 @@ from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 from xgboost import XGBClassifier as XGBc, XGBRegressor as XGBr
 
-from germina.pairwise import pairwise_diff, pairwise_hstack
 from germina.runner import ch
 
 __ = enable_iterative_imputer
