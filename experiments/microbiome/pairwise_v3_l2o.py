@@ -57,18 +57,22 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             print(f"\r{sp=} {delta=} {trees=} {bacc_c=:4.3f} | {hits_c=} {tot=} {tot_c=} \t{d.hosh.ansi} | {shap_c=} ", flush=True)
             if plot:
                 missed = set()
-                m0, model, epoch, quality_surrogate = balanced_embedding(df.to_numpy()[:, :-1], epochs=200, return_only_X_=False).values()
+                m0, model, epoch, quality_surrogate = balanced_embedding(df.to_numpy()[:, :-1], epochs=100, return_only_X_=False).values()
                 for label, lst in errors.items():
                     for babydfa, babydfb in lst:
                         missed.add(babydfa.index.item())
                         missed.add(babydfb.index.item())
                         a, b = babydfa.to_numpy()[:, :-1], babydfb.to_numpy()[:, :-1]
                         m = model(from_numpy(np.vstack([a, b]).astype(np.float32))).detach().numpy()
-                        plt.plot(m[:, 0], m[:, 1], 'o-', c="red" if label else "blue", alpha=0.1)
+                        plt.plot(m[:, 0], m[:, 1], 'o-', c="red" if label else "blue", alpha=0.05)
                 # noinspection PyTypeChecker
-                m = df.drop(missed, axis="rows").to_numpy()
-                m = model(from_numpy(m[:, :-1].astype(np.float32))).detach().numpy()
-                plt.scatter(m[:, 0], m[:, 1], c="gray", s=120, alpha=0.5)
+                m1 = df.drop(missed, axis="rows").to_numpy()
+                m = model(from_numpy(m1[:, :-1].astype(np.float32))).detach().numpy()
+                mx, mn = m1[:, -1].max(), m1[:, -1].min()
+                ampl = mx - mn
+                ss = 500 * (0.01 + m1[:, -1] - mn) / ampl
+                plt.scatter(m[:, 0], m[:, 1], c=((ss / 500) - 0.01) * ampl + mn, alpha=0.95, s=ss)
+                plt.colorbar()
                 plt.show()
 
         # permutation test
