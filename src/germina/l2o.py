@@ -9,6 +9,7 @@ from sklearn.ensemble import ExtraTreesClassifier as ETc
 from sklearn.ensemble import RandomForestClassifier as RFc
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
+from sklearn.metrics import precision_recall_curve, average_precision_score, auc
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -124,7 +125,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, x: boo
               seed=seed, _jobs_=jobs)
     hits_c, hits_r = {0: 0, 1: 0}, {0: 0, 1: 0}
     tot, tot_c, errors = {0: 0, 1: 0}, {0: 0, 1: 0}, {0: [], 1: []}
-    y, y_c, z_lst_c, shap_c = [], [], [], []
+    y, p, z_lst_c, shap_c = [], [], [], []
     ansi = d.hosh.ansi
     pairs = pairwise_sample(df.index, nsamp, seed)
     # pairs1 = zip(df.index[::2], df.index[1::2])
@@ -175,6 +176,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, x: boo
         #           alg_train, pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction,
         #           n_estimators_train, seed, jobs
         Xw_ts = np.vstack([babya, babyb])
+        # noinspection PyTypeChecker
         d.apply(trainpredict_c, Xw_tr, Xw_ts, jobs=_._jobs_, out="result_train_c")
         d = ch(d, storages)
         if not sched:
@@ -184,13 +186,15 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, x: boo
             continue
 
         # prediction
-        predicted_c, predictedprobas_c = d.result_train_c
+        predicted_c, probas_c = d.result_train_c
         predicted_c = predicted_c[0]
 
-        # evaluate
+        # accumulate
         expected = int(baby_ya[0] >= baby_yb[0])
+        y.append(expected)
         tot[expected] += 1
         z_lst_c.append(predicted_c)
+        p.append(probas_c[0, 1])
         hits_c[expected] += int(expected == predicted_c)
         tot_c[expected] += 1
 
@@ -243,7 +247,11 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, x: boo
     else:
         acc0 = hits_c[0] / tot_c[0]
         acc1 = hits_c[1] / tot_c[1]
-        bacc_c = (acc0 + acc1) / 2
+        bacc_c = round((acc0 + acc1) / 2, 2)
 
-    # regression
-    return d, bacc_c, hits_c, tot, tot_c, shap_c, errors
+    # precision_recall_curve
+    aps = round(average_precision_score(y, p), 2) if bacc_c > 0 else None
+    pr, rc = precision_recall_curve(y, p)[:2]
+    auprc = round(auc(rc, pr), 2) if bacc_c > 0 else None
+
+    return d, bacc_c, hits_c, tot, shap_c, errors, aps, auprc

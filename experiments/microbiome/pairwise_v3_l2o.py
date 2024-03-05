@@ -15,9 +15,9 @@ from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, sc
 from germina.l2o import loo
 from sortedness.embedding.sortedness_ import balanced_embedding
 
-dct = handle_command_line(argv, noage=False, delta=float, trees=int, pct=False, demo=False, sched=False, perms=1, targetvar=str, jobs=int, alg=str, seed=0, prefix=str, sufix=str, trees_imp=int, feats=int, tfsel=int, forward=False, pairwise=str, sps=list, xx=False, plot=False, nsamp=int)
+dct = handle_command_line(argv, noage=False, delta=float, trees=int, pct=False, demo=False, sched=False, perms=1, targetvar=str, jobs=int, alg=str, seed=0, prefix=str, sufix=str, trees_imp=int, feats=int, tfsel=int, forward=False, pairwise=str, sps=list, plot=False, nsamp=int)
 print(dct)
-noage, trees, delta, pct, demo, sched, perms, targetvar, jobs, alg, seed, prefix, sufix, trees_imp, feats, tfsel, forward, pairwise, sps, xx, plot, nsamp = dct["noage"], dct["trees"], dct["delta"], dct["pct"], dct["demo"], dct["sched"], dct["perms"], dct["targetvar"], dct["jobs"], dct["alg"], dct["seed"], dct["prefix"], dct["sufix"], dct["trees_imp"], dct["feats"], dct["tfsel"], dct["forward"], dct["pairwise"], dct["sps"], dct["xx"], dct["plot"], dct["nsamp"]
+noage, trees, delta, pct, demo, sched, perms, targetvar, jobs, alg, seed, prefix, sufix, trees_imp, feats, tfsel, forward, pairwise, sps, plot, nsamp = dct["noage"], dct["trees"], dct["delta"], dct["pct"], dct["demo"], dct["sched"], dct["perms"], dct["targetvar"], dct["jobs"], dct["alg"], dct["seed"], dct["prefix"], dct["sufix"], dct["trees_imp"], dct["feats"], dct["tfsel"], dct["forward"], dct["pairwise"], dct["sps"], dct["plot"], dct["nsamp"]
 rnd = np.random.default_rng(0)
 with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_uri, ondup="skip") as near_storage, sopen(remote_cache_uri, ondup="skip") as remote_storage, sopen(schedule_uri) as db):
     storages = {
@@ -46,15 +46,15 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             del df[agevar]  #####################################
         # df = df[["idade_crianca_dias_t2", "bayley_8_t2"]]
         # print(df.shape, "<<<<<<<<<<<<<<<<<")
-        ret = loo(df, permutation=0, pairwise=pairwise, threshold=delta, x=xx,
+        ret = loo(df, permutation=0, pairwise=pairwise, threshold=delta,
                   alg=alg, n_estimators=trees,
                   n_estimators_imp=trees_imp,
                   n_estimators_fsel=tfsel, forward_fsel=forward, k_features_fsel=feats, k_folds_fsel=4,
                   db=db, storages=storages, sched=sched,
                   nsamp=nsamp, seed=seed, jobs=jobs)
         if ret:
-            d, bacc_c, hits_c, tot, tot_c, shap_c, errors = ret
-            print(f"\r{sp=} {delta=} {trees=} {bacc_c=:4.3f} | {hits_c=} {tot=} {tot_c=} \t{d.hosh.ansi} | {shap_c=} ", flush=True)
+            d, bacc, hits, tot, shap, errors, aps, auprc = ret
+            print(f"\r{sp=} {delta=} {trees=} {hits=} {tot=} \t{d.hosh.ansi} | {shap=} | {bacc=:4.3f} | {aps=} | {auprc=} ", flush=True)
             if plot:
                 missed = set()
                 m0, model, epoch, quality_surrogate = balanced_embedding(df.to_numpy()[:, :-1], epochs=100, return_only_X_=False).values()
@@ -80,14 +80,14 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         for permutation in ap[1, 2, ..., perms]:
             df_shuffled = df.copy()
             df_shuffled[targetvar] = rnd.permutation(df[targetvar].values)
-            ret = loo(df_shuffled, permutation, pairwise=pairwise, threshold=delta, x=xx,
+            ret = loo(df_shuffled, permutation, pairwise=pairwise, threshold=delta,
                       alg=alg, n_estimators=trees,
                       n_estimators_imp=trees_imp,
                       n_estimators_fsel=tfsel, forward_fsel=forward, k_features_fsel=feats, k_folds_fsel=4,
                       db=db, storages=storages, sched=sched,
                       nsamp=nsamp, seed=seed, jobs=jobs)
             if ret:
-                d, bacc_cp, hits_cp, totp, tot_cp, shap_c, errors = ret
+                d, bacc_cp, hits_cp, totp, tot_cp, shap_c, errors, prc = ret
                 # scores_dct["bacc_c"].append(bacc_cp - bacc_c)
                 # scores_dct["bacc_r"].append(bacc_rp - bacc_r)
                 # scores_dct["r2_c"].append(r2_cp - r2_c)
