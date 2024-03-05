@@ -4,16 +4,20 @@ import numpy as np
 import pandas as pd
 from argvsucks import handle_command_line
 from lange import ap
-from pandas import read_csv
+from pandas import read_csv, DataFrame
 from scipy.stats import ttest_1samp
 from shelchemy import sopen
+from sklearn.manifold import MDS
+from sympy.physics.control.control_plots import plt
+from torch import tensor, from_numpy
 
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.l2o import loo
+from sortedness.embedding.sortedness_ import balanced_embedding
 
-dct = handle_command_line(argv, noage=False, delta=float, trees=int, pct=False, demo=False, sched=False, perms=1, targetvar=str, jobs=int, alg=str, seed=0, prefix=str, sufix=str, trees_imp=int, feats=int, tfsel=int, forward=False, pairwise=str, sps=list)
+dct = handle_command_line(argv, noage=False, delta=float, trees=int, pct=False, demo=False, sched=False, perms=1, targetvar=str, jobs=int, alg=str, seed=0, prefix=str, sufix=str, trees_imp=int, feats=int, tfsel=int, forward=False, pairwise=str, sps=list, xx=False, plot=False, nsamp=int)
 print(dct)
-noage, trees, delta, pct, demo, sched, perms, targetvar, jobs, alg, seed, prefix, sufix, trees_imp, feats, tfsel, forward, pairwise, sps = dct["noage"], dct["trees"], dct["delta"], dct["pct"], dct["demo"], dct["sched"], dct["perms"], dct["targetvar"], dct["jobs"], dct["alg"], dct["seed"], dct["prefix"], dct["sufix"], dct["trees_imp"], dct["feats"], dct["tfsel"], dct["forward"], dct["pairwise"], dct["sps"]
+noage, trees, delta, pct, demo, sched, perms, targetvar, jobs, alg, seed, prefix, sufix, trees_imp, feats, tfsel, forward, pairwise, sps, xx, plot, nsamp = dct["noage"], dct["trees"], dct["delta"], dct["pct"], dct["demo"], dct["sched"], dct["perms"], dct["targetvar"], dct["jobs"], dct["alg"], dct["seed"], dct["prefix"], dct["sufix"], dct["trees_imp"], dct["feats"], dct["tfsel"], dct["forward"], dct["pairwise"], dct["sps"], dct["xx"], dct["plot"], dct["nsamp"]
 rnd = np.random.default_rng(0)
 with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_uri, ondup="skip") as near_storage, sopen(remote_cache_uri, ondup="skip") as remote_storage, sopen(schedule_uri) as db):
     storages = {
@@ -42,62 +46,56 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             del df[agevar]  #####################################
         # df = df[["idade_crianca_dias_t2", "bayley_8_t2"]]
         # print(df.shape, "<<<<<<<<<<<<<<<<<")
-        ret = loo(df, permutation=0, pairwise=pairwise, threshold=delta,
+        ret = loo(df, permutation=0, pairwise=pairwise, threshold=delta, x=xx,
                   alg=alg, n_estimators=trees,
                   n_estimators_imp=trees_imp,
                   n_estimators_fsel=tfsel, forward_fsel=forward, k_features_fsel=feats, k_folds_fsel=4,
                   db=db, storages=storages, sched=sched,
-                  seed=seed, jobs=jobs)
+                  nsamp=nsamp, seed=seed, jobs=jobs)
         if ret:
-            d, bacc_c, hits_c, tot, tot_c, shap_c = ret
+            d, bacc_c, hits_c, tot, tot_c, shap_c, errors = ret
             print(f"\r{sp=} {delta=} {trees=} {bacc_c=:4.3f} | {hits_c=} {tot=} {tot_c=} \t{d.hosh.ansi} | {shap_c=} ", flush=True)
+            if plot:
+                missed = set()
+                m0, model, epoch, quality_surrogate = balanced_embedding(df.to_numpy()[:, :-1], epochs=200, return_only_X_=False).values()
+                for label, lst in errors.items():
+                    for babydfa, babydfb in lst:
+                        missed.add(babydfa.index.item())
+                        missed.add(babydfb.index.item())
+                        a, b = babydfa.to_numpy()[:, :-1], babydfb.to_numpy()[:, :-1]
+                        m = model(from_numpy(np.vstack([a, b]).astype(np.float32))).detach().numpy()
+                        plt.plot(m[:, 0], m[:, 1], 'o-', c="red" if label else "blue", alpha=0.1)
+                # noinspection PyTypeChecker
+                m = df.drop(missed, axis="rows").to_numpy()
+                m = model(from_numpy(m[:, :-1].astype(np.float32))).detach().numpy()
+                plt.scatter(m[:, 0], m[:, 1], c="gray", s=120, alpha=0.5)
+                plt.show()
 
         # permutation test
         scores_dct = dict(bacc_c=[], bacc_r=[], r2_c=[], r2_r=[])
         for permutation in ap[1, 2, ..., perms]:
             df_shuffled = df.copy()
             df_shuffled[targetvar] = rnd.permutation(df[targetvar].values)
-            ret = loo(df_shuffled, permutation, pairwise=pairwise, threshold=delta,
+            ret = loo(df_shuffled, permutation, pairwise=pairwise, threshold=delta, x=xx,
                       alg=alg, n_estimators=trees,
                       n_estimators_imp=trees_imp,
                       n_estimators_fsel=tfsel, forward_fsel=forward, k_features_fsel=feats, k_folds_fsel=4,
                       db=db, storages=storages, sched=sched,
-                      seed=seed, jobs=jobs)
+                      nsamp=nsamp, seed=seed, jobs=jobs)
             if ret:
-                d, bacc_cp, hits_cp, totp, tot_cp, shap_c = ret
-                scores_dct["bacc_c"].append(bacc_cp - bacc_c)
-                scores_dct["bacc_r"].append(bacc_rp - bacc_r)
-                scores_dct["r2_c"].append(r2_cp - r2_c)
-                scores_dct["r2_r"].append(r2_rp - r2_r)
+                d, bacc_cp, hits_cp, totp, tot_cp, shap_c, errors = ret
+                # scores_dct["bacc_c"].append(bacc_cp - bacc_c)
+                # scores_dct["bacc_r"].append(bacc_rp - bacc_r)
+                # scores_dct["r2_c"].append(r2_cp - r2_c)
+                # scores_dct["r2_r"].append(r2_rp - r2_r)
 
-        continue
         if sched:
             print("Run again without providing flag `sched`.")
             continue
 
-        if scores_dct:
+        if scores_dct["bacc_c"]:
             print(f"\n{sp=} p-values: ", end="")
             for measure, scores in scores_dct.items():
                 p = ttest_1samp(scores, popmean=0, alternative="greater")[1]
                 print(f"  {measure}={p:4.3f}", end="")
         print("\n")
-
-"""s.o.s
-# filtered species t1|t2
-j=-1;s="sched";t=32;a=lgbm;pre="results/datasetr_species";suf="_bayley_8_t2.csv"; ps;     for p in $(seq 0 9999); do  time poetry run python experiments/microbiome/pairwise_v2.py trees_imp=10 prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=$j perms=$p diff $s; ps; time poetry run python experiments/microbiome/pairwise_v2.py trees_imp=10 prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=$j perms=$p $s; time poetry run python experiments/microbiome/pairwise_v2.py trees_imp=10 prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=$j perms=$p pct $s; time poetry run python experiments/microbiome/pairwise_v2.py trees_imp=10 prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=$j perms=$p pct diff $s; done # filtered species
-p=0;j=1;s="";t=32;a=lgbm;pre="results/datasetr_species";suf="_bayley_8_t2.csv"; ps; time poetry run python experiments/microbiome/pairwise_v2.py trees_imp=10 prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=$j perms=$p diff $s; ps; time poetry run python experiments/microbiome/pairwise_v2.py trees_imp=10 prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=$j perms=$p $s; time poetry run python experiments/microbiome/pairwise_v2.py trees_imp=10 prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=$j perms=$p pct $s; time poetry run python experiments/microbiome/pairwise_v2.py trees_imp=10 prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=$j perms=$p pct diff $s; # filtered species
-
-# full species t1|t2 7.5
-j=-1;s="sched";t=1024;a=lgbm;pre="results/datasetr_fromtsv_species";suf="_bayley_8_t2.csv"; ps;     for p in $(seq 0 9999); do  time poetry run python experiments/microbiome/pairwise_v2.py trees_imp=10 prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=$j perms=$p diff $s; ps; time poetry run python experiments/microbiome/pairwise_v2.py trees_imp=10 prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=$j perms=$p $s; done # full species
-p=0;j=1;s="";t=1024;a=lgbm;pre="results/datasetr_fromtsv_species";suf="_bayley_8_t2.csv"; ps; time poetry run python experiments/microbiome/pairwise_v2.py trees_imp=10 prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=$j perms=$p diff $s; ps; time poetry run python experiments/microbiome/pairwise_v2.py trees_imp=10 prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=$j perms=$p $s; # full species
-# full species t1|t2 pct
-j=-1;s="sched";t=1024;a=lgbm;pre="results/datasetr_fromtsv_species";suf="_bayley_8_t2.csv"; ps;     for p in $(seq 0 9999); do  time poetry run python experiments/microbiome/pairwise_v2.py trees_imp=10 prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=$j perms=$p pct $s; time poetry run python experiments/microbiome/pairwise_v2.py trees_imp=10 prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=$j perms=$p pct diff $s; done # full species
-p=0;j=1;s="";t=1024;a=lgbm;pre="results/datasetr_fromtsv_species";suf="_bayley_8_t2.csv"; ps; time poetry run python experiments/microbiome/pairwise_v2.py trees_imp=10 prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=$j perms=$p pct $s; time poetry run python experiments/microbiome/pairwise_v2.py trees_imp=10 prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=$j perms=$p pct diff $s; # full species
-
-# eeg single|dyadic 7.5
-j=-1;s="sched";t=1024;a=lgbm;pre="results/single_or_dyadic_is";suf="_bayley_8_t2.csv"; ps;     for p in $(seq 0 9999); do  time poetry run python experiments/microbiome/pairwise_v2.py trees_imp=10 prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=$j perms=$p diff $s; ps; time poetry run python experiments/microbiome/pairwise_v2.py trees_imp=10 prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=$j perms=$p $s; done # eeg
-p=0;j=1;s="";t=1024;a=lgbm;pre="results/single_or_dyadic_is";suf="_bayley_8_t2.csv"; ps; time poetry run python experiments/microbiome/pairwise_v2.py trees_imp=10 prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=$j perms=$p diff $s; ps; time poetry run python experiments/microbiome/pairwise_v2.py trees_imp=10 prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=$j perms=$p $s; # eeg
-# eeg single|dyadic  pct
-j=-1;s="sched";t=1024;a=lgbm;pre="results/single_or_dyadic_is";suf="_bayley_8_t2.csv"; ps;     for p in $(seq 0 9999); do  time poetry run python experiments/microbiome/pairwise_v2.py trees_imp=10 prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=$j perms=$p pct $s; time poetry run python experiments/microbiome/pairwise_v2.py trees_imp=10 prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=$j perms=$p pct diff $s; done # eeg
-p=0;j=1;s="";t=1024;a=lgbm;pre="results/single_or_dyadic_is";suf="_bayley_8_t2.csv"; ps; time poetry run python experiments/microbiome/pairwise_v2.py trees_imp=10 prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=$j perms=$p pct $s; time poetry run python experiments/microbiome/pairwise_v2.py trees_imp=10 prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=$j perms=$p pct diff $s; # eeg
-"""
