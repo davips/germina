@@ -1,5 +1,6 @@
 import warnings
 from itertools import repeat
+from os import cpu_count
 
 import numpy as np
 from lightgbm import LGBMClassifier as LGBMc
@@ -94,7 +95,7 @@ def trainpredictshap(Xwtr, Xwts,
     predicted_labels = alg_c.predict(Xwts, paired_rows=True)[::2]
     predicted_probas = alg_c.predict_proba(Xwts, paired_rows=True)[::2]
     print("\tcalculating SHAP", end="", flush=True)
-    shap = alg_c.shap(Xwts[0], Xwts[1], columns, seed, processes=jobs)
+    shap = alg_c.shap(Xwts[0], Xwts[1], columns, seed)
     return predicted_labels, predicted_probas, shap
 
 

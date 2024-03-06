@@ -2483,13 +2483,13 @@ files = [
 
 [[package]]
 name = "pairwiseprediction"
-version = "0.240304.2"
+version = "0.240306.5"
 description = "Handle a regression problem inducing the model on pairs A,B of instances"
 optional = false
 python-versions = ">=3.10,<4.0"
 files = [
-    {file = "pairwiseprediction-0.240304.2-py3-none-any.whl", hash = "sha256:e06face376b5b40985a188e882bb72ee037e8fae58dc7f30b39a7bc6bd3606b7"},
-    {file = "pairwiseprediction-0.240304.2.tar.gz", hash = "sha256:299a2419c99d3b8ce08bee00d8e3560f320d0ddd418973b5cd9c3dd8d3a749b2"},
+    {file = "pairwiseprediction-0.240306.5-py3-none-any.whl", hash = "sha256:c4551357266978cfbddba33962341234f3440b87eb24495d900214633eaaf904"},
+    {file = "pairwiseprediction-0.240306.5.tar.gz", hash = "sha256:661a0b916d17431767205434ead0661d8e06494afc39f052e9aa4a80a58f3e6b"},
 ]
 
 [package.dependencies]
@@ -4244,4 +4244,4 @@ full = []
 [metadata]
 lock-version = "2.0"
 python-versions = "3.11.2"
-content-hash = "62ea5455d643cc79c1a02856feb0fe51480d1836cbf206cd87dbd7aa3b3afbd2"
+content-hash = "f3b4b65b71d9f56386b4f36123b5162d8af53d0a498f8ff9e34cb929ba47ab06"
