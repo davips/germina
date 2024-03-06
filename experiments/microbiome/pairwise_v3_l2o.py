@@ -8,12 +8,12 @@ from pandas import read_csv, DataFrame
 from scipy.stats import ttest_1samp
 from shelchemy import sopen
 from sklearn.manifold import MDS
+from sortedness.embedding import balanced
 from sympy.physics.control.control_plots import plt
 from torch import tensor, from_numpy
 
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.l2o import loo
-from sortedness.embedding.sortedness_ import balanced_embedding
 
 dct = handle_command_line(argv, noage=False, delta=float, trees=int, pct=False, demo=False, sched=False, perms=1, targetvar=str, jobs=int, alg=str, seed=0, prefix=str, sufix=str, trees_imp=int, feats=int, tfsel=int, forward=False, pairwise=str, sps=list, plot=False, nsamp=int)
 print(dct)
@@ -57,7 +57,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             print(f"\r{sp=} {delta=} {trees=} {hits=} {tot=} \t{d.hosh.ansi} | {shap=} | {bacc=:4.3f} | {aps=} | {auprc=} ", flush=True)
             if plot:
                 missed = set()
-                m0, model, epoch, quality_surrogate = balanced_embedding(df.to_numpy()[:, :-1], epochs=100, return_only_X_=False).values()
+                m0, model, epoch, quality_surrogate = balanced(df.to_numpy()[:, :-1], epochs=100, return_only_X_=False).values()
                 for label, lst in errors.items():
                     for babydfa, babydfb in lst:
                         missed.add(babydfa.index.item())

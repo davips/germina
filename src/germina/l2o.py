@@ -75,7 +75,7 @@ def trainpredict_c(Xwtr, Xwts,
     return predicted_c, predictedprobas_c
 
 
-def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, x: bool,
+def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
         alg, n_estimators,
         n_estimators_imp,
         n_estimators_fsel, forward_fsel, k_features_fsel, k_folds_fsel,
@@ -119,7 +119,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, x: boo
 
     # LOO
     from hdict import hdict, _
-    d = hdict(df=df, alg_train=alg, pairing_style=pairwise, n_estimators_train=n_estimators, center=None, only_relevant_pairs_on_prediction=x, threshold=threshold, proportion=False,
+    d = hdict(df=df, alg_train=alg, pairing_style=pairwise, n_estimators_train=n_estimators, center=None, only_relevant_pairs_on_prediction=False, threshold=threshold, proportion=False,
               alg_imp=alg, n_estimators_imp=n_estimators_imp,
               alg_fsel=alg, n_estimators_fsel=n_estimators_fsel, forward_fsel=forward_fsel, k_features_fsel=k_features_fsel, k_folds_fsel=k_folds_fsel,
               seed=seed, _jobs_=jobs)
@@ -154,6 +154,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, x: boo
         Xw_tr = df.drop([idxa, idxb], axis="rows")
         # missing value imputation
         if n_estimators_imp > 0:
+            # noinspection PyTypeChecker
             d.apply(imputation, Xw_tr, babya, babyb, jobs=_._jobs_, out="result_imput")
             d = ch(d, storages)
             if not sched:
@@ -164,6 +165,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, x: boo
 
         # feature selection
         if k_features_fsel > 0:
+            # noinspection PyTypeChecker
             d.apply(fselection, Xw_tr, babya, babyb, jobs=_._jobs_, out="result_fsel")
             d = ch(d, storages)
             if not sched:
