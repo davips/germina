@@ -1,3 +1,4 @@
+from pprint import pprint
 from sys import argv
 
 import numpy as np
@@ -52,14 +53,12 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                   db=db, storages=storages, sched=sched, shap=shap,
                   nsamp=nsamp, seed=seed, jobs=jobs)
         if ret:
-            d, bacc, hits, tot, shp, errors, aps, auprc = ret
-            # print()
-            # print()
-            # print("-------------------------------")
-            # print(shp)
-            # print("=============================")
-            # exit()
-            print(f"\r{sp=} {delta=} {trees=} {hits=} {tot=} \t{d.hosh.ansi} | {shp=} | {bacc=:4.3f} | {aps=} | {auprc=} ", flush=True)
+            d, bacc, hits, tot, errors, aps, auprc, shaps = ret
+            print(f"\r{sp=} {delta=} {trees=} {hits=} {tot=} \t{d.hosh.ansi} | {bacc=:4.3f} | {aps=} | {auprc=} ", flush=True)
+            if shap:
+                shaps.relevance()
+                print()
+                print()
             if plot:
                 missed = set()
                 m0, model, epoch, quality_surrogate = balanced(df.to_numpy()[:, :-1], epochs=100, return_only_X_=False).values()
