@@ -1,6 +1,5 @@
 import warnings
 from itertools import repeat
-from os import cpu_count
 
 import numpy as np
 from lightgbm import LGBMClassifier as LGBMc
@@ -23,6 +22,7 @@ from xgboost import XGBClassifier as XGBc
 from germina.loo import fselection
 from germina.runner import ch
 from germina.sampling import pairwise_sample
+from germina.shaps import SHAPs
 
 warnings.filterwarnings('ignore')
 
@@ -108,7 +108,8 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
     """
     Perform Leave-2-Out on a pairwise classifier.
 
-    :param x:
+    :param nsamp:
+    :param shap:
     :param df:          Sample including target variable. Last column is the target variable.
     :param permutation: A number for this run.
     :param pairwise:    Pairwise type: by `concatenation`, `difference`, or `none`.
@@ -150,7 +151,8 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
               seed=seed, _jobs_=jobs)
     hits_c, hits_r = {0: 0, 1: 0}, {0: 0, 1: 0}
     tot, tot_c, errors = {0: 0, 1: 0}, {0: 0, 1: 0}, {0: [], 1: []}
-    y, p, z_lst_c, shap_c = [], [], [], []
+    y, p, z_lst_c = [], [], []
+    shaps = SHAPs()
     ansi = d.hosh.ansi
     pairs = pairwise_sample(df.index, nsamp, seed)
     # pairs1 = zip(df.index[::2], df.index[1::2])
@@ -158,7 +160,6 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
     # pairs = chain(pairs1, pairs2, *pairsx)
     tasks = zip(repeat(alg), repeat(pairwise), repeat(threshold), repeat(d.id), repeat(permutation), pairs)
     bacc_c = 0
-    targetvar = df.columns[-1]
     for c, (alg0, pw0, thr0, id0, perm0, (idxa, idxb)) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
         if not sched:
             print(f"\r Permutation: {permutation:8}\t\t{ansi} pair {idxa, idxb}: {c:3} {100 * c / len(pairs):8.5f}% {bacc_c:5.3f}          ", end="", flush=True)
@@ -196,8 +197,8 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
             if not sched:
                 print(f"\r Permutation: {permutation:8}\t\t{ansi} pair {idxa, idxb}: {c:3} {100 * c / len(pairs):8.5f}% {bacc_c:5.3f}          ", end="", flush=True)
             Xw_tr, babya, babyb = d.result_fsel
-        babyxa = babya[:, :-1]
-        babyxb = babyb[:, :-1]
+        # babyxa = babya[:, :-1]
+        # babyxb = babyb[:, :-1]
 
         # training
         Xw_ts = np.vstack([babya, babyb])
@@ -230,7 +231,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
         z_lst_c.append(predicted_c)
         p.append(probas_c[0, 1])
         if shap and permutation == 0:
-            shap_c.append(shp)
+            shaps.add(babya, babyb, shp)
         hits_c[expected] += int(expected == predicted_c)
         tot_c[expected] += 1
 
@@ -264,4 +265,4 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
     pr, rc = precision_recall_curve(y, p)[:2]
     auprc = round(auc(rc, pr), 2) if bacc_c > 0 else None
 
-    return d, bacc_c, hits_c, tot, shap_c, errors, aps, auprc
+    return d, bacc_c, hits_c, tot, errors, aps, auprc, shaps
