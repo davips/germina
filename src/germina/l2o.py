@@ -1,7 +1,9 @@
-from itertools import repeat, chain
+import warnings
+from itertools import repeat
 
 import numpy as np
-from lightgbm import LGBMClassifier as LGBMc, LGBMRegressor as LGBMr
+from lightgbm import LGBMClassifier as LGBMc
+from lightgbm import LGBMRegressor as LGBMr
 from pairwiseprediction.classifier import PairwiseClassifier
 from pandas import DataFrame
 from shelchemy.scheduler import Scheduler
@@ -9,7 +11,8 @@ from sklearn.ensemble import ExtraTreesClassifier as ETc
 from sklearn.ensemble import RandomForestClassifier as RFc
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
-from sklearn.metrics import precision_recall_curve, average_precision_score, auc
+from sklearn.metrics import average_precision_score
+from sklearn.metrics import precision_recall_curve, auc
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -19,6 +22,8 @@ from xgboost import XGBClassifier as XGBc
 from germina.loo import fselection
 from germina.runner import ch
 from germina.sampling import pairwise_sample
+
+warnings.filterwarnings('ignore')
 
 __ = enable_iterative_imputer
 
@@ -75,11 +80,29 @@ def trainpredict_c(Xwtr, Xwts,
     return predicted_c, predictedprobas_c
 
 
+def trainpredictshap(Xwtr, Xwts,
+                     alg_train, pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction,
+                     n_estimators_train, columns, seed, jobs):
+    print("\ttrainingC", end="", flush=True)
+    kwargs = dict(n_estimators=n_estimators_train, random_state=seed, n_jobs=jobs)
+    if alg_train == "lgbm":
+        kwargs["deterministic"] = kwargs["force_row_wise"] = True
+    alg_c = PairwiseClassifier(predictors(alg_train),
+                               pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction, **kwargs)
+    alg_c.fit(Xwtr)
+    print("\tpredictingC", end="", flush=True)
+    predicted_labels = alg_c.predict(Xwts, paired_rows=True)[::2]
+    predicted_probas = alg_c.predict_proba(Xwts, paired_rows=True)[::2]
+    print("\tcalculating SHAP", end="", flush=True)
+    shap = alg_c.shap(Xwts[0], Xwts[1], columns, seed, processes=jobs)
+    return predicted_labels, predicted_probas, shap
+
+
 def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
         alg, n_estimators,
         n_estimators_imp,
         n_estimators_fsel, forward_fsel, k_features_fsel, k_folds_fsel,
-        db, storages: dict, sched: bool,
+        db, storages: dict, sched: bool, shap: bool,
         nsamp, seed, jobs: int):
     """
     Perform Leave-2-Out on a pairwise classifier.
@@ -122,6 +145,7 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
     d = hdict(df=df, alg_train=alg, pairing_style=pairwise, n_estimators_train=n_estimators, center=None, only_relevant_pairs_on_prediction=False, threshold=threshold, proportion=False,
               alg_imp=alg, n_estimators_imp=n_estimators_imp,
               alg_fsel=alg, n_estimators_fsel=n_estimators_fsel, forward_fsel=forward_fsel, k_features_fsel=k_features_fsel, k_folds_fsel=k_folds_fsel,
+              columns=df.columns.tolist()[:-1],
               seed=seed, _jobs_=jobs)
     hits_c, hits_r = {0: 0, 1: 0}, {0: 0, 1: 0}
     tot, tot_c, errors = {0: 0, 1: 0}, {0: 0, 1: 0}, {0: [], 1: []}
@@ -174,12 +198,14 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
         babyxa = babya[:, :-1]
         babyxb = babyb[:, :-1]
 
-        # training  Xwtr, Xwts,
-        #           alg_train, pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction,
-        #           n_estimators_train, seed, jobs
+        # training
         Xw_ts = np.vstack([babya, babyb])
-        # noinspection PyTypeChecker
-        d.apply(trainpredict_c, Xw_tr, Xw_ts, jobs=_._jobs_, out="result_train_c")
+        if shap and permutation == 0:
+            # noinspection PyTypeChecker
+            d.apply(trainpredictshap, Xw_tr, Xw_ts, jobs=_._jobs_, out="result_train_c")
+        else:
+            # noinspection PyTypeChecker
+            d.apply(trainpredict_c, Xw_tr, Xw_ts, jobs=_._jobs_, out="result_train_c")
         d = ch(d, storages)
         if not sched:
             print(f"\r Permutation: {permutation:8}\t\t{ansi} pair {idxa, idxb}: {c:3} {100 * c / len(pairs):8.5f}% {bacc_c:5.3f}          ", end="", flush=True)
@@ -188,7 +214,12 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
             continue
 
         # prediction
-        predicted_c, probas_c = d.result_train_c
+        ret = d.result_train_c
+        if len(ret) == 3:
+            predicted_c, probas_c, shp = ret
+        else:
+            predicted_c, probas_c = ret
+            shp = None
         predicted_c = predicted_c[0]
 
         # accumulate
@@ -197,6 +228,8 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
         tot[expected] += 1
         z_lst_c.append(predicted_c)
         p.append(probas_c[0, 1])
+        if shap and permutation == 0:
+            shap_c.append(shp)
         hits_c[expected] += int(expected == predicted_c)
         tot_c[expected] += 1
 
@@ -209,32 +242,6 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
             acc0 = hits_c[0] / tot_c[0]
             acc1 = hits_c[1] / tot_c[1]
             bacc_c = (acc0 + acc1) / 2
-
-        # SHAP
-        if False and permutation == 0:
-            # print(contrib2prediction()
-            # shap_c.append(alg_c.predict(Xts, pred_contrib=True).tolist())
-            # shap_r.append(alg_r.predict(Xts, pred_contrib=True).tolist())
-
-            # shap_c = alg_c.predict(Xts, pred_contrib=True)
-            # shap_r = alg_r.predict(Xts, pred_contrib=True)
-            print()
-            print()
-            print("____________________________________________")
-            print()
-            # print(Xts.shape)
-            print()
-            print("+++++++++++++++++++++++++++++++++++++")
-            print()
-            print(DataFrame(shap_c))
-            print()
-            print("-------------------------------")
-            print()
-            # print(DataFrame(shap_r))
-            print()
-            # 1 - transforma em toshaps (um por bebe de treino, pois parearam com o bebe de teste pra criar o teste pareado)
-            # ...
-            exit()
 
     if sched:
         return
