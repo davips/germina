@@ -1,23 +1,53 @@
-from pprint import pprint
 from sys import argv
-
+from hdict import hdict, _
 import numpy as np
 import pandas as pd
 from argvsucks import handle_command_line
 from lange import ap
+from pairwiseprediction.classifier import PairwiseClassifier
 from pandas import read_csv
 from scipy.stats import ttest_1samp
 from shelchemy import sopen
+from sklearn.model_selection import RandomizedSearchCV
+from sklearn.tree import plot_tree
 from sortedness.embedding import balanced
 from sympy.physics.control.control_plots import plt
 from torch import from_numpy
 
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
-from germina.l2o import loo
+from germina.l2o import loo, predictors
+from germina.runner import ch
 
-dct = handle_command_line(argv, noage=False, delta=float, trees=int, pct=False, demo=False, sched=False, perms=1, targetvar=str, jobs=int, alg=str, seed=0, prefix=str, sufix=str, trees_imp=int, feats=int, tfsel=int, forward=False, pairwise=str, sps=list, plot=False, nsamp=int, shap=False)
+
+def f(alg, seed, jobs, pairwise, delta, proportion=False, center=None, only_relevant_pairs_on_prediction=False, verbose=False):
+    if verbose:
+        print("Optmizing hyperparameters.")
+    Opt: RandomizedSearchCV
+    Opt, kwargs = predictors(alg, None, seed, jobs)
+    alg_c = PairwiseClassifier(Opt, pairwise, delta, proportion=proportion, center=center, only_relevant_pairs_on_prediction=only_relevant_pairs_on_prediction, **kwargs)
+    alg_c.fit(df.iloc[:, :-1])
+    opt = alg_c._estimator
+    return opt.best_estimator_, opt.best_params_, opt.best_score_, opt.cv_results_
+
+
+def report(results, n_top=3):
+    for i in range(1, n_top + 1):
+        candidates = np.flatnonzero(results["rank_test_score"] == i)
+        for candidate in candidates:
+            print("Model with rank: {0}".format(i))
+            print(
+                "Mean validation score: {0:.3f} (std: {1:.3f})".format(
+                    results["mean_test_score"][candidate],
+                    results["std_test_score"][candidate],
+                )
+            )
+            print("Parameters: {0}".format(results["params"][candidate]))
+            print("")
+
+
+dct = handle_command_line(argv, noage=False, delta=float, trees=int, pct=False, demo=False, sched=False, perms=1, targetvar=str, jobs=int, alg=str, seed=0, prefix=str, sufix=str, trees_imp=int, feats=int, tfsel=int, forward=False, pairwise=str, sps=list, plot=False, nsamp=int, shap=False, tree=False)
 print(dct)
-noage, trees, delta, pct, demo, sched, perms, targetvar, jobs, alg, seed, prefix, sufix, trees_imp, feats, tfsel, forward, pairwise, sps, plot, nsamp, shap = dct["noage"], dct["trees"], dct["delta"], dct["pct"], dct["demo"], dct["sched"], dct["perms"], dct["targetvar"], dct["jobs"], dct["alg"], dct["seed"], dct["prefix"], dct["sufix"], dct["trees_imp"], dct["feats"], dct["tfsel"], dct["forward"], dct["pairwise"], dct["sps"], dct["plot"], dct["nsamp"], dct["shap"]
+noage, trees, delta, pct, demo, sched, perms, targetvar, jobs, alg, seed, prefix, sufix, trees_imp, feats, tfsel, forward, pairwise, sps, plot, nsamp, shap, tree = dct["noage"], dct["trees"], dct["delta"], dct["pct"], dct["demo"], dct["sched"], dct["perms"], dct["targetvar"], dct["jobs"], dct["alg"], dct["seed"], dct["prefix"], dct["sufix"], dct["trees_imp"], dct["feats"], dct["tfsel"], dct["forward"], dct["pairwise"], dct["sps"], dct["plot"], dct["nsamp"], dct["shap"], dct["tree"]
 rnd = np.random.default_rng(0)
 with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_uri, ondup="skip") as near_storage, sopen(remote_cache_uri, ondup="skip") as remote_storage, sopen(schedule_uri) as db):
     storages = {
@@ -44,8 +74,24 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         # age = df[agevar]
         if noage:
             del df[agevar]  #####################################
-        # df = df[["idade_crianca_dias_t2", "bayley_8_t2"]]
-        # print(df.shape, "<<<<<<<<<<<<<<<<<")
+            # df = df[["idade_crianca_dias_t2", "bayley_8_t2"]]
+            # print(df.shape, "<<<<<<<<<<<<<<<<<")
+
+        if tree:
+            hd = hdict(_verbose_=True)
+            # noinspection PyTypeChecker
+            hd.apply(f, alg, seed, jobs, pairwise, delta, verbose=_._verbose_, out="tree")
+            hd = ch(hd, storages)
+            best_estimator, best_params, best_score, cv_results = hd.tree
+            report(cv_results)
+            print(best_params)
+            print(best_score)
+            plot_tree(best_estimator, filled=True)
+            plt.title(f"Decision tree for {targetvar}")
+            plt.show()
+            # exit()
+            continue
+
         ret = loo(df, permutation=0, pairwise=pairwise, threshold=delta,
                   alg=alg, n_estimators=trees,
                   n_estimators_imp=trees_imp,
@@ -58,7 +104,8 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             if shap:
                 print(f"|||||||||||||||||||||||{sum(tot.values())} pairs\t|||||||||||||||||||||||")
                 rel = shaps.relevance()
-                rel.sort_values("toshap__p-value", inplace=True, kind="stable")
+                rel = rel[(rel["toshap__p-value"] < 0.1) & (rel["toshap__mean"] > 0.0001)]
+                rel.sort_values("toshap__mean", inplace=True, kind="stable", ascending=False)
                 print(rel)
             if plot:
                 missed = set()

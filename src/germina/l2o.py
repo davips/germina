@@ -2,10 +2,12 @@ import warnings
 from itertools import repeat
 
 import numpy as np
+from lange import ap
 from lightgbm import LGBMClassifier as LGBMc
 from lightgbm import LGBMRegressor as LGBMr
 from pairwiseprediction.classifier import PairwiseClassifier
 from pandas import DataFrame
+from scipy.stats import poisson, uniform
 from shelchemy.scheduler import Scheduler
 from sklearn.ensemble import ExtraTreesClassifier as ETc
 from sklearn.ensemble import RandomForestClassifier as RFc
@@ -13,6 +15,7 @@ from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
 from sklearn.metrics import average_precision_score
 from sklearn.metrics import precision_recall_curve, auc
+from sklearn.model_selection import RandomizedSearchCV
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
@@ -50,30 +53,41 @@ def imputation(Xy_tr, babya, babyb, alg_imp, n_estimators_imp, seed, jobs):
     return Xy_tr, babya, babyb
 
 
-def predictors(alg):
+def predictors(alg, n_estimators, seed, jobs):
     match alg:
         case "rf":
-            return RFc
+            return RFc, {"n_estimators": n_estimators, "random_state": seed, "n_jobs": jobs}
         case "lgbm":
-            return LGBMc
+            return LGBMc, {"deterministic": True, "force_row_wise": True, "random_state": seed, "n_jobs": jobs}
         case "et":
-            return ETc
+            return ETc, {"n_estimators": n_estimators, "random_state": seed, "n_jobs": jobs}
         case "xg":
-            return XGBc
+            return XGBc, {"n_estimators": n_estimators, "random_state": seed, "n_jobs": jobs}
         case "cart":
-            return DecisionTreeClassifier
-        case _:
-            raise Exception(f"Unknown {alg=}. Options: rf,lgbm,et,xg,cart")
+            return DecisionTreeClassifier, {"random_state": seed}
+        case x:
+            if x.startswith("ocart"):
+                param_dist = {
+                    'criterion': ['gini', 'entropy'],
+                    'max_depth': poisson(mu=4, loc=2),
+                    'min_samples_split': uniform(),
+                    'max_leaf_nodes': poisson(mu=12, loc=3)
+                }
+                print(x)
+                n_iter = int(x.split("-")[1])
+                cv = int(x.split("-")[2])
+                clf = DecisionTreeClassifier()
+                return RandomizedSearchCV, {"pre_dispatch": "n_jobs//2", "cv": cv, "n_jobs": jobs, "estimator": clf, "param_distributions": param_dist, "n_iter": n_iter, "random_state": seed, "scoring": "balanced_accuracy"}
+            else:
+                raise Exception(f"Unknown {alg=}. Options: rf,lgbm,et,xg,cart,ocart-*")
 
 
 def trainpredict_c(Xwtr, Xwts,
                    alg_train, pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction,
                    n_estimators_train, seed, jobs):
     print("\ttrainingC", end="", flush=True)
-    kwargs = dict(n_estimators=n_estimators_train, random_state=seed, n_jobs=jobs)
-    if alg_train == "lgbm":
-        kwargs["deterministic"] = kwargs["force_row_wise"] = True
-    alg_c = PairwiseClassifier(predictors(alg_train),
+    predictors_, kwargs = predictors(alg_train, n_estimators_train, seed, jobs)
+    alg_c = PairwiseClassifier(predictors_,
                                pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction, **kwargs)
     alg_c.fit(Xwtr)
     predicted_c = alg_c.predict(Xwts, paired_rows=True)[::2]
@@ -85,10 +99,8 @@ def trainpredictshap(Xwtr, Xwts,
                      alg_train, pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction,
                      n_estimators_train, columns, seed, jobs):
     print("\ttrainingC", end="", flush=True)
-    kwargs = dict(n_estimators=n_estimators_train, random_state=seed, n_jobs=jobs)
-    if alg_train == "lgbm":
-        kwargs["deterministic"] = kwargs["force_row_wise"] = True
-    alg_c = PairwiseClassifier(predictors(alg_train),
+    predictors_, kwargs = predictors(alg_train, n_estimators_train, seed, jobs)
+    alg_c = PairwiseClassifier(predictors_,
                                pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction, **kwargs)
     alg_c.fit(Xwtr)
     print("\tpredictingC", end="", flush=True)
@@ -130,6 +142,8 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
 
     (https://docutils.sourceforge.io/docs/ref/rst/restructuredtext.html)
     """
+    if "cart" in alg:
+        n_estimators = 0
     if k_features_fsel >= df.shape[1] - 1:
         n_estimators_fsel = 0
         forward_fsel = False
