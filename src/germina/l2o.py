@@ -70,10 +70,11 @@ def predictors(alg, n_estimators, seed, jobs):
                 param_dist = {
                     'criterion': ['gini', 'entropy'],
                     'max_depth': poisson(mu=4, loc=2),
-                    'min_samples_split': uniform(),
-                    'max_leaf_nodes': poisson(mu=12, loc=3)
+                    'min_impurity_decrease': uniform(0, 0.01),
+                    'max_leaf_nodes': poisson(mu=12, loc=3),
+                    'min_samples_split': ap[2, 3, ..., 20].l,
+                    'min_samples_leaf': ap[2, 3, ..., 10].l
                 }
-                print(x)
                 n_iter = int(x.split("-")[1])
                 cv = int(x.split("-")[2])
                 clf = DecisionTreeClassifier()
