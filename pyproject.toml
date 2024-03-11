@@ -33,7 +33,8 @@ shelchemy = "^2.240219.2"
 gradient-descent-the-ultimate-optimizer = "^1.0"
 torchvision = "^0.16.2"
 hdict = "^2.240217.0"
-pairwiseprediction = "^0.240306.5"
+pairwiseprediction = "^0.240311.1"
+optuna = "^3.5.0"
 
 [tool.poetry.extras]    #[tool.poetry.group.extras.dependencies]
 full = []

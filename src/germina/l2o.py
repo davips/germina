@@ -6,6 +6,7 @@ from lange import ap
 from lightgbm import LGBMClassifier as LGBMc
 from lightgbm import LGBMRegressor as LGBMr
 from pairwiseprediction.classifier import PairwiseClassifier
+from pairwiseprediction.optimized import OptimizedPairwiseClassifier
 from pandas import DataFrame
 from scipy.stats import poisson, uniform
 from shelchemy.scheduler import Scheduler
@@ -69,11 +70,11 @@ def predictors(alg, n_estimators, seed, jobs):
             if x.startswith("ocart"):
                 param_dist = {
                     'criterion': ['gini', 'entropy'],
-                    'max_depth': poisson(mu=4, loc=2),
+                    'max_depth': poisson(mu=5, loc=2),
                     'min_impurity_decrease': uniform(0, 0.01),
-                    'max_leaf_nodes': poisson(mu=12, loc=3),
-                    'min_samples_split': ap[2, 3, ..., 20].l,
-                    'min_samples_leaf': ap[2, 3, ..., 10].l
+                    'max_leaf_nodes': poisson(mu=20, loc=5),
+                    'min_samples_split': ap[20, 30, ..., 100].l,
+                    'min_samples_leaf': ap[10, 20, ..., 50].l
                 }
                 n_iter = int(x.split("-")[1])
                 cv = int(x.split("-")[2])
@@ -96,6 +97,20 @@ def trainpredict_c(Xwtr, Xwts,
     return predicted_c, predictedprobas_c
 
 
+def trainpredict_optimized(Xwtr, Xwts,
+                           spc, tries, kfolds,
+                           alg_train, pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction,
+                           n_estimators_train, seed, jobs):
+    print("\toptimizing", end="", flush=True)
+    predictors_, kwargs = predictors(alg_train, n_estimators_train, seed, jobs)
+    alg_c = OptimizedPairwiseClassifier(spc, tries, kfolds, predictors_,
+                                        pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction, **kwargs)
+    alg_c.fit(Xwtr)
+    predicted_c = alg_c.predict(Xwts, paired_rows=True)[::2]
+    predictedprobas_c = alg_c.predict_proba(Xwts, paired_rows=True)[::2]
+    return predicted_c, predictedprobas_c
+
+
 def trainpredictshap(Xwtr, Xwts,
                      alg_train, pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction,
                      n_estimators_train, columns, seed, jobs):
@@ -112,11 +127,28 @@ def trainpredictshap(Xwtr, Xwts,
     return predicted_labels, predicted_probas, shap
 
 
+def trainpredictshap_optimized(Xwtr, Xwts,
+                               spc, tries, kfolds,
+                               alg_train, pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction,
+                               n_estimators_train, columns, seed, jobs):
+    print("\ttrainingC", end="", flush=True)
+    predictors_, kwargs = predictors(alg_train, n_estimators_train, seed, jobs)
+    alg_c = OptimizedPairwiseClassifier(spc, tries, kfolds, predictors_,
+                                        pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction, **kwargs)
+    alg_c.fit(Xwtr)
+    print("\tpredictingC", end="", flush=True)
+    predicted_labels = alg_c.predict(Xwts, paired_rows=True)[::2]
+    predicted_probas = alg_c.predict_proba(Xwts, paired_rows=True)[::2]
+    print("\tcalculating SHAP", end="", flush=True)
+    shap = alg_c.shap(Xwts[0], Xwts[1], columns, seed)
+    return predicted_labels, predicted_probas, shap
+
+
 def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
         alg, n_estimators,
         n_estimators_imp,
         n_estimators_fsel, forward_fsel, k_features_fsel, k_folds_fsel,
-        db, storages: dict, sched: bool, shap: bool,
+        db, storages: dict, sched: bool, shap: bool, opt: bool,
         nsamp, seed, jobs: int):
     """
     Perform Leave-2-Out on a pairwise classifier.
@@ -158,11 +190,28 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
     print(df.shape, "<<<<<<<<<<<<<<<<<<<<")
 
     # LOO
+    param_dist = {
+        'criterion': ['gini', 'entropy'],
+        'max_depth': poisson(mu=5, loc=2),
+        'min_impurity_decrease': uniform(0, 0.01),
+        'max_leaf_nodes': poisson(mu=20, loc=5),
+        'min_samples_split': ap[20, 30, ..., 100].l,
+        'min_samples_leaf': ap[10, 20, ..., 50].l
+    }
+    if opt:
+        tries = int(alg.split("-")[1])
+        kfolds = int(alg.split("-")[2])
+        alg = alg.split("-")[0]
+    else:
+        tries = None
+        kfolds = None
+
     from hdict import hdict, _
     d = hdict(df=df, alg_train=alg, pairing_style=pairwise, n_estimators_train=n_estimators, center=None, only_relevant_pairs_on_prediction=False, threshold=threshold, proportion=False,
               alg_imp=alg, n_estimators_imp=n_estimators_imp,
               alg_fsel=alg, n_estimators_fsel=n_estimators_fsel, forward_fsel=forward_fsel, k_features_fsel=k_features_fsel, k_folds_fsel=k_folds_fsel,
               columns=df.columns.tolist()[:-1],
+              spc=param_dist, tries=tries, kfolds=kfolds,
               seed=seed, _jobs_=jobs)
     hits_c, hits_r = {0: 0, 1: 0}, {0: 0, 1: 0}
     tot, tot_c, errors = {0: 0, 1: 0}, {0: 0, 1: 0}, {0: [], 1: []}
@@ -219,10 +268,16 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
         Xw_ts = np.vstack([babya, babyb])
         if shap and permutation == 0:
             # noinspection PyTypeChecker
-            d.apply(trainpredictshap, Xw_tr, Xw_ts, jobs=_._jobs_, out="result_train_c")
+            if opt:
+                d.apply(trainpredictshap_optimized, Xw_tr, Xw_ts, jobs=_._jobs_, out="result_train_c")
+            else:
+                d.apply(trainpredictshap, Xw_tr, Xw_ts, jobs=_._jobs_, out="result_train_c")
         else:
             # noinspection PyTypeChecker
-            d.apply(trainpredict_c, Xw_tr, Xw_ts, jobs=_._jobs_, out="result_train_c")
+            if opt:
+                d.apply(trainpredict_optimized, Xw_tr, Xw_ts, jobs=_._jobs_, out="result_train_c")
+            else:
+                d.apply(trainpredict_c, Xw_tr, Xw_ts, jobs=_._jobs_, out="result_train_c")
         d = ch(d, storages)
         if not sched:
             print(f"\r Permutation: {permutation:8}\t\t{ansi} pair {idxa, idxb}: {c:3} {100 * c / len(pairs):8.5f}% {bacc_c:5.3f}          ", end="", flush=True)
