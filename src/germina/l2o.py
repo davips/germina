@@ -67,6 +67,8 @@ def predictors(alg, n_estimators, seed, jobs):
         case "cart":
             return DecisionTreeClassifier, {"random_state": seed}
         case x:
+            if x.startswith("cart"):
+                return DecisionTreeClassifier, {"random_state": seed}
             if x.startswith("ocart"):
                 param_dist = {
                     'criterion': ['gini', 'entropy'],
@@ -103,7 +105,7 @@ def trainpredict_optimized(Xwtr, Xwts,
                            n_estimators_train, seed, jobs):
     print("\toptimizing", end="", flush=True)
     predictors_, kwargs = predictors(alg_train, n_estimators_train, seed, jobs)
-    alg_c = OptimizedPairwiseClassifier(spc, tries, kfolds, predictors_,
+    alg_c = OptimizedPairwiseClassifier(spc, tries, kfolds, seed, predictors_,
                                         pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction, **kwargs)
     alg_c.fit(Xwtr)
     predicted_c = alg_c.predict(Xwts, paired_rows=True)[::2]
