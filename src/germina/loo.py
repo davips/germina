@@ -107,8 +107,8 @@ def predictors(alg, n_estimators, seed, jobs):
         algclass_c = XGBc(n_estimators=n_estimators, random_state=seed, n_jobs=jobs)
         algclass_r = XGBr(n_estimators=n_estimators, random_state=seed, n_jobs=jobs)
     elif alg == "cart":
-        algclass_c = DecisionTreeClassifier(random_state=seed, n_jobs=jobs)
-        algclass_r = DecisionTreeRegressor(random_state=seed, n_jobs=jobs)
+        algclass_c = DecisionTreeClassifier(random_state=seed)
+        algclass_r = DecisionTreeRegressor(random_state=seed)
     elif alg == "knn":
         algclass_c = Pipeline(steps=[('scaler', StandardScaler()), ('knn', KNeighborsClassifier(n_neighbors=n_estimators, n_jobs=jobs))])
         algclass_r = Pipeline(steps=[('scaler', StandardScaler()), ('knn', KNeighborsRegressor(n_neighbors=n_estimators, n_jobs=jobs))])

@@ -20,8 +20,15 @@ from germina.trees import pwtree, report, pwtree_optimized
 
 dct = handle_command_line(argv, noage=False, delta=float, trees=int, pct=False, demo=False, sched=False, perms=1, targetvar=str, jobs=int, alg=str, seed=0, prefix=str, sufix=str, trees_imp=int, feats=int, tfsel=int, forward=False, pairwise=str, sps=list, plot=False, nsamp=int, shap=False, tree=False, opt=False)
 print(dct)
-noage, trees, delta, pct, demo, sched, perms, targetvar, jobs, alg, seed, prefix, sufix, trees_imp, feats, tfsel, forward, pairwise, sps, plot, nsamp, shap, tree, opt = dct["noage"], dct["trees"], dct["delta"], dct["pct"], dct["demo"], dct["sched"], dct["perms"], dct["targetvar"], dct["jobs"], dct["alg"], dct["seed"], dct["prefix"], dct["sufix"], dct["trees_imp"], dct["feats"], dct["tfsel"], dct["forward"], dct["pairwise"], dct["sps"], dct["plot"], dct["nsamp"], dct["shap"], dct["tree"], dct["opt"]
+noage, trees, delta, pct, demo, sched, perms, targetvar, jobs, alg0, seed, prefix, sufix, trees_imp, feats, tfsel, forward, pairwise, sps, plot, nsamp, shap, tree, opt = dct["noage"], dct["trees"], dct["delta"], dct["pct"], dct["demo"], dct["sched"], dct["perms"], dct["targetvar"], dct["jobs"], dct["alg"], dct["seed"], dct["prefix"], dct["sufix"], dct["trees_imp"], dct["feats"], dct["tfsel"], dct["forward"], dct["pairwise"], dct["sps"], dct["plot"], dct["nsamp"], dct["shap"], dct["tree"], dct["opt"]
 rnd = np.random.default_rng(0)
+if opt:
+    tries = int(alg0.split("-")[1])
+    kfolds = int(alg0.split("-")[2])
+    alg = alg0.split("-")[0]
+else:
+    tries = None
+    kfolds = None
 with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_uri, ondup="skip") as near_storage, sopen(remote_cache_uri, ondup="skip") as remote_storage, sopen(schedule_uri) as db):
     storages = {
         # "remote": remote_storage,
@@ -53,22 +60,27 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         if tree:
             hd = hdict(_verbose_=True)
             # noinspection PyTypeChecker
-            hd.apply(pwtree_optimized, df, alg, seed, jobs, pairwise, delta, out="tree")
+            if opt:
+                hd.apply(pwtree_optimized, df, alg0, tries, kfolds, seed, jobs, pairwise, delta, out="tree")
+            else:
+                hd.apply(pwtree, df, alg0, seed, jobs, pairwise, delta, out="tree")
             hd = ch(hd, storages)
             best_estimator, best_params, best_score = hd.tree
             # report(cv_results)
+            print("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv")
             print(best_params)
+            print("--------------------------------")
             print(best_score)
+            print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
             f = lambda i: [f"{i}_{col}" for col in df.columns.tolist()[:-1]]
             columns = (f("a") + f("b")) if pairwise == "concatenation" else f("a")
             plot_tree(best_estimator, filled=True, feature_names=columns, fontsize=6)
             plt.title(f"Decision tree for {targetvar}")
             plt.show()
-            # exit()
             continue
 
         ret = loo(df, permutation=0, pairwise=pairwise, threshold=delta,
-                  alg=alg, n_estimators=trees,
+                  alg=alg, n_estimators=trees, tries=tries, kfolds=kfolds,
                   n_estimators_imp=trees_imp,
                   n_estimators_fsel=tfsel, forward_fsel=forward, k_features_fsel=feats, k_folds_fsel=4,
                   db=db, storages=storages, sched=sched, shap=shap, opt=opt,
@@ -108,7 +120,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             df_shuffled = df.copy()
             df_shuffled[targetvar] = rnd.permutation(df[targetvar].values)
             ret = loo(df_shuffled, permutation, pairwise=pairwise, threshold=delta,
-                      alg=alg, n_estimators=trees,
+                      alg=alg, n_estimators=trees, tries=tries, kfolds=kfolds,
                       n_estimators_imp=trees_imp,
                       n_estimators_fsel=tfsel, forward_fsel=forward, k_features_fsel=feats, k_folds_fsel=4,
                       db=db, storages=storages, sched=sched, shap=shap, opt=opt,

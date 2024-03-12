@@ -68,8 +68,15 @@ def predictors(alg, n_estimators, seed, jobs):
             return DecisionTreeClassifier, {"random_state": seed}
         case x:
             if x.startswith("cart"):
-                return DecisionTreeClassifier, {"random_state": seed}
-            if x.startswith("ocart"):
+                param_dist = {'criterion': ['gini', 'entropy'],
+                              'max_depth': poisson(mu=5, loc=2),
+                              'min_impurity_decrease': uniform(0, 0.01),
+                              'max_leaf_nodes': poisson(mu=20, loc=5),
+                              'min_samples_split': ap[20, 30, ..., 100].l,
+                              'min_samples_leaf': ap[10, 20, ..., 50].l,
+                              "random_state": seed}
+                return DecisionTreeClassifier, param_dist
+            elif x.startswith("ocart"):
                 param_dist = {
                     'criterion': ['gini', 'entropy'],
                     'max_depth': poisson(mu=5, loc=2),
@@ -100,13 +107,14 @@ def trainpredict_c(Xwtr, Xwts,
 
 
 def trainpredict_optimized(Xwtr, Xwts,
-                           spc, tries, kfolds,
+                           tries, kfolds,
                            alg_train, pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction,
                            n_estimators_train, seed, jobs):
     print("\toptimizing", end="", flush=True)
     predictors_, kwargs = predictors(alg_train, n_estimators_train, seed, jobs)
-    alg_c = OptimizedPairwiseClassifier(spc, tries, kfolds, seed, predictors_,
-                                        pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction, **kwargs)
+    kwargs_ = {"random_state": kwargs.pop("random_state")} if "random_state" in kwargs else {}
+    alg_c = OptimizedPairwiseClassifier(kwargs, tries, kfolds, seed, predictors_,
+                                        pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction, **kwargs_)
     alg_c.fit(Xwtr)
     predicted_c = alg_c.predict(Xwts, paired_rows=True)[::2]
     predictedprobas_c = alg_c.predict_proba(Xwts, paired_rows=True)[::2]
@@ -130,13 +138,14 @@ def trainpredictshap(Xwtr, Xwts,
 
 
 def trainpredictshap_optimized(Xwtr, Xwts,
-                               spc, tries, kfolds,
+                               tries, kfolds,
                                alg_train, pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction,
                                n_estimators_train, columns, seed, jobs):
-    print("\ttrainingC", end="", flush=True)
+    print("\toptimizingS", end="", flush=True)
     predictors_, kwargs = predictors(alg_train, n_estimators_train, seed, jobs)
-    alg_c = OptimizedPairwiseClassifier(spc, tries, kfolds, predictors_,
-                                        pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction, **kwargs)
+    kwargs_ = {"random_state": kwargs.pop("random_state")} if "random_state" in kwargs else {}
+    alg_c = OptimizedPairwiseClassifier(kwargs, tries, kfolds, predictors_,
+                                        pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction, **kwargs_)
     alg_c.fit(Xwtr)
     print("\tpredictingC", end="", flush=True)
     predicted_labels = alg_c.predict(Xwts, paired_rows=True)[::2]
@@ -147,7 +156,7 @@ def trainpredictshap_optimized(Xwtr, Xwts,
 
 
 def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
-        alg, n_estimators,
+        alg, n_estimators, tries, kfolds,
         n_estimators_imp,
         n_estimators_fsel, forward_fsel, k_features_fsel, k_folds_fsel,
         db, storages: dict, sched: bool, shap: bool, opt: bool,
@@ -192,28 +201,12 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
     print(df.shape, "<<<<<<<<<<<<<<<<<<<<")
 
     # LOO
-    param_dist = {
-        'criterion': ['gini', 'entropy'],
-        'max_depth': poisson(mu=5, loc=2),
-        'min_impurity_decrease': uniform(0, 0.01),
-        'max_leaf_nodes': poisson(mu=20, loc=5),
-        'min_samples_split': ap[20, 30, ..., 100].l,
-        'min_samples_leaf': ap[10, 20, ..., 50].l
-    }
-    if opt:
-        tries = int(alg.split("-")[1])
-        kfolds = int(alg.split("-")[2])
-        alg = alg.split("-")[0]
-    else:
-        tries = None
-        kfolds = None
-
     from hdict import hdict, _
     d = hdict(df=df, alg_train=alg, pairing_style=pairwise, n_estimators_train=n_estimators, center=None, only_relevant_pairs_on_prediction=False, threshold=threshold, proportion=False,
               alg_imp=alg, n_estimators_imp=n_estimators_imp,
               alg_fsel=alg, n_estimators_fsel=n_estimators_fsel, forward_fsel=forward_fsel, k_features_fsel=k_features_fsel, k_folds_fsel=k_folds_fsel,
               columns=df.columns.tolist()[:-1],
-              spc=param_dist, tries=tries, kfolds=kfolds,
+              tries=tries, kfolds=kfolds, opt=opt, shap=shap,
               seed=seed, _jobs_=jobs)
     hits_c, hits_r = {0: 0, 1: 0}, {0: 0, 1: 0}
     tot, tot_c, errors = {0: 0, 1: 0}, {0: 0, 1: 0}, {0: [], 1: []}

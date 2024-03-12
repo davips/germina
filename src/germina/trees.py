@@ -16,14 +16,15 @@ def pwtree(df, alg, seed, jobs, pairwise, delta, proportion=False, center=None, 
     opt = alg_c._estimator
     return opt.best_estimator_, opt.best_params_, opt.best_score_, opt.cv_results_
 
-def pwtree_optimized(df, alg, spc, tries, kfolds, seed, jobs, pairwise, delta, proportion=False, center=None, only_relevant_pairs_on_prediction=False, verbose=False):
+
+def pwtree_optimized(df, alg, tries, kfolds, seed, jobs, pairwise, delta, proportion=False, center=None, only_relevant_pairs_on_prediction=False, verbose=False):
     if verbose:
         print("Optimizing tree hyperparameters.")
     predictor, kwargs = predictors(alg, None, seed, jobs)
-    alg_c = OptimizedPairwiseClassifier(spc, tries, kfolds, predictor, pairwise, delta, proportion=proportion, center=center, only_relevant_pairs_on_prediction=only_relevant_pairs_on_prediction, **kwargs)
+    kwargs_ = {"random_state": kwargs.pop("random_state")} if "random_state" in kwargs else {}
+    alg_c = OptimizedPairwiseClassifier(kwargs, tries, kfolds, seed, predictor, pairwise, delta, proportion=proportion, center=center, only_relevant_pairs_on_prediction=only_relevant_pairs_on_prediction, **kwargs_)
     alg_c.fit(df)
-    model = alg_c._estimator
-    return model._estimator, model.best_params, model.best_score
+    return alg_c._estimator, alg_c.best_params, alg_c.best_score
 
 
 def report(results, n_top=3):
