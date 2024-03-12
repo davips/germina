@@ -106,21 +106,6 @@ def trainpredict_c(Xwtr, Xwts,
     return predicted_c, predictedprobas_c
 
 
-def trainpredict_optimized(Xwtr, Xwts,
-                           tries, kfolds,
-                           alg_train, pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction,
-                           n_estimators_train, seed, jobs):
-    print("\toptimizing", end="", flush=True)
-    predictors_, kwargs = predictors(alg_train, n_estimators_train, seed, jobs)
-    kwargs_ = {"random_state": kwargs.pop("random_state")} if "random_state" in kwargs else {}
-    alg_c = OptimizedPairwiseClassifier(kwargs, tries, kfolds, seed, predictors_,
-                                        pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction, **kwargs_)
-    alg_c.fit(Xwtr)
-    predicted_c = alg_c.predict(Xwts, paired_rows=True)[::2]
-    predictedprobas_c = alg_c.predict_proba(Xwts, paired_rows=True)[::2]
-    return predicted_c, predictedprobas_c
-
-
 def trainpredictshap(Xwtr, Xwts,
                      alg_train, pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction,
                      n_estimators_train, columns, seed, jobs):
@@ -135,6 +120,21 @@ def trainpredictshap(Xwtr, Xwts,
     print("\tcalculating SHAP", end="", flush=True)
     shap = alg_c.shap(Xwts[0], Xwts[1], columns, seed)
     return predicted_labels, predicted_probas, shap
+
+
+def trainpredict_optimized(Xwtr, Xwts,
+                           tries, kfolds,
+                           alg_train, pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction,
+                           n_estimators_train, seed, jobs):
+    print("\toptimizing", end="", flush=True)
+    predictors_, kwargs = predictors(alg_train, n_estimators_train, seed, jobs)
+    kwargs_ = {"random_state": kwargs.pop("random_state")} if "random_state" in kwargs else {}
+    alg_c = OptimizedPairwiseClassifier(kwargs, tries, kfolds, seed, predictors_,
+                                        pairing_style, threshold, proportion, center, only_relevant_pairs_on_prediction, **kwargs_)
+    alg_c.fit(Xwtr)
+    predicted_c = alg_c.predict(Xwts, paired_rows=True)[::2]
+    predictedprobas_c = alg_c.predict_proba(Xwts, paired_rows=True)[::2]
+    return predicted_c, predictedprobas_c, alg_c.best_params, alg_c.best_score
 
 
 def trainpredictshap_optimized(Xwtr, Xwts,

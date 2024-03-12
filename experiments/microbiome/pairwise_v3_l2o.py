@@ -16,7 +16,7 @@ from torch import from_numpy
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.l2o import loo
 from germina.runner import ch
-from germina.trees import pwtree, report, pwtree_optimized
+from germina.trees import pwtree, pwtree_optimized
 
 dct = handle_command_line(argv, noage=False, delta=float, trees=int, pct=False, demo=False, sched=False, perms=1, targetvar=str, jobs=int, alg=str, seed=0, prefix=str, sufix=str, trees_imp=int, feats=int, tfsel=int, forward=False, pairwise=str, sps=list, plot=False, nsamp=int, shap=False, tree=False, opt=False)
 print(dct)
@@ -65,13 +65,15 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             else:
                 hd.apply(pwtree, df, alg0, seed, jobs, pairwise, delta, out="tree")
             hd = ch(hd, storages)
-            best_estimator, best_params, best_score = hd.tree
+            best_estimator, best_params, best_score, opt_results = hd.tree
             # report(cv_results)
             print("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv")
             print(best_params)
             print("--------------------------------")
             print(best_score)
-            print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+            print("--------------------------------")
+            print(opt_results)
+            print(" ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^")
             f = lambda i: [f"{i}_{col}" for col in df.columns.tolist()[:-1]]
             columns = (f("a") + f("b")) if pairwise == "concatenation" else f("a")
             plot_tree(best_estimator, filled=True, feature_names=columns, fontsize=6)
