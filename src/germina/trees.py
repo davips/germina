@@ -1,9 +1,8 @@
 from sklearn.model_selection import RandomizedSearchCV
 
-from germina.l2o import predictors
+from germina.aux import predictors
 from pairwiseprediction.classifier import PairwiseClassifier
 from pairwiseprediction.optimized import OptimizedPairwiseClassifier
-
 
 
 def pwtree(df, alg, seed, jobs, pairwise, delta, proportion=False, center=None, only_relevant_pairs_on_prediction=False, verbose=False):
