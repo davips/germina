@@ -114,7 +114,7 @@ def trainpredictshap(Xwtr, Xwts,
     return predicted_labels, predicted_probas, shap
 
 
-def shap_for_pair(alg_train, best_params, n_estimators_train, xa, xb, Xw, pairwise, proportion, threshold, columns, seed, jobs, **kwargs):
+def shap_for_pair(best_params, xa, xb, Xw, alg_train, n_estimators_train, pairing_style, proportion, threshold, columns, seed, jobs, **kwargs):
     """
     Return an indexed dict {variable: (value, SHAP)} for the given pair of instances
 
@@ -134,26 +134,25 @@ def shap_for_pair(alg_train, best_params, n_estimators_train, xa, xb, Xw, pairwi
     import dalex as dx
     from indexed import Dict
     from pandas import DataFrame
-    # TODO: difference is working ok with this concatenation of column names?
 
     # prepare Xtr,ytr and pair
     handle_last_as_y = "%" if proportion else True
     filter = lambda tmp: (tmp[:, -1] < -threshold) | (tmp[:, -1] >= threshold)
-    if pairwise == "difference":
-        x = pairwise_diff(xa[:-1].reshape(1, -1), xb[:-1].reshape(1, -1))
+    if pairing_style == "difference":
+        x = pairwise_diff(xa[:, :-1], xb[:, :-1])
         pairs = lambda a, b: pairwise_diff(a, b, pct=handle_last_as_y == "%")
-    elif pairwise == "concatenation":
-        x = pairwise_hstack(xa[:-1].reshape(1, -1), xb[:-1].reshape(1, -1))
+    elif pairing_style == "concatenation":
+        x = pairwise_hstack(xa[:, :-1], xb[:, :-1])
         pairs = lambda a, b: pairwise_hstack(a, b, handle_last_as_y=handle_last_as_y)
     else:
-        raise Exception(f"Not implemented for {pairwise=}")
+        raise Exception(f"Not implemented for {pairing_style=}")
     idxs = np.argsort(Xw[:, -1].flatten(), kind="stable").flatten()
     Xw = Xw[idxs]
     tmp = pairs(Xw, Xw)
     pairs_Xy_tr = tmp[filter(tmp)]
     Xtr = pairs_Xy_tr[:, :-1]
     ytr = (pairs_Xy_tr[:, -1] >= 0).astype(int)
-    if pairwise == "concatenation":
+    if pairing_style == "concatenation":
         f = lambda i: [f"{i}_{col}" for col in columns]
         columns = (f("a") + f("b"))
     x = DataFrame(x, columns=columns)
@@ -171,10 +170,6 @@ def shap_for_pair(alg_train, best_params, n_estimators_train, xa, xb, Xw, pairwi
     zz = zip(predictparts.result["variable"], predictparts.result["contribution"])
     var__val_shap = Dict((name_val.split(" = ")[0], (float(name_val.split(" = ")[1:][0]), co)) for name_val, co in zz)
     return var__val_shap
-
-
-def shap(Xwtr, Xwts, alg_train, pairing_style, threshold, proportion, n_estimators_train, columns, seed, jobs, **kwargs):
-    return shap_for_pair(alg_train, n_estimators_train, Xwts[0], Xwts[1], Xwtr, pairing_style, proportion, threshold, columns, seed, jobs, **kwargs)
 
 
 def trainpredict_optimized(Xwtr, Xwts,

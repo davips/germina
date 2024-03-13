@@ -7,7 +7,7 @@ from shelchemy.scheduler import Scheduler
 from sklearn.metrics import average_precision_score
 from sklearn.metrics import precision_recall_curve, auc
 
-from germina.aux import imputation, trainpredict_optimized
+from germina.aux import imputation, trainpredict_optimized, shap_for_pair
 from germina.loo import fselection
 from germina.runner import ch
 from germina.sampling import pairwise_sample
@@ -134,8 +134,10 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
 
         if shap and permutation == 0:
             # noinspection PyTypeChecker
-            opt_results = d.result_train["opt_results"]
-            raise Exception(f"not ready")
+            d.apply(shap_for_pair, d.result_train["best_params"], babya, babyb, Xw_tr, jobs=_._jobs_, out="result_shap")
+            d = ch(d, storages)
+            shp = d.result_shap
+            shaps.add(babya, babyb, shp)
 
         if sched:
             continue
@@ -149,8 +151,6 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
         tot[expected] += 1
         z_lst_c.append(predicted_c)
         p.append(probas_c[0, 1])
-        if shap and permutation == 0:
-            shaps.add(babya, babyb, shp)
         hits_c[expected] += int(expected == predicted_c)
         tot_c[expected] += 1
 

@@ -76,7 +76,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             cols = df.columns.tolist()[:-1]
             f = lambda i: [f"{i}_{col}" for col in cols]
             columns = (f("a") + f("b")) if pairwise == "concatenation" else cols
-            plot_tree(best_estimator, filled=True, feature_names=columns, fontsize=6)
+            plot_tree(best_estimator, filled=True, feature_names=columns, fontsize=12)
             plt.title(f"Decision tree for {targetvar}")
             plt.show()
             continue
