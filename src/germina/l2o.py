@@ -122,8 +122,8 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
 
         # training
         Xw_ts = np.vstack([babya, babyb])
-        # noinspection PyTypeChecker
         if opt:
+            # noinspection PyTypeChecker
             d.apply(trainpredict_optimized, Xw_tr, Xw_ts, jobs=_._jobs_, out="result_train")
         else:
             raise Exception(f"")
@@ -134,31 +134,14 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
 
         if shap and permutation == 0:
             # noinspection PyTypeChecker
-            if opt:
-                d.apply(trainpredictshap_optimized, Xw_tr, Xw_ts, jobs=_._jobs_, out="result_train_c")
-            else:
-                d.apply(trainpredictshap, Xw_tr, Xw_ts, jobs=_._jobs_, out="result_train_c")
-        else:
-            # noinspection PyTypeChecker
-            if opt:
-                d.apply(trainpredict_optimized, Xw_tr, Xw_ts, jobs=_._jobs_, out="result_train_c")
-            else:
-                d.apply(trainpredict_c, Xw_tr, Xw_ts, jobs=_._jobs_, out="result_train_c")
-        d = ch(d, storages)
-        if not sched:
-            print(f"\r Permutation: {permutation:8}\t\t{ansi} pair {idxa, idxb}: {c:3} {100 * c / len(pairs):8.5f}% {bacc_c:5.3f}          ", end="", flush=True)
+            opt_results = d.result_train["opt_results"]
+            raise Exception(f"not ready")
 
         if sched:
             continue
 
         # prediction
-        ret = d.result_train_c
-        if len(ret) == 3:
-            predicted_c, probas_c, shp = ret
-        else:
-            predicted_c, probas_c = ret
-            shp = None
-        predicted_c = predicted_c[0]
+        predicted_c, probas_c = d.result_train["pred"], d.result_train["prob"]
 
         # accumulate
         expected = int(baby_ya[0] >= baby_yb[0])

@@ -20,12 +20,11 @@ from germina.trees import pwtree, pwtree_optimized
 
 dct = handle_command_line(argv, noage=False, delta=float, trees=int, pct=False, demo=False, sched=False, perms=1, targetvar=str, jobs=int, alg=str, seed=0, prefix=str, sufix=str, trees_imp=int, feats=int, tfsel=int, forward=False, pairwise=str, sps=list, plot=False, nsamp=int, shap=False, tree=False, opt=False)
 print(dct)
-noage, trees, delta, pct, demo, sched, perms, targetvar, jobs, alg0, seed, prefix, sufix, trees_imp, feats, tfsel, forward, pairwise, sps, plot, nsamp, shap, tree, opt = dct["noage"], dct["trees"], dct["delta"], dct["pct"], dct["demo"], dct["sched"], dct["perms"], dct["targetvar"], dct["jobs"], dct["alg"], dct["seed"], dct["prefix"], dct["sufix"], dct["trees_imp"], dct["feats"], dct["tfsel"], dct["forward"], dct["pairwise"], dct["sps"], dct["plot"], dct["nsamp"], dct["shap"], dct["tree"], dct["opt"]
+noage, trees, delta, pct, demo, sched, perms, targetvar, jobs, alg, seed, prefix, sufix, trees_imp, feats, tfsel, forward, pairwise, sps, plot, nsamp, shap, tree, opt = dct["noage"], dct["trees"], dct["delta"], dct["pct"], dct["demo"], dct["sched"], dct["perms"], dct["targetvar"], dct["jobs"], dct["alg"], dct["seed"], dct["prefix"], dct["sufix"], dct["trees_imp"], dct["feats"], dct["tfsel"], dct["forward"], dct["pairwise"], dct["sps"], dct["plot"], dct["nsamp"], dct["shap"], dct["tree"], dct["opt"]
 rnd = np.random.default_rng(0)
 if opt:
-    trials = int(alg0.split("-")[1])
-    kfolds = int(alg0.split("-")[2])
-    alg = alg0.split("-")[0]
+    trials = int(alg.split("-")[1])
+    kfolds = int(alg.split("-")[2])
 else:
     trials = None
     kfolds = None
@@ -61,10 +60,10 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             hd = hdict(_verbose_=True)
             # noinspection PyTypeChecker
             if opt:
-                hd.apply(pwtree_optimized, df, alg0, trials, kfolds, seed, jobs, pairwise, delta, out="tree")
+                hd.apply(pwtree_optimized, df, alg, trials, kfolds, seed, jobs, pairwise, delta, out="tree")
             else:
-                hd.apply(pwtree, df, alg0, seed, jobs, pairwise, delta, out="tree")
-            # hd = ch(hd, storages)
+                hd.apply(pwtree, df, alg, seed, jobs, pairwise, delta, out="tree")
+            hd = ch(hd, storages)
             best_estimator, best_params, best_score, opt_results = hd.tree
             # report(cv_results)
             print("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv")
