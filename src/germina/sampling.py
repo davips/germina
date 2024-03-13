@@ -24,7 +24,7 @@ def pairwise_sample(numbers, s, seed):
     y = np.arange(0, n)
     X, Y = np.meshgrid(x, y)
     res = np.vstack([X.ravel(), Y.ravel()]).T
-    res = res[res[:,0] != res[:,1]]
+    res = res[res[:, 0] != res[:, 1]]
     rnd = np.random.default_rng(seed)
     rnd.shuffle(res)
     return numbers[res[:s]]

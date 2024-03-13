@@ -83,14 +83,8 @@ def multi_encoder(X, Y, d=2, loss_function: object = "MSELoss", neurons=30, epoc
     class M(torch.nn.Module):
         def __init__(self):
             super().__init__()
-            self.encoder = torch.nn.Sequential(
-                torch.nn.Linear(X.shape[1], neurons), torch.nn.ReLU(),
-                torch.nn.Linear(neurons, d)
-            )
-            self.decoder = torch.nn.Sequential(
-                torch.nn.Linear(d, neurons), torch.nn.ReLU(),
-                torch.nn.Linear(neurons, Y.shape[1])
-            )
+            self.encoder = torch.nn.Sequential(torch.nn.Linear(X.shape[1], neurons), torch.nn.ReLU(), torch.nn.Linear(neurons, d))
+            self.decoder = torch.nn.Sequential(torch.nn.Linear(d, neurons), torch.nn.ReLU(), torch.nn.Linear(neurons, Y.shape[1]))
 
         def forward(self, x):
             encoded = self.encoder(x)

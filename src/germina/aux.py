@@ -20,7 +20,7 @@ from pairwiseprediction.classifier import PairwiseClassifier
 from pairwiseprediction.combination import pairwise_diff, pairwise_hstack
 from pairwiseprediction.optimized import OptimizedPairwiseClassifier
 
-warnings.filterwarnings('ignore')
+warnings.filterwarnings("ignore")
 
 __ = enable_iterative_imputer
 
@@ -29,7 +29,7 @@ def imputer(alg, n_estimators, seed, jobs):
     if alg == "lgbm":
         return IterativeImputer(LGBMr(n_estimators=n_estimators, random_state=seed, n_jobs=jobs, deterministic=True, force_row_wise=True), random_state=seed)
     elif alg.endswith("knn"):
-        return IterativeImputer(Pipeline(steps=[('scaler', StandardScaler()), ('knn', KNeighborsRegressor(n_neighbors=n_estimators, n_jobs=jobs))]), random_state=seed)
+        return IterativeImputer(Pipeline(steps=[("scaler", StandardScaler()), ("knn", KNeighborsRegressor(n_neighbors=n_estimators, n_jobs=jobs))]), random_state=seed)
     else:
         raise Exception(f"Unknown {alg=}")
 
@@ -60,27 +60,38 @@ def predictors(alg, n_estimators, seed, jobs):
             return DecisionTreeClassifier, {"random_state": seed}
         case x:
             if x.startswith("cart"):
-                param_dist = {'criterion': ['gini', 'entropy'],
-                              'max_depth': poisson(mu=5, loc=2),
-                              'min_impurity_decrease': uniform(0, 0.01),
-                              'max_leaf_nodes': poisson(mu=20, loc=5),
-                              'min_samples_split': ap[20, 30, ..., 100].l,
-                              'min_samples_leaf': ap[10, 20, ..., 50].l,
-                              "random_state": seed}
+                param_dist = {
+                    "criterion": ["gini", "entropy"],
+                    "max_depth": poisson(mu=5, loc=2),
+                    "min_impurity_decrease": uniform(0, 0.01),
+                    "max_leaf_nodes": poisson(mu=20, loc=5),
+                    "min_samples_split": ap[20, 30, ..., 100].l,
+                    "min_samples_leaf": ap[10, 20, ..., 50].l,
+                    "random_state": seed,
+                }
                 return DecisionTreeClassifier, param_dist
             elif x.startswith("ocart"):
                 param_dist = {
-                    'criterion': ['gini', 'entropy'],
-                    'max_depth': poisson(mu=5, loc=2),
-                    'min_impurity_decrease': uniform(0, 0.01),
-                    'max_leaf_nodes': poisson(mu=20, loc=5),
-                    'min_samples_split': ap[20, 30, ..., 100].l,
-                    'min_samples_leaf': ap[10, 20, ..., 50].l
+                    "criterion": ["gini", "entropy"],
+                    "max_depth": poisson(mu=5, loc=2),
+                    "min_impurity_decrease": uniform(0, 0.01),
+                    "max_leaf_nodes": poisson(mu=20, loc=5),
+                    "min_samples_split": ap[20, 30, ..., 100].l,
+                    "min_samples_leaf": ap[10, 20, ..., 50].l,
                 }
                 n_iter = int(x.split("-")[1])
                 cv = int(x.split("-")[2])
                 clf = DecisionTreeClassifier()
-                return RandomizedSearchCV, {"pre_dispatch": "n_jobs//2", "cv": cv, "n_jobs": jobs, "estimator": clf, "param_distributions": param_dist, "n_iter": n_iter, "random_state": seed, "scoring": "balanced_accuracy"}
+                return RandomizedSearchCV, {
+                    "pre_dispatch": "n_jobs//2",
+                    "cv": cv,
+                    "n_jobs": jobs,
+                    "estimator": clf,
+                    "param_distributions": param_dist,
+                    "n_iter": n_iter,
+                    "random_state": seed,
+                    "scoring": "balanced_accuracy",
+                }
             else:
                 raise Exception(f"Unknown {alg=}. Options: rf,lgbm,et,xg,cart,ocart-*")
 

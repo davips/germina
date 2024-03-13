@@ -59,7 +59,7 @@ def imputer(alg, n_estimators, seed, jobs):
     if alg == "lgbm":
         return IterativeImputer(LGBMr(n_estimators=n_estimators, random_state=seed, n_jobs=jobs, deterministic=True, force_row_wise=True), random_state=seed)
     elif alg.endswith("knn"):
-        return IterativeImputer(Pipeline(steps=[('scaler', StandardScaler()), ('knn', KNeighborsRegressor(n_neighbors=n_estimators, n_jobs=jobs))]), random_state=seed)
+        return IterativeImputer(Pipeline(steps=[("scaler", StandardScaler()), ("knn", KNeighborsRegressor(n_neighbors=n_estimators, n_jobs=jobs))]), random_state=seed)
     else:
         raise Exception(f"Unknown {alg=}")
 
@@ -76,9 +76,25 @@ def imputation(Xy_tr, baby, alg_imp, n_estimators_imp, seed, jobs):
 
 def selector(forward, alg, n_estimators, k_features, k_folds, seed, jobs):
     if alg == "lgbm":
-        return sfs(LGBMr(n_estimators=n_estimators, random_state=seed, n_jobs=1, deterministic=True, force_row_wise=True), k_features=k_features, forward=forward, verbose=0, cv=k_folds, n_jobs=jobs, scoring='r2')
+        return sfs(
+            LGBMr(n_estimators=n_estimators, random_state=seed, n_jobs=1, deterministic=True, force_row_wise=True),
+            k_features=k_features,
+            forward=forward,
+            verbose=0,
+            cv=k_folds,
+            n_jobs=jobs,
+            scoring="r2",
+        )
     elif alg == "knn":
-        return sfs(Pipeline(steps=[('scaler', StandardScaler()), ('knn', KNeighborsRegressor(n_neighbors=n_estimators, n_jobs=1))]), k_features=k_features, forward=forward, verbose=0, cv=k_folds, n_jobs=jobs, scoring='r2')
+        return sfs(
+            Pipeline(steps=[("scaler", StandardScaler()), ("knn", KNeighborsRegressor(n_neighbors=n_estimators, n_jobs=1))]),
+            k_features=k_features,
+            forward=forward,
+            verbose=0,
+            cv=k_folds,
+            n_jobs=jobs,
+            scoring="r2",
+        )
     else:
         raise Exception(f"Unknown {alg=}")
 
@@ -110,14 +126,15 @@ def predictors(alg, n_estimators, seed, jobs):
         algclass_c = DecisionTreeClassifier(random_state=seed)
         algclass_r = DecisionTreeRegressor(random_state=seed)
     elif alg == "knn":
-        algclass_c = Pipeline(steps=[('scaler', StandardScaler()), ('knn', KNeighborsClassifier(n_neighbors=n_estimators, n_jobs=jobs))])
-        algclass_r = Pipeline(steps=[('scaler', StandardScaler()), ('knn', KNeighborsRegressor(n_neighbors=n_estimators, n_jobs=jobs))])
+        algclass_c = Pipeline(steps=[("scaler", StandardScaler()), ("knn", KNeighborsClassifier(n_neighbors=n_estimators, n_jobs=jobs))])
+        algclass_r = Pipeline(steps=[("scaler", StandardScaler()), ("knn", KNeighborsRegressor(n_neighbors=n_estimators, n_jobs=jobs))])
     else:
         raise Exception(f"Unknown {alg=}. Options: rf,lgbm,et,xg,cart,knn")
     return algclass_c, algclass_r
 
 
 # Setting n_nearest_features << n_features, skip_complete=True or increasing tol can help to reduce its computational cost.
+
 
 def train_c(pairs_X_tr, pairs_y_tr_c, alg_train, n_estimators_train, seed, jobs):
     print("\ttrainingC", end="", flush=True)
@@ -138,12 +155,28 @@ def contrib2prediction(contrib):
     return LabelEncoder().inverse_transform(class_index)
 
 
-def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, rejection_threshold__inpct: float, extreme_pairing_onprediction: float,
-        alg, n_estimators,
-        n_estimators_imp,
-        n_estimators_fsel, forward_fsel, k_features_fsel, k_folds_fsel,
-        db, storages: dict, sched: bool,
-        seed, jobs: int, pct: bool, center: float):
+def loo(
+    df: DataFrame,
+    permutation: int,
+    pairwise: str,
+    threshold: float,
+    rejection_threshold__inpct: float,
+    extreme_pairing_onprediction: float,
+    alg,
+    n_estimators,
+    n_estimators_imp,
+    n_estimators_fsel,
+    forward_fsel,
+    k_features_fsel,
+    k_folds_fsel,
+    db,
+    storages: dict,
+    sched: bool,
+    seed,
+    jobs: int,
+    pct: bool,
+    center: float,
+):
     """
     Perform LOO on both a classifier and a regressor.
 
@@ -194,10 +227,20 @@ def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float, reject
     print(df.shape, "<<<<<<<<<<<<<<<<<<<<")
 
     # LOO
-    d = hdict(df=df, alg_train=alg, n_estimators_train=n_estimators,
-              alg_imp=alg, n_estimators_imp=n_estimators_imp,
-              alg_fsel=alg, n_estimators_fsel=n_estimators_fsel, forward_fsel=forward_fsel, k_features_fsel=k_features_fsel, k_folds_fsel=k_folds_fsel,
-              seed=seed, _jobs_=jobs)
+    d = hdict(
+        df=df,
+        alg_train=alg,
+        n_estimators_train=n_estimators,
+        alg_imp=alg,
+        n_estimators_imp=n_estimators_imp,
+        alg_fsel=alg,
+        n_estimators_fsel=n_estimators_fsel,
+        forward_fsel=forward_fsel,
+        k_features_fsel=k_features_fsel,
+        k_folds_fsel=k_folds_fsel,
+        seed=seed,
+        _jobs_=jobs,
+    )
     hits_c, hits_r = {0: 0, 1: 0}, {0: 0, 1: 0}
     tot, tot_c, tot_r = {0: 0, 1: 0}, {0: 0, 1: 0}, {0: 0, 1: 0}
     y, y_c, y_r, z_lst_c, z_lst_r, shap_c, shap_r = [], [], [], [], [], [], []

@@ -8,27 +8,17 @@ from sklearn.utils.deprecation import deprecated
 from sklearn.utils._tags import _safe_tags
 from sklearn.utils.validation import _num_samples
 from sklearn.utils.validation import check_is_fitted
-from sklearn.utils.multiclass import (
-    _check_partial_fit_first_call,
-    type_of_target
-)
+from sklearn.utils.multiclass import _check_partial_fit_first_call, type_of_target
 from sklearn.utils.metaestimators import _safe_split, available_if
 from sklearn.utils.fixes import delayed
-from sklearn.multiclass import (
-    _fit_binary,
-    _fit_ovo_binary,
-
-    _estimators_has
-)
+from sklearn.multiclass import _fit_binary, _fit_ovo_binary, _estimators_has
 from joblib import Parallel
 
 _fit_ovr_binary = _fit_binary
 from typing import Iterable
 
 
-class OrdinalClassifier(
-    MultiOutputMixin, ClassifierMixin, MetaEstimatorMixin, BaseEstimator
-):
+class OrdinalClassifier(MultiOutputMixin, ClassifierMixin, MetaEstimatorMixin, BaseEstimator):
     """Ordinal multiclass strategy.
 
     This classifier is based on a "Simple Approach to Oridinal Classification"
@@ -167,9 +157,7 @@ class OrdinalClassifier(
 
         # validate estimator
         if not self._has_predict_proba:
-            raise ValueError(
-                "Estimator {} does not have predict_proba method which is required for this classifier.".format(
-                    self.estimator.__repr__()))
+            raise ValueError("Estimator {} does not have predict_proba method which is required for this classifier.".format(self.estimator.__repr__()))
 
     def fit(self, X, y):
         """Fit underlying estimators.
@@ -215,19 +203,17 @@ class OrdinalClassifier(
         # if y has categorical info, capture it
 
         elif hasattr(y, "cat"):
-            if y.cat.ordered:  #has categories and its ordered
+            if y.cat.ordered:  # has categories and its ordered
                 classes = y.cat.categories.to_numpy()
                 self.classes_ = classes  # setter converts to np.array from index
 
-        else:  #this is most likely path but handle other two cases above.
+        else:  # this is most likely path but handle other two cases above.
             self.classes_ = np.sort(np.unique(y), kind="stable")
 
         # ok, now order is set.  Now, reverse it unless it was supplied
 
         if self.reverse_classes and not self.class_order:
             self.classes_ = self.classes_[::-1]
-
-
 
         self.y_type_ = type_of_target(y)
 
@@ -247,8 +233,7 @@ class OrdinalClassifier(
             # @todo: derived estimators: classes become imbalanced? how to balance classes?
             # probable answer: make use of "class_weight" kwarg when fitting derived estimators?
 
-            y_derived, names = self._derived_ys(
-                y)  # added helper to create vector of derived y data (of shape n_samples, n_classes-1)
+            y_derived, names = self._derived_ys(y)  # added helper to create vector of derived y data (of shape n_samples, n_classes-1)
 
             self.estimators_ = Parallel(n_jobs=self.n_jobs)(
                 delayed(_fit_ovr_binary)(
@@ -257,9 +242,8 @@ class OrdinalClassifier(
                     y_d,
                     classes=[
                         "not %s" % self.classes_[i],
-                        " or ".join(str(cls) for cls in self.classes_[i + 1:]),
-                        ],
-
+                        " or ".join(str(cls) for cls in self.classes_[i + 1 :]),
+                    ],
                 )
                 for i, y_d in enumerate(y_derived.T)
             )  # create a binary estimator for each derived y
@@ -297,7 +281,7 @@ class OrdinalClassifier(
 
         pass  # for now bypass this and edit it later.  @todo: implement partial_fit
 
-        '''
+        """
         if _check_partial_fit_first_call(self, classes):
             if not hasattr(self.estimator, "partial_fit"):
                 raise ValueError(
@@ -335,7 +319,7 @@ class OrdinalClassifier(
         if hasattr(self.estimators_[0], "n_features_in_"):
             self.n_features_in_ = self.estimators_[0].n_features_in_
 
-        return self '''
+        return self """
 
     def predict(self, X):
         """Predict multi-class targets using underlying estimators.
@@ -404,7 +388,7 @@ class OrdinalClassifier(
 
         return predicted
 
-    @available_if(_estimators_has('decision_function'))
+    @available_if(_estimators_has("decision_function"))
     def decision_function(self, X):
         """Decision function for the OneVsRestClassifier.
         Return the distance of each sample from the decision boundary for each
@@ -455,25 +439,25 @@ class OrdinalClassifier(
 
     def _derived_ys(self, y):
         """private function that generates n_classes - 1 derived y datasets which iterate through
-            classes_ with a ptr and does comparison to remaining classes pointed to beyond current class
-            eg. np.isin(y, classes_[ptr:])
+        classes_ with a ptr and does comparison to remaining classes pointed to beyond current class
+        eg. np.isin(y, classes_[ptr:])
 
-            returns array of probabilities, names or arrays
+        returns array of probabilities, names or arrays
 
-            consider classes_ = 0, 1, 2, 3, 4
+        consider classes_ = 0, 1, 2, 3, 4
 
-                4 estimators (n_classes -1)
+            4 estimators (n_classes -1)
 
-                                    ovr(emaining)
-                binary estimators   derived ys (0|1)
-                e1 (y>c0)           y(0|1,2,3,4)
-                e2 (y>c1)           y(1|2,3,4)
-                e3 (y>c2)           y(2|3,4)
-                e4 (y>c3)           y(3|4)
+                                ovr(emaining)
+            binary estimators   derived ys (0|1)
+            e1 (y>c0)           y(0|1,2,3,4)
+            e2 (y>c1)           y(1|2,3,4)
+            e3 (y>c2)           y(2|3,4)
+            e4 (y>c3)           y(3|4)
 
-            I found the Ordinal Classifier white paper to be very difficult to follow until I understood:
-                Prob(target > cool) ~ y cool|warm,hot
-            """
+        I found the Ordinal Classifier white paper to be very difficult to follow until I understood:
+            Prob(target > cool) ~ y cool|warm,hot
+        """
         derived = []
         names = []
         for i in range(len(self.classes_) - 1):
@@ -533,10 +517,7 @@ class OrdinalClassifier(
 
     # TODO: Remove in 1.1
     # mypy error: Decorated property not supported
-    @deprecated(  # type: ignore
-        "Attribute `_pairwise` was deprecated in "
-        "version 0.24 and will be removed in 1.1 (renaming of 0.26)."
-    )
+    @deprecated("Attribute `_pairwise` was deprecated in " "version 0.24 and will be removed in 1.1 (renaming of 0.26).")  # type: ignore
     @property
     def _pairwise(self):
         """Indicate if wrapped estimator is using a precomputed Gram matrix"""

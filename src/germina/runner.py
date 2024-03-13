@@ -41,7 +41,7 @@ def setindex(df, old_indexname="id_estudo"):
 
 def sgid2estudoid(df: DataFrame, path="data", filename="anthonieta---ChecklistHyperscanning-Idade.csv"):
     translator_df = file2df(f"{path}/{filename}", return_name=False)
-    if df.index.name in["IDs", "ID:"]:
+    if df.index.name in ["IDs", "ID:"]:
         df = df.reset_index()
     if "IDs" in df.columns:
         df = df.assign(ID=df["IDs"].to_list())
@@ -102,8 +102,7 @@ def drop_by_vif(df: DataFrame, dropped=None, thresh=5.0):
     X = df.assign(const=1)  # faster than add_constant from statsmodels
     X = remove_cols(X, dropped, [], debug=False)
     variables = list(range(X.shape[1]))
-    vif = [variance_inflation_factor(X.iloc[:, variables].values, ix)
-           for ix in range(X.iloc[:, variables].shape[1])]
+    vif = [variance_inflation_factor(X.iloc[:, variables].values, ix) for ix in range(X.iloc[:, variables].shape[1])]
     vif = vif[:-1]
     maxloc = vif.index(max(vif))
     if max(vif) > thresh:
@@ -112,11 +111,33 @@ def drop_by_vif(df: DataFrame, dropped=None, thresh=5.0):
     return dropped
 
 
-def run(d: hdict, high_is_positive, mn, t1=False, t2=False, just_df=False, vif=True, scheduler=True, printing=True,
-        eeg=False, eegpow=False,
-        malpha=False, mpathways=False, mspecies=False, msuper=False,
-        metavars=None, targets_meta=None, targets_eeg1=None, targets_eeg2=None,
-        stratifiedcv=True, path="data/", loc=True, rem=True, sync=False, verbose=False):
+def run(
+    d: hdict,
+    high_is_positive,
+    mn,
+    t1=False,
+    t2=False,
+    just_df=False,
+    vif=True,
+    scheduler=True,
+    printing=True,
+    eeg=False,
+    eegpow=False,
+    malpha=False,
+    mpathways=False,
+    mspecies=False,
+    msuper=False,
+    metavars=None,
+    targets_meta=None,
+    targets_eeg1=None,
+    targets_eeg2=None,
+    stratifiedcv=True,
+    path="data/",
+    loc=True,
+    rem=True,
+    sync=False,
+    verbose=False,
+):
     # d.show()
     dct = d.dct.copy() if isinstance(d.dct, dict) else dict(d.dct)
     print(dct)
@@ -142,16 +163,15 @@ def run(d: hdict, high_is_positive, mn, t1=False, t2=False, just_df=False, vif=T
     logname = Hosh(logname.encode()).id + logname[:200]
     if verbose:
         print(logname)
-    with nullcontext() if printing else open("out/output-" + logname[40:96] + f"-tgteeg1={bool(targets_eeg1)}-tgteeg2={bool(targets_eeg2)}-{targets_meta and targets_meta[0][-1]}-germina.txt", 'w') as ctx:
+    with nullcontext() if printing else open(
+        "out/output-" + logname[40:96] + f"-tgteeg1={bool(targets_eeg1)}-tgteeg2={bool(targets_eeg2)}-{targets_meta and targets_meta[0][-1]}-germina.txt", "w"
+    ) as ctx:
         if not printing:
             old = sys.stdout
             sys.stdout = ctx
         print(f"Scenario: {t1=}, {t2=}, {malpha=}, {mpathways=}, {mspecies=}, {msuper=}, {eeg=}, {eegpow=},\n")
         if verbose:
-            print(f"{metavars=},\n"
-                  f"{targets_meta=},\n"
-                  f"{targets_eeg1=},\n"
-                  f"{targets_eeg2=}")
+            print(f"{metavars=},\n" f"{targets_meta=},\n" f"{targets_eeg1=},\n" f"{targets_eeg2=}")
             pprint(dict(d))
         print()
         d = d >> dict(join="inner", shuffle=True, n_jobs=-1, return_name=False)
@@ -401,7 +421,7 @@ def run(d: hdict, high_is_positive, mn, t1=False, t2=False, just_df=False, vif=T
                     for m in scos:
                         print(m, end="\t")
                         d.hosh.show()
-                        cor = (d.hoshes['dct'] * Hosh(m.encode())).ansi
+                        cor = (d.hoshes["dct"] * Hosh(m.encode())).ansi
 
                         # Prediction power.
                         jobs = [f"{cn:<25} {target} PERMs {m} {cor} {'+' if high_is_positive else ''} {'+mn' if mn else ''}" for cn in clas_names]
@@ -458,10 +478,38 @@ def run(d: hdict, high_is_positive, mn, t1=False, t2=False, just_df=False, vif=T
     return dfs
 
 
-def run_t1_t2(d: hdict, eeg=False, eegpow=False,
-              malpha=False, mpathways=False, mspecies=False, msuper=False,
-              metavars=None, stratifiedcv=True, path="data/", loc=True, rem=True, verbose=False, sync=False, **kwargs):
-    kwargs |= dict(eeg=eeg, eegpow=eegpow, malpha=malpha, mpathways=mpathways, mspecies=mspecies, msuper=msuper, metavars=metavars, stratifiedcv=stratifiedcv, path=path, loc=loc, rem=rem, verbose=verbose, sync=sync)
+def run_t1_t2(
+    d: hdict,
+    eeg=False,
+    eegpow=False,
+    malpha=False,
+    mpathways=False,
+    mspecies=False,
+    msuper=False,
+    metavars=None,
+    stratifiedcv=True,
+    path="data/",
+    loc=True,
+    rem=True,
+    verbose=False,
+    sync=False,
+    **kwargs,
+):
+    kwargs |= dict(
+        eeg=eeg,
+        eegpow=eegpow,
+        malpha=malpha,
+        mpathways=mpathways,
+        mspecies=mspecies,
+        msuper=msuper,
+        metavars=metavars,
+        stratifiedcv=stratifiedcv,
+        path=path,
+        loc=loc,
+        rem=rem,
+        verbose=verbose,
+        sync=sync,
+    )
     #       t1 → t1
     run(hdict.fromdict(d, d.ids), t1=True, targets_meta=["ibq_reg_t1", "ibq_soot_t1", "ibq_dura_t1", "bayley_3_t1"], **kwargs)
     run(hdict.fromdict(d, d.ids), t1=True, targets_eeg1=["Beta_t1", "r_20hz_post_pre_waveleting_t1", "Number_Segs_Post_Seg_Rej_t1"], **kwargs)

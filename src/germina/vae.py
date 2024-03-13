@@ -10,9 +10,9 @@ import torchvision
 
 torch.manual_seed(0)
 
-plt.rcParams['figure.dpi'] = 200
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-device = 'cpu'
+plt.rcParams["figure.dpi"] = 200
+device = "cuda" if torch.cuda.is_available() else "cpu"
+device = "cpu"
 
 
 class Encoder(nn.Module):
@@ -69,7 +69,7 @@ def plot_latent(autoencoder, data, num_batches=100):
         z = autoencoder.encoder(x)
         # z = z.to('cpu').detach().numpy()
         z = z.detach().numpy()
-        plt.scatter(z[:, 0], z[:, 1], c=y, cmap='tab10')
+        plt.scatter(z[:, 0], z[:, 1], c=y, cmap="tab10")
         if i > num_batches:
             plt.colorbar()
             break
@@ -86,7 +86,7 @@ def plot_reconstructed(autoencoder, r0=(-5, 10), r1=(-10, 5), n=12):
             x_hat = autoencoder.decoder(z)
             # x_hat = x_hat.reshape(28, 28).to('cpu').detach().numpy()
             x_hat = x_hat.reshape(28, 28).detach().numpy()
-            img[(n - 1 - i) * w:(n - 1 - i + 1) * w, j * w:(j + 1) * w] = x_hat
+            img[(n - 1 - i) * w : (n - 1 - i + 1) * w, j * w : (j + 1) * w] = x_hat
     plt.imshow(img, extent=[*r0, *r1])
     plt.show()
 
@@ -111,7 +111,7 @@ class VariationalEncoder(nn.Module):
         mu = self.linear2(x)
         sigma = torch.exp(self.linear3(x))
         z = mu + sigma * self.N.sample(mu.shape)
-        self.kl = (sigma ** 2 + mu ** 2 - torch.log(sigma) - 1 / 2).sum()
+        self.kl = (sigma**2 + mu**2 - torch.log(sigma) - 1 / 2).sum()
         return z
 
 

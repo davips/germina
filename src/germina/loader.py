@@ -9,6 +9,7 @@ import pandas as pd
 from germina.nan import remove_nan_rows_cols
 from sklearn import clone
 from sklearn.impute import IterativeImputer
+
 # from sklearn.metrics._scorer import _ProbaScorer
 
 from germina.dataset import join
@@ -136,7 +137,27 @@ def clean_for_dalex(d, storages, storage_to_be_updated, verbose=False, target="E
     if alias != "EBF":
         d = d >> apply(remove_nan_rows_cols, keep=keep).df
     d = d >> apply(lambda df, tgt: df.drop([tgt], axis=1), tgt=target).X0
-    d = d >> apply(lambda X0: [col.replace("[", "").replace("]", "").replace("<", "").replace(" ", "_").replace(":", "_").replace(".", "_").replace("-", "_").replace("(", "").replace(")", "").replace("{", "").replace("}", "").replace(";", "").replace(",", "") for col in X0.columns]).Xcols
+    d = (
+        d
+        >> apply(
+            lambda X0: [
+                col.replace("[", "")
+                .replace("]", "")
+                .replace("<", "")
+                .replace(" ", "_")
+                .replace(":", "_")
+                .replace(".", "_")
+                .replace("-", "_")
+                .replace("(", "")
+                .replace(")", "")
+                .replace("{", "")
+                .replace("}", "")
+                .replace(";", "")
+                .replace(",", "")
+                for col in X0.columns
+            ]
+        ).Xcols
+    )
     d = d >> apply(lambda X0, Xcols: X0.rename(columns=dict(zip(X0.columns, Xcols)))).X
     d["Xor"] = _.X
     d = d >> apply(lambda df, tgt: df[tgt], tgt=target).yor

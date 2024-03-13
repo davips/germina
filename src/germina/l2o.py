@@ -13,7 +13,7 @@ from germina.runner import ch
 from germina.sampling import pairwise_sample
 from germina.shaps import SHAPs
 
-warnings.filterwarnings('ignore')
+warnings.filterwarnings("ignore")
 
 
 def loo(df: DataFrame, permutation: int, pairwise: str, threshold: float,
