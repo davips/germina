@@ -64,7 +64,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         if tree:  ###############################################################################################################
             hd = hdict(_verbose_=True, _njobs_=jobs)
             # noinspection PyTypeChecker
-            hd.apply(tree_optimized_dv, df, search_space, trials, kfolds_full, alg, seed=0, njobs=_._njobs_, out="best")
+            hd.apply(tree_optimized_dv, df, search_space, trials, kfolds_full, alg, seed=0, njobs=_._njobs_, verbose=_._verbose_, out="best")
             hd = ch(hd, storages)
             best_params, best_score = hd.best
             # noinspection PyTypeChecker
@@ -84,7 +84,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             continue
 
         # L2O ##############################################################################################################
-        d = hdict(df=df, alg_train=alg, columns=df.columns.tolist()[:-1], trials=trials, kfolds=kfolds, shap=shap, seed=seed, _njobs_=jobs)
+        d = hdict(df=df, alg_train=alg, columns=df.columns.tolist()[:-1], trials=trials, kfolds=kfolds, shap=shap, seed=seed, _njobs_=jobs, _verbose_=True)
         hits = {0: 0, 1: 0}
         tot, errors = {0: 0, 1: 0}, {0: [], 1: []}
         t, z = [], []
@@ -114,7 +114,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             Xw_tr = df.drop([idxa, idxb], axis="rows")
             Xw_ts = np.vstack([babya, babyb])
             # noinspection PyTypeChecker
-            d.apply(tree_optimized_dv, Xw_tr, search_space, trials, kfolds, alg, njobs=_._njobs_, seed=0, out="best")
+            d.apply(tree_optimized_dv, Xw_tr, search_space, trials, kfolds, alg, njobs=_._njobs_, seed=0, verbose=_._verbose_, out="best")
             d = ch(d, storages)
             best_params, best_score = d.best
             if not sched:

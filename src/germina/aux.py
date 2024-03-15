@@ -4,6 +4,9 @@ import numpy as np
 from lange import ap
 from lightgbm import LGBMClassifier as LGBMc
 from lightgbm import LGBMRegressor as LGBMr
+from pairwiseprediction.classifier import PairwiseClassifier
+from pairwiseprediction.combination import pairwise_diff, pairwise_hstack
+from pairwiseprediction.optimized import OptimizedPairwiseClassifier
 from scipy.stats import poisson, uniform
 from sklearn.ensemble import ExtraTreesClassifier as ETc
 from sklearn.ensemble import RandomForestClassifier as RFc
@@ -15,10 +18,6 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from xgboost import XGBClassifier as XGBc
-
-from pairwiseprediction.classifier import PairwiseClassifier
-from pairwiseprediction.combination import pairwise_diff, pairwise_hstack
-from pairwiseprediction.optimized import OptimizedPairwiseClassifier
 
 warnings.filterwarnings("ignore")
 
@@ -259,7 +258,7 @@ def trainpredict_optimized(Xwtr, Xwts,
 def get_algclass(name):
     if name.startswith("cartr"):
         return DecisionTreeRegressor
-    raise Exception(f"{alg=}")
+    raise Exception(f"{name=}")
 
 
 def fit(algname, params, df, verbose=True):

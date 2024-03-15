@@ -1,16 +1,10 @@
+from joblib.parallel import Parallel, delayed
 from pairwiseprediction.classifier import PairwiseClassifier
 from pairwiseprediction.optimized import OptimizedPairwiseClassifier
 from sklearn.metrics import r2_score
 from sklearn.model_selection import RandomizedSearchCV, StratifiedKFold, ParameterSampler
 
 from germina.aux import predictors, get_algclass
-from joblib.parallel import Parallel, delayed
-import numpy as np
-from sklearn.datasets import load_breast_cancer
-from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import Pipeline
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import KFold, GridSearchCV, cross_validate
 
 
 def pwtree(df, alg, seed, jobs, pairwise, delta, proportion=False, center=None, only_relevant_pairs_on_prediction=False, verbose=False):
@@ -36,7 +30,7 @@ def pwtree_optimized(df, alg, tries, kfolds, seed, jobs, pairwise, delta, propor
 
 def tree_optimized(df, alg: RandomizedSearchCV, verbose=False):
     if verbose:
-        print("Optimizing reg. tree hyperparameters.")
+        print("\tOptimizing reg. tree hyperparameters.", end="", flush=True)
     X = df.iloc[:, :-1]
     y = df.iloc[:, -1]
     alg.fit(X, y)
@@ -45,7 +39,7 @@ def tree_optimized(df, alg: RandomizedSearchCV, verbose=False):
 
 def tree_optimized_dv(df, search_space, n_iter, k, algname, seed=0, njobs=16, verbose=False):
     if verbose:
-        print("Optimizing reg. tree hyperparameters.")
+        print("\tOptimizing reg. tree hyperparameters.", end="", flush=True)
     Xw = df.iloc[:, :-1].to_numpy()
     w = df.iloc[:, -1].to_numpy()
     algclass = get_algclass(algname)
