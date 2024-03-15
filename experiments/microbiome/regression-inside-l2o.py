@@ -93,7 +93,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             print(" ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^")
             columns = df.columns.tolist()[:-1]
             plot_tree(best_estimator, filled=True, feature_names=columns, fontsize=font)
-            plt.title(f"Decision tree for {targetvar}")
+            plt.title(f"{targetvar} species{sp} {alg} {batches=} {noage=} {use_r2=}")
             plt.show()
             continue
 
