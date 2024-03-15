@@ -261,6 +261,12 @@ def get_algclass(name):
     raise Exception(f"{name=}")
 
 
+def get_algspace(name):
+    if name.startswith("cartr"):
+        return {"criterion": ["absolute_error", "squared_error", "poisson", "friedman_mse"], "max_depth": poisson(mu=5, loc=2), "min_impurity_decrease": uniform(0, 0.01), "max_leaf_nodes": poisson(mu=20, loc=5), "min_samples_split": ap[20, 30, ..., 100].l, "min_samples_leaf": ap[10, 20, ..., 50].l}
+    raise Exception(f"{name=}")
+
+
 def fit(algname, params, df, verbose=True):
     if verbose:
         print(f"\tfitting {algname.split('-')[0]}", end="", flush=True)

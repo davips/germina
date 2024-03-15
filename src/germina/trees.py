@@ -1,10 +1,12 @@
+from itertools import islice
+
 from joblib.parallel import Parallel, delayed
 from pairwiseprediction.classifier import PairwiseClassifier
 from pairwiseprediction.optimized import OptimizedPairwiseClassifier
 from sklearn.metrics import r2_score
 from sklearn.model_selection import RandomizedSearchCV, StratifiedKFold, ParameterSampler
 
-from germina.aux import predictors, get_algclass
+from germina.aux import predictors, get_algclass, get_algspace
 
 
 def pwtree(df, alg, seed, jobs, pairwise, delta, proportion=False, center=None, only_relevant_pairs_on_prediction=False, verbose=False):
@@ -37,12 +39,13 @@ def tree_optimized(df, alg: RandomizedSearchCV, verbose=False):
     return alg.best_estimator_, alg.best_params_, alg.best_score_, alg.cv_results_
 
 
-def tree_optimized_dv(df, search_space, n_iter, k, algname, seed=0, njobs=16, verbose=False):
+def tree_optimized_dv(df, n_iter, start, end, k, algname, seed=0, njobs=16, verbose=False):
     if verbose:
         print("\tOptimizing reg. tree hyperparameters.", end="", flush=True)
     Xw = df.iloc[:, :-1].to_numpy()
     w = df.iloc[:, -1].to_numpy()
     algclass = get_algclass(algname)
+    search_space = get_algspace(algname)
 
     # noinspection PyUnresolvedReferences
     y = (w >= 0).astype(int)  # for "class stratification" of the regression value across folds
@@ -68,7 +71,7 @@ def tree_optimized_dv(df, search_space, n_iter, k, algname, seed=0, njobs=16, ve
         score = r2_score(ztss, ytss)
         return score, params_
 
-    sampler = ParameterSampler(search_space, n_iter, random_state=seed)
+    sampler = islice(ParameterSampler(search_space, n_iter, random_state=seed), start, end)
     best_score = -1000
     for score, params in Parallel(n_jobs=njobs)(delayed(job)(params) for params in sampler):
         if score > best_score:
