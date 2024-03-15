@@ -25,7 +25,7 @@ from germina.trees import tree_optimized_dv_pair
 center, max_trials = None, 10_000_000
 dct = handle_command_line(argv, r2=False, batches=int, cache=False, font=12, alg=str, demo=False, delta=20, noage=False, sched=False, targetvar=str, jobs=int, seed=0, prefix=str, suffix=str, sps=list, nsamp=int, shap=False, tree=False)
 print(dct)
-r2, batches, cache, font, alg, demo, delta, noage, sched, targetvar, jobs, seed, prefix, suffix, sps, nsamp, shap, tree = dct["r2"], dct["batches"], ["cache"], dct["font"], dct["alg"], dct["demo"], dct["delta"], dct["noage"], dct["sched"], dct["targetvar"], dct["jobs"], dct["seed"], dct["prefix"], dct["suffix"], dct["sps"], dct["nsamp"], dct["shap"], dct["tree"]
+use_r2, batches, use_cache, font, alg, demo, delta, noage, sched, targetvar, jobs, seed, prefix, suffix, sps, nsamp, shap, tree = dct["r2"], dct["batches"], dct["cache"], dct["font"], dct["alg"], dct["demo"], dct["delta"], dct["noage"], dct["sched"], dct["targetvar"], dct["jobs"], dct["seed"], dct["prefix"], dct["suffix"], dct["sps"], dct["nsamp"], dct["shap"], dct["tree"]
 rnd = np.random.default_rng(0)
 batch_size = int(alg.split("-")[1])
 npairs = int(alg.split("-")[2])
@@ -65,7 +65,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                 end = start + batch_size
                 # noinspection PyTypeChecker
                 d.apply(tree_optimized_dv_pair, df, start=start, end=end, njobs=_._njobs_, verbose=_._verbose_, out="best")
-                if cache:
+                if use_cache:
                     d = ch(d, storages)
                 r2_params, bacc_params, r2, bacc = d.best
                 if r2 > best_r2:
@@ -81,7 +81,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             else:
                 # noinspection PyTypeChecker
                 d.apply(fit, alg, best_bacc_params, df, out="tree")
-            if cache:
+            if use_cache:
                 d = ch(d, storages)
             best_estimator = d.tree
 
@@ -135,7 +135,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                 Xw_ts = np.vstack([babya, babyb])
                 # noinspection PyTypeChecker
                 d.apply(tree_optimized_dv_pair, Xw_tr, start=start, end=end, njobs=_._njobs_, verbose=_._verbose_, out="best")
-                if cache:
+                if use_cache:
                     d = ch(d, storages)
                 r2_params, bacc_params, r2, bacc = d.best
                 if (idxa, idxb) not in best_r2__dct or r2 > best_r2__dct[(idxa, idxb)]:
@@ -148,13 +148,13 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                     print(f"\r{ansi} {targetvar0, alg0, (idxa, idxb)}: {c:3} {100 * c / len(pairs):4.2f}% {bacc:5.3f}          ", end="", flush=True)
 
                 # fit, predict +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-                if r2:
+                if use_r2:
                     # noinspection PyTypeChecker
-                    d.apply(fitpredict, params=best_r2_params[(idxa, idxb)], Xwtr=Xw_tr, Xts=Xw_ts[:, :-1], out="zts")
+                    d.apply(fitpredict, params=best_r2_params__dct[(idxa, idxb)], Xwtr=Xw_tr, Xts=Xw_ts[:, :-1], out="zts")
                 else:
                     # noinspection PyTypeChecker
                     d.apply(fitpredict, params=best_bacc_params__dct[(idxa, idxb)], Xwtr=Xw_tr, Xts=Xw_ts[:, :-1], out="zts")
-                if cache:
+                if use_cache:
                     d = ch(d, storages)
                 zts = d.zts
                 if not sched:
@@ -208,13 +208,14 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                 bacc = -1
 
             # precision_recall_curve
-            aps = average_precision_score(t, z) if bacc > 0 else None
-            pr, rc = precision_recall_curve(t, z)[:2]
-            auprc = auc(rc, pr) if bacc > 0 else None
-            r2 = r2_score(t_diff, z_diff) if bacc > 0 else None
-            tau = kendalltau(t_diff, z_diff)[0] if bacc > 0 else None
-            pea = correlation(t_diff, z_diff) if bacc > 0 else None
-            print(f"\r{sp=} {delta=} {hits=} {tot=} \t{d.hosh.ansi} | {bacc=:4.3f} | {aps=:4.3f} | {auprc=:4.3f} | "
-                  f"{r2=:4.3f} | {tau=:4.3f} | {pea=:4.3f}", flush=True)
+            if bacc > 0:
+                aps = average_precision_score(t, z)
+                pr, rc = precision_recall_curve(t, z)[:2]
+                auprc = auc(rc, pr)
+                r2 = r2_score(t_diff, z_diff)
+                tau = kendalltau(t_diff, z_diff)[0]
+                pea = correlation(t_diff, z_diff)
+                print(f"\r{sp=} {delta=} {hits=} {tot=} \t{d.hosh.ansi} | {bacc=:4.3f} | {aps=:4.3f} | {auprc=:4.3f} | "
+                      f"{r2=:4.3f} | {tau=:4.3f} | {pea=:4.3f}", flush=True)
 
         print("\n")

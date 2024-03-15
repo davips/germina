@@ -100,12 +100,10 @@ def tree_optimized_dv_pair(df, npairs, trials, start, end, algname, seed=0, njob
         print("\tOptimizing reg by pair.", end="", flush=True)
     search_space = get_algspace(algname)
     pairs = pairwise_sample(df.index.tolist(), npairs, seed)
-
     def job(params_):
         vts_lst, wts_lst = [], []  # continuous
         yts_lst, zts_lst = [], []  # binary
         for idxa, idxb in pairs:
-            print(idxa,idxb)
             # prepare current pair of babies for testing and build training set
             babydfa = df.loc[[idxa], :]
             babydfb = df.loc[[idxb], :]
@@ -131,11 +129,12 @@ def tree_optimized_dv_pair(df, npairs, trials, start, end, algname, seed=0, njob
     sampler = islice(ParameterSampler(search_space, trials, random_state=seed), start, end)
     best_r2 = best_bacc = -1000
     best_r2_params = best_bacc_params = None
+    # for r2, bacc, params in (job(params) for params in sampler):
     for r2, bacc, params in Parallel(n_jobs=njobs)(delayed(job)(params) for params in sampler):
-        if best_r2 > r2:
+        if r2 > best_r2:
             best_r2 = r2
             best_r2_params = params
-        if best_bacc > bacc:
+        if bacc > best_bacc:
             best_bacc = bacc
             best_bacc_params = params
     return best_r2_params.copy(), best_bacc_params.copy(), best_r2, best_bacc
