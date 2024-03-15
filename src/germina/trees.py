@@ -1,5 +1,6 @@
 from itertools import islice
 
+import numpy as np
 from joblib.parallel import Parallel, delayed
 from pairwiseprediction.classifier import PairwiseClassifier
 from pairwiseprediction.optimized import OptimizedPairwiseClassifier
@@ -42,7 +43,7 @@ def tree_optimized(df, alg: RandomizedSearchCV, verbose=False):
 def tree_optimized_dv(df, n_iter, start, end, k, algname, seed=0, njobs=16, verbose=False):
     if verbose:
         print("\tOptimizing reg. tree hyperparameters.", end="", flush=True)
-    Xw = df.iloc[:, :-1].to_numpy()
+    Xw = df.to_numpy()
     w = df.iloc[:, -1].to_numpy()
     algclass = get_algclass(algname)
     search_space = get_algspace(algname)
