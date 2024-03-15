@@ -4,7 +4,7 @@ from sys import argv
 import numpy as np
 import pandas as pd
 from argvsucks import handle_command_line
-from hdict import hdict
+from hdict import hdict, _
 from lange import ap
 from pandas import read_csv
 from scipy.stats import poisson, uniform
@@ -62,9 +62,9 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         kfolds, kfolds_full = (df.shape[0] - 2, df.shape[0]) if kfolds0 == 0 else (kfolds0, kfolds0)
 
         if tree:  ###############################################################################################################
-            hd = hdict(_verbose_=True)
+            hd = hdict(_verbose_=True, _njobs_=jobs)
             # noinspection PyTypeChecker
-            hd.apply(tree_optimized_dv, df, search_space, trials, kfolds_full, alg, seed=0, out="best")
+            hd.apply(tree_optimized_dv, df, search_space, trials, kfolds_full, alg, seed=0, njobs=_._njobs_, out="best")
             hd = ch(hd, storages)
             best_params, best_score = hd.best
             # noinspection PyTypeChecker
@@ -84,7 +84,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             continue
 
         # L2O ##############################################################################################################
-        d = hdict(df=df, alg_train=alg, columns=df.columns.tolist()[:-1], trials=trials, kfolds=kfolds, shap=shap, seed=seed, _jobs_=jobs)
+        d = hdict(df=df, alg_train=alg, columns=df.columns.tolist()[:-1], trials=trials, kfolds=kfolds, shap=shap, seed=seed, _njobs_=jobs)
         hits = {0: 0, 1: 0}
         tot, errors = {0: 0, 1: 0}, {0: [], 1: []}
         t, z = [], []
@@ -114,7 +114,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             Xw_tr = df.drop([idxa, idxb], axis="rows")
             Xw_ts = np.vstack([babya, babyb])
             # noinspection PyTypeChecker
-            d.apply(tree_optimized_dv, Xw_tr, search_space, trials, kfolds, alg, seed=0, out="best")
+            d.apply(tree_optimized_dv, Xw_tr, search_space, trials, kfolds, alg, njobs=_._njobs_, seed=0, out="best")
             d = ch(d, storages)
             best_params, best_score = d.best
             if not sched:

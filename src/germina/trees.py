@@ -43,7 +43,7 @@ def tree_optimized(df, alg: RandomizedSearchCV, verbose=False):
     return alg.best_estimator_, alg.best_params_, alg.best_score_, alg.cv_results_
 
 
-def tree_optimized_dv(df, search_space, n_iter, k, algname, seed=0, verbose=False):
+def tree_optimized_dv(df, search_space, n_iter, k, algname, seed=0, njobs=16, verbose=False):
     if verbose:
         print("Optimizing reg. tree hyperparameters.")
     Xw = df.iloc[:, :-1].to_numpy()
@@ -76,7 +76,7 @@ def tree_optimized_dv(df, search_space, n_iter, k, algname, seed=0, verbose=Fals
 
     sampler = ParameterSampler(search_space, n_iter, random_state=seed)
     best_score = -1000
-    for score, params in Parallel(n_jobs=2)(delayed(job)(params) for params in sampler):
+    for score, params in Parallel(n_jobs=njobs)(delayed(job)(params) for params in sampler):
         if score > best_score:
             best_score = score
             best_params = params
