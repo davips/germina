@@ -1,4 +1,5 @@
 from itertools import repeat
+from statistics import correlation
 from sys import argv
 
 import numpy as np
@@ -6,9 +7,10 @@ import pandas as pd
 from argvsucks import handle_command_line
 from hdict import hdict, _
 from pandas import read_csv
+from scipy.stats import kendalltau
 from shelchemy import sopen
 from shelchemy.scheduler import Scheduler
-from sklearn.metrics import average_precision_score
+from sklearn.metrics import average_precision_score, r2_score
 from sklearn.metrics import precision_recall_curve, auc
 from sklearn.tree import plot_tree
 from sympy.physics.control.control_plots import plt
@@ -54,17 +56,15 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             del df[agevar]
         print(df.shape)
         kfolds, kfolds_full = (df.shape[0] - 2, df.shape[0]) if kfolds0 == 0 else (kfolds0, kfolds0)
+        d = hdict(algname=alg, n_iter=max_trials, batchs=batches, demo=demo, columns=df.columns.tolist()[:-1], k=kfolds, shap=shap, seed=seed, _njobs_=jobs, _verbose_=True)
 
         if tree:  ###############################################################################################################
-            d = hdict(_verbose_=True, _njobs_=jobs)
-            # noinspection PyTypeChecker
-
             best_score = -1000
             for batch in range(batches):
                 start = trials * batch
                 end = start + trials
                 # noinspection PyTypeChecker
-                d.apply(tree_optimized_dv, df, max_trials, start, end, kfolds_full, alg, seed=0, njobs=_._njobs_, verbose=_._verbose_, out="best")
+                d.apply(tree_optimized_dv, df, start=start, end=end, k=kfolds_full, out="best")
                 if cache:
                     d = ch(d, storages)
                 params, score = d.best
@@ -89,15 +89,15 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             continue
 
         # L2O ##############################################################################################################
-        d = hdict(df=df, alg_train=alg, columns=df.columns.tolist()[:-1], trials=trials, kfolds=kfolds, shap=shap, seed=seed, _njobs_=jobs, _verbose_=True)
         hits = {0: 0, 1: 0}
         tot, errors = {0: 0, 1: 0}, {0: [], 1: []}
         t, z = [], []
+        t_diff, z_diff = [], []
         bacc = 0
         shaps = SHAPs()
         ansi = d.hosh.ansi
         pairs = pairwise_sample(df.index, nsamp, seed)
-        tasks = zip(repeat(targetvar), repeat(alg), repeat(d.id), pairs)
+        tasks = zip(repeat(f"{batches}×{targetvar} {noage=} {seed=} {sp=}"), repeat(alg), repeat(d.id), pairs)
         for c, (targetvar0, alg0, did0, (idxa, idxb)) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
             if not sched:
                 print(f"\r{ansi} {targetvar0, alg0, (idxa, idxb)}: {c:3} {100 * c / len(pairs):4.2f}% {bacc:5.3f}          ", end="", flush=True)
@@ -123,7 +123,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                 start = trials * batch
                 end = start + trials
                 # noinspection PyTypeChecker
-                d.apply(tree_optimized_dv, Xw_tr, max_trials, start, end, kfolds, alg, njobs=_._njobs_, seed=0, verbose=_._verbose_, out="best")
+                d.apply(tree_optimized_dv, Xw_tr, start=start, end=end, out="best")
                 if cache:
                     d = ch(d, storages)
                 params, score = d.best
@@ -164,9 +164,11 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             # expected = int(baby_ya[0] / baby_yb[0] >= 1 + delta / 100)
             # predicted = int(zts[0] / zts[1] >= 1 + delta / 100)
             t.append(expected)
+            t_diff.append(baby_ya[0] - baby_yb[0])
             tot[expected] += 1
             z.append(predicted)
             hits[expected] += int(expected == predicted)
+            z_diff.append(zts[0] - zts[1])
 
             # errors
             if expected != predicted:
@@ -188,9 +190,13 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             bacc = -1
 
         # precision_recall_curve
-        aps = round(average_precision_score(t, z), 2) if bacc > 0 else None
+        aps = average_precision_score(t, z) if bacc > 0 else None
         pr, rc = precision_recall_curve(t, z)[:2]
-        auprc = round(auc(rc, pr), 2) if bacc > 0 else None
-        print(f"\r{sp=} {delta=} {hits=} {tot=} \t{d.hosh.ansi} | {bacc=:4.3f} | {aps=} | {auprc=} ", flush=True)
+        auprc = auc(rc, pr) if bacc > 0 else None
+        r2 = r2_score(t_diff, z_diff) if bacc > 0 else None
+        tau = kendalltau(t_diff, z_diff)[0] if bacc > 0 else None
+        pea = correlation(t_diff, z_diff) if bacc > 0 else None
+        print(f"\r{sp=} {delta=} {hits=} {tot=} \t{d.hosh.ansi} | {bacc=:4.3f} | {aps=:4.3f} | {auprc=:4.3f} | "
+              f"{r2=:4.3f} | {tau=:4.3f} | {pea=:4.3f}", flush=True)
 
     print("\n")
