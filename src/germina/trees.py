@@ -83,7 +83,7 @@ def tree_optimized_dv(df, n_iter, start, end, k, algname, seed=0, njobs=16, verb
     return best_params.copy(), best_score
 
 
-def tree_optimized_dv_pair(df, trials, start, end, algname, seed=0, njobs=16, verbose=False):
+def tree_optimized_dv_pair(df, npairs, trials, start, end, algname, seed=0, njobs=16, verbose=False):
     """
 
     :param df:
@@ -99,12 +99,13 @@ def tree_optimized_dv_pair(df, trials, start, end, algname, seed=0, njobs=16, ve
     if verbose:
         print("\tOptimizing reg by pair.", end="", flush=True)
     search_space = get_algspace(algname)
-    pairs = pairwise_sample(df.index.tolist(), trials, seed)
+    pairs = pairwise_sample(df.index.tolist(), npairs, seed)
 
     def job(params_):
         vts_lst, wts_lst = [], []  # continuous
         yts_lst, zts_lst = [], []  # binary
         for idxa, idxb in pairs:
+            print(idxa,idxb)
             # prepare current pair of babies for testing and build training set
             babydfa = df.loc[[idxa], :]
             babydfb = df.loc[[idxb], :]
