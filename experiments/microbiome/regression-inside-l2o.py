@@ -67,12 +67,12 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                 d.apply(tree_optimized_dv_pair, df, start=start, end=end, njobs=_._njobs_, verbose=_._verbose_, out="best")
                 if use_cache:
                     d = ch(d, storages)
-                r2_params, bacc_params, r2, bacc = d.best
+                r2_params, bacc_params, r2, bacc_ = d.best
                 if r2 > best_r2:
                     best_r2 = r2
                     best_r2_params = r2_params
-                if bacc > best_bacc:
-                    best_bacc = bacc
+                if bacc_ > best_bacc:
+                    best_bacc = bacc_
                     best_bacc_params = bacc_params
             # noinspection PyTypeChecker
             if r2:
@@ -108,8 +108,9 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
 
             hits = {0: 0, 1: 0}
             tot, errors = {0: 0, 1: 0}, {0: [], 1: []}
-            t, z = [], []
-            t_diff, z_diff = [], []
+            vts_lst, wts_lst = [], []  # continuous
+            vts_diff, wts_diff = [], []
+            yts_lst, zts_lst = [], []  # binary
             bacc = 0
             shaps = SHAPs()
             tasks = zip(repeat(f"{until_batch}/{batches}:{targetvar} {noage=} {seed=} {sp=}"), repeat(alg), repeat(d.id), pairs)
@@ -120,29 +121,29 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                 # prepare current pair of babies and training set
                 babydfa = df.loc[[idxa], :]
                 babydfb = df.loc[[idxb], :]
-                baby_ya = babydfa.iloc[0, -1:]
-                baby_yb = babydfb.iloc[0, -1:]
+                baby_va = babydfa.iloc[0, -1:]
+                baby_vb = babydfb.iloc[0, -1:]
                 # TODO remove babies with NaN labels in training set?
-                if baby_ya.isna().sum().sum() > 0 or baby_yb.isna().sum().sum() > 0:
+                if baby_va.isna().sum().sum() > 0 or baby_vb.isna().sum().sum() > 0:
                     continue  # skip NaN labels from testing set
-                baby_ya = baby_ya.to_numpy()
-                baby_yb = baby_yb.to_numpy()
+                baby_va = baby_va.to_numpy()
+                baby_vb = baby_vb.to_numpy()
                 babya = babydfa.to_numpy()
                 babyb = babydfb.to_numpy()
 
                 # optimize  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-                Xw_tr = df.drop([idxa, idxb], axis="rows")
-                Xw_ts = np.vstack([babya, babyb])
+                Xv_tr = df.drop([idxa, idxb], axis="rows")
+                Xv_ts = np.vstack([babya, babyb])
                 # noinspection PyTypeChecker
-                d.apply(tree_optimized_dv_pair, Xw_tr, start=start, end=end, njobs=_._njobs_, verbose=_._verbose_, out="best")
+                d.apply(tree_optimized_dv_pair, Xv_tr, start=start, end=end, njobs=_._njobs_, verbose=_._verbose_, out="best")
                 if use_cache:
                     d = ch(d, storages)
-                r2_params, bacc_params, r2, bacc = d.best
+                r2_params, bacc_params, r2, bacc_ = d.best
                 if (idxa, idxb) not in best_r2__dct or r2 > best_r2__dct[(idxa, idxb)]:
                     best_r2__dct[(idxa, idxb)] = r2
                     best_r2_params__dct[(idxa, idxb)] = r2_params
-                if (idxa, idxb) not in best_bacc__dct or bacc > best_bacc__dct[(idxa, idxb)]:
-                    best_bacc__dct[(idxa, idxb)] = bacc
+                if (idxa, idxb) not in best_bacc__dct or bacc_ > best_bacc__dct[(idxa, idxb)]:
+                    best_bacc__dct[(idxa, idxb)] = bacc_
                     best_bacc_params__dct[(idxa, idxb)] = bacc_params
                 if not sched:
                     print(f"\r{ansi} {targetvar0, alg0, (idxa, idxb)}: {c:3} {100 * c / len(pairs):4.2f}% {bacc:5.3f}          ", end="", flush=True)
@@ -150,13 +151,13 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                 # fit, predict +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                 if use_r2:
                     # noinspection PyTypeChecker
-                    d.apply(fitpredict, params=best_r2_params__dct[(idxa, idxb)], Xwtr=Xw_tr, Xts=Xw_ts[:, :-1], out="zts")
+                    d.apply(fitpredict, params=best_r2_params__dct[(idxa, idxb)], Xwtr=Xv_tr, Xts=Xv_ts[:, :-1], out="wts")
                 else:
                     # noinspection PyTypeChecker
-                    d.apply(fitpredict, params=best_bacc_params__dct[(idxa, idxb)], Xwtr=Xw_tr, Xts=Xw_ts[:, :-1], out="zts")
+                    d.apply(fitpredict, params=best_bacc_params__dct[(idxa, idxb)], Xwtr=Xv_tr, Xts=Xv_ts[:, :-1], out="wts")
                 if use_cache:
                     d = ch(d, storages)
-                zts = d.zts
+                wts = d.wts
                 if not sched:
                     print(f"\r{ansi} {targetvar0, alg0, (idxa, idxb)}: {c:3} {100 * c / len(pairs):4.2f}% {bacc:5.3f}          ", end="", flush=True)
 
@@ -177,16 +178,18 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                 # predicted = int(zts[0] + delta >= zts[1])
                 # expected = int(abs(baby_ya[0] - baby_yb[0]) >= delta)
                 # predicted = int(abs(zts[0] - zts[1]) >= delta)
-                expected = int(baby_ya[0] >= baby_yb[0])
-                predicted = int(zts[0] >= zts[1])
+                expected = int(baby_va[0] >= baby_vb[0])
+                predicted = int(wts[0] >= wts[1])
                 # expected = int(baby_ya[0] / baby_yb[0] >= 1 + delta / 100)
                 # predicted = int(zts[0] / zts[1] >= 1 + delta / 100)
-                t.append(expected)
-                t_diff.append(baby_ya[0] - baby_yb[0])
+                vts_lst.extend([baby_va[0], baby_vb[0]])
+                wts_lst.extend([wts[0], wts[1]])
+                yts_lst.append(expected)
+                zts_lst.append(predicted)
                 tot[expected] += 1
-                z.append(predicted)
                 hits[expected] += int(expected == predicted)
-                z_diff.append(zts[0] - zts[1])
+                vts_diff.append(baby_va[0] - baby_vb[0])
+                wts_diff.append(wts[0] - wts[1])
 
                 # errors +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                 if expected != predicted:
@@ -198,6 +201,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                     acc0 = hits[0] / tot[0]
                     acc1 = hits[1] / tot[1]
                     bacc = (acc0 + acc1) / 2
+                    # print(f"{bacc:3.3f}, {tot}, {hits}")
 
             if sched:
                 continue
@@ -209,13 +213,19 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
 
             # precision_recall_curve
             if bacc > 0:
-                aps = average_precision_score(t, z)
-                pr, rc = precision_recall_curve(t, z)[:2]
+                aps = average_precision_score(yts_lst, zts_lst)
+                pr, rc = precision_recall_curve(yts_lst, zts_lst)[:2]
                 auprc = auc(rc, pr)
-                r2 = r2_score(t_diff, z_diff)
-                tau = kendalltau(t_diff, z_diff)[0]
-                pea = correlation(t_diff, z_diff)
-                print(f"\r{sp=} {delta=} {hits=} {tot=} \t{d.hosh.ansi} | {bacc=:4.3f} | {aps=:4.3f} | {auprc=:4.3f} | "
-                      f"{r2=:4.3f} | {tau=:4.3f} | {pea=:4.3f}", flush=True)
+                r2 = r2_score(vts_lst, wts_lst)
+                tau = [round(a, 4) for a in kendalltau(vts_lst, wts_lst)]
+                pea = correlation(vts_lst, wts_lst)
+
+                r2_d = r2_score(vts_diff, wts_diff)
+                tau_d = [round(a, 4) for a in kendalltau(vts_diff, wts_diff)]
+                pea_d = correlation(vts_diff, wts_diff)
+                print(f"\r{sp=} {delta=} {hits=} {tot=} \t{d.hosh.ansi} | "
+                      f"{bacc=:4.3f} | {aps=:4.3f} | {auprc=:4.3f} | "
+                      f"{r2=:4.3f} {tau=} {pea=:4.3f} | "
+                      f"{r2_d=:4.3f} {tau_d=} {pea_d=:4.3f}", flush=True)
 
         print("\n")

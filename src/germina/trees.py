@@ -100,6 +100,7 @@ def tree_optimized_dv_pair(df, npairs, trials, start, end, algname, seed=0, njob
         print("\tOptimizing reg by pair.", end="", flush=True)
     search_space = get_algspace(algname)
     pairs = pairwise_sample(df.index.tolist(), npairs, seed)
+
     def job(params_):
         vts_lst, wts_lst = [], []  # continuous
         yts_lst, zts_lst = [], []  # binary
@@ -138,3 +139,5 @@ def tree_optimized_dv_pair(df, npairs, trials, start, end, algname, seed=0, njob
             best_bacc = bacc
             best_bacc_params = params
     return best_r2_params.copy(), best_bacc_params.copy(), best_r2, best_bacc
+
+# TODO: use a getmeasure() function to allow customization of optimization ?

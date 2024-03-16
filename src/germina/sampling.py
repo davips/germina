@@ -1,8 +1,13 @@
+from itertools import islice
+
 import numpy as np
 from numpy import ndarray
+from sklearn.model_selection import ParameterSampler
+
+from germina.aux import get_algspace
 
 
-def pairwise_sample(numbers, s, seed):
+def pairwise_sample(X, n, seed):
     """
     >>> import numpy as np
     >>> pairwise_sample(np.array([1,2,3]), 5, 0)
@@ -12,19 +17,25 @@ def pairwise_sample(numbers, s, seed):
            [1, 3],
            [2, 1]])
 
-    :param numbers:
-    :param s:  # of pairs to sample
+    :param X:
+    :param n:  # of pairs to sample
     :param seed:
     :return:
     """
-    if not isinstance(numbers, ndarray):
-        numbers = np.array(numbers)
-    n = len(numbers)
-    x = np.arange(0, n)
-    y = np.arange(0, n)
-    X, Y = np.meshgrid(x, y)
-    res = np.vstack([X.ravel(), Y.ravel()]).T
+    if not isinstance(X, ndarray):
+        X = np.array(X)
+    N = len(X)
+    x = np.arange(0, N)
+    y = np.arange(0, N)
+    X_, Y_ = np.meshgrid(x, y)
+    res = np.vstack([X_.ravel(), Y_.ravel()]).T
     res = res[res[:, 0] != res[:, 1]]
     rnd = np.random.default_rng(seed)
     rnd.shuffle(res)
-    return numbers[res[:s]]
+    return X[res[:n]]
+
+
+def create_search_space(algname, n, start=None, end=None, seed=0, aslist=False):
+    search_space = get_algspace(algname)
+    sampler = islice(ParameterSampler(search_space, n, random_state=seed), start, end)
+    return list(sampler) if aslist else sampler
