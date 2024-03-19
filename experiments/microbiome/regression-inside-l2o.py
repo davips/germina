@@ -6,7 +6,9 @@ import numpy as np
 import pandas as pd
 from argvsucks import handle_command_line
 from hdict import hdict, _
-from pandas import read_csv
+from pairwiseprediction.combination import pairwise_diff
+from pairwiseprediction.combination import pairwise_hstack
+from pandas import read_csv, DataFrame
 from scipy.stats import kendalltau
 from shelchemy import sopen
 from shelchemy.scheduler import Scheduler
@@ -20,12 +22,14 @@ from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, sc
 from germina.runner import ch
 from germina.sampling import pairwise_sample
 from germina.shaps import SHAPs
-from germina.trees import tree_optimized_dv_pair
+from germina.trees import tree_optimized_dv_pair, tree_optimized_dv_pairdiff
 
 center, max_trials = None, 10_000_000
-dct = handle_command_line(argv, r2=False, batches=int, cache=False, font=12, alg=str, demo=False, delta=20, noage=False, sched=False, targetvar=str, jobs=int, seed=0, prefix=str, suffix=str, sps=list, nsamp=int, shap=False, tree=False)
+dct = handle_command_line(argv, r2=False, batches=int, cache=False, font=12, alg=str, demo=False, delta=float, noage=False, sched=False, targetvar=str, jobs=int, seed=0, prefix=str, suffix=str, sps=list, nsamp=int, shap=False, tree=False, diff=False)
 print(dct)
-use_r2, batches, use_cache, font, alg, demo, delta, noage, sched, targetvar, jobs, seed, prefix, suffix, sps, nsamp, shap, tree = dct["r2"], dct["batches"], dct["cache"], dct["font"], dct["alg"], dct["demo"], dct["delta"], dct["noage"], dct["sched"], dct["targetvar"], dct["jobs"], dct["seed"], dct["prefix"], dct["suffix"], dct["sps"], dct["nsamp"], dct["shap"], dct["tree"]
+use_r2, batches, use_cache, font, alg, demo, delta, noage, sched, targetvar, jobs, seed, prefix, suffix, sps, nsamp, shap, tree, diff = \
+    dct["r2"], dct["batches"], dct["cache"], dct["font"], dct["alg"], dct["demo"], dct["delta"], dct["noage"], dct["sched"], dct["targetvar"], dct["jobs"], dct["seed"], dct["prefix"], dct["suffix"], dct["sps"], dct["nsamp"], dct["shap"], dct["tree"], dct["diff"]
+
 rnd = np.random.default_rng(0)
 batch_size = int(alg.split("-")[1])
 npairs = int(alg.split("-")[2])
@@ -93,7 +97,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             print(" ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^")
             columns = df.columns.tolist()[:-1]
             plot_tree(best_estimator, filled=True, feature_names=columns, fontsize=font)
-            plt.title(f"{targetvar} species{sp} {alg} {batches=} {noage=} {use_r2=}")
+            plt.title(f"{targetvar} species{sp} {alg} {batches=} {noage=} {delta=} {use_r2=}")
             plt.show()
             continue
 
@@ -113,7 +117,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             yts_lst, zts_lst = [], []  # binary
             bacc = 0
             shaps = SHAPs()
-            tasks = zip(repeat(f"{until_batch}/{batches}:{targetvar} {noage=} {seed=} {sp=}"), repeat(alg), repeat(d.id), pairs)
+            tasks = zip(repeat(f"{until_batch}/{batches}:{targetvar} {noage=:1} {delta=} {use_r2=:1} {seed=} {sp=} {diff=:1}"), repeat(alg), repeat(d.id), pairs)
             for c, (targetvar0, alg0, did0, (idxa, idxb)) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
                 if not sched:
                     print(f"\r{ansi} {targetvar0, alg0, (idxa, idxb)}: {c:3} {100 * c / len(pairs):4.2f}% {bacc:5.3f}          ", end="", flush=True)
@@ -123,7 +127,6 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                 babydfb = df.loc[[idxb], :]
                 baby_va = babydfa.iloc[0, -1:]
                 baby_vb = babydfb.iloc[0, -1:]
-                # TODO remove babies with NaN labels in training set?
                 if baby_va.isna().sum().sum() > 0 or baby_vb.isna().sum().sum() > 0:
                     continue  # skip NaN labels from testing set
                 baby_va = baby_va.to_numpy()
@@ -134,8 +137,22 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                 # optimize  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                 Xv_tr = df.drop([idxa, idxb], axis="rows")
                 Xv_ts = np.vstack([babya, babyb])
-                # noinspection PyTypeChecker
-                d.apply(tree_optimized_dv_pair, Xv_tr, start=start, end=end, njobs=_._njobs_, verbose=_._verbose_, out="best")
+                if diff:
+                    Xv = df.to_numpy()
+                    Xd = pairwise_diff(Xv, Xv)
+                    idx = df.index.to_numpy().reshape(df.shape[0], -1)
+                    Xd_idxs = pairwise_hstack(idx, idx)
+                    indexed_Xd = np.hstack([Xd, Xd_idxs])
+                    Xd = Xd_idxs = None
+                    indexed_Xd = indexed_Xd[np.any(indexed_Xd[:, :-2] != 0, axis=1)]  # remove null rows
+                    rnd = np.random.default_rng(seed)
+                    rnd.shuffle(indexed_Xd)
+                    indexed_Xd = indexed_Xd[:npairs]
+                    # noinspection PyTypeChecker
+                    d.apply(tree_optimized_dv_pairdiff, Xv_tr, indexed_Xd, delta, start=start, end=end, njobs=_._njobs_, verbose=_._verbose_, out="best")
+                else:
+                    # noinspection PyTypeChecker
+                    d.apply(tree_optimized_dv_pair, Xv_tr, start=start, end=end, njobs=_._njobs_, verbose=_._verbose_, out="best")
                 if use_cache:
                     d = ch(d, storages)
                 r2_params, bacc_params, r2, bacc_ = d.best
@@ -149,6 +166,12 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                     print(f"\r{ansi} {targetvar0, alg0, (idxa, idxb)}: {c:3} {100 * c / len(pairs):4.2f}% {bacc:5.3f}          ", end="", flush=True)
 
                 # fit, predict +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                # remove rows containing forbidden indexes
+                if diff:
+                    allowed = (indexed_Xd[:, -2] != idxa) & (indexed_Xd[:, -1] != idxb) & (indexed_Xd[:, -2] != idxb) & (indexed_Xd[:, -1] != idxa)
+                    Xv_tr = indexed_Xd[allowed, :-2]
+                    Xv_tr = DataFrame(Xv_tr, columns=df.columns)
+                    Xv_ts = babya - babyb
                 if use_r2:
                     # noinspection PyTypeChecker
                     d.apply(fitpredict, params=best_r2_params__dct[(idxa, idxb)], Xwtr=Xv_tr, Xts=Xv_ts[:, :-1], out="wts")
@@ -173,19 +196,18 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                     continue
 
                 # accumulate +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-                pass
-                expected = int(baby_va[0] - baby_vb[0] >= delta )
-                predicted = int(wts[0] - wts[1] >= delta)
+                expected = int(baby_va[0] - baby_vb[0] >= delta)
+                predicted = int(wts[0] >= delta) if diff else int(wts[0] - wts[1] >= delta)
                 # expected = int(baby_ya[0] / baby_yb[0] >= 1 + delta / 100)
                 # predicted = int(zts[0] / zts[1] >= 1 + delta / 100)
-                vts_lst.extend([baby_va[0], baby_vb[0]])
-                wts_lst.extend([wts[0], wts[1]])
+                vts_lst.extend([baby_va[0]] if diff else [baby_va[0], baby_vb[0]])
+                wts_lst.extend([baby_vb[0] + wts[0]] if diff else [wts[0], wts[1]])
                 yts_lst.append(expected)
                 zts_lst.append(predicted)
                 tot[expected] += 1
                 hits[expected] += int(expected == predicted)
                 vts_diff.append(baby_va[0] - baby_vb[0])
-                wts_diff.append(wts[0] - wts[1])
+                wts_diff.append(wts[0] if diff else (wts[0] - wts[1]))
 
                 # errors +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                 if expected != predicted:

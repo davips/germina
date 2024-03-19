@@ -19,6 +19,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from xgboost import XGBClassifier as XGBc
 
+from germina.tree import DTR
+
 warnings.filterwarnings("ignore")
 
 __ = enable_iterative_imputer
@@ -258,12 +260,17 @@ def trainpredict_optimized(Xwtr, Xwts,
 def get_algclass(name):
     if name.startswith("cartr"):
         return DecisionTreeRegressor
+    elif name.startswith("dtr"):
+        return DTR
+
     raise Exception(f"{name=}")
 
 
 def get_algspace(name):
-    if name.startswith("cartr"):
-        return {"criterion": ["absolute_error", "squared_error", "poisson", "friedman_mse"], "max_depth": poisson(mu=5, loc=2), "min_impurity_decrease": uniform(0, 0.01), "max_leaf_nodes": poisson(mu=20, loc=5), "min_samples_split": ap[20, 30, ..., 100].l, "min_samples_leaf": ap[10, 20, ..., 50].l}
+    if name.startswith("cartr"):  # no "poisson" due to negative values in diff of pairs
+        return {"criterion": ["absolute_error", "squared_error", "friedman_mse"], "max_depth": poisson(mu=5, loc=2), "min_impurity_decrease": uniform(0, 0.01), "max_leaf_nodes": poisson(mu=20, loc=5), "min_samples_split": ap[20, 30, ..., 100].l, "min_samples_leaf": ap[10, 20, ..., 50].l}
+    elif name.startswith("dtr"):
+        return {"max_depth": poisson(mu=5, loc=2)}
     raise Exception(f"{name=}")
 
 
