@@ -56,7 +56,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             del df[agevar]
         print(df.shape)
         # kfolds, kfolds_full = (df.shape[0] - 2, df.shape[0]) if kfolds0 == 0 else (kfolds0, kfolds0)
-        d = hdict(algname=alg, npairs=npairs, trials=max_trials, demo=demo, columns=df.columns.tolist()[:-1], shap=shap, seed=seed, _njobs_=jobs, _verbose_=True)
+        d = hdict(delta=delta, algname=alg, npairs=npairs, trials=max_trials, demo=demo, columns=df.columns.tolist()[:-1], shap=shap, seed=seed, _njobs_=jobs, _verbose_=True)
 
         if tree:  ###############################################################################################################
             best_r2 = best_bacc = -1000
@@ -174,12 +174,8 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
 
                 # accumulate +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                 pass
-                # expected = int(baby_ya[0] + delta >= baby_yb[0])
-                # predicted = int(zts[0] + delta >= zts[1])
-                # expected = int(abs(baby_ya[0] - baby_yb[0]) >= delta)
-                # predicted = int(abs(zts[0] - zts[1]) >= delta)
-                expected = int(baby_va[0] >= baby_vb[0])
-                predicted = int(wts[0] >= wts[1])
+                expected = int(baby_va[0] - baby_vb[0] >= delta )
+                predicted = int(wts[0] - wts[1] >= delta)
                 # expected = int(baby_ya[0] / baby_yb[0] >= 1 + delta / 100)
                 # predicted = int(zts[0] / zts[1] >= 1 + delta / 100)
                 vts_lst.extend([baby_va[0], baby_vb[0]])
