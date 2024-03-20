@@ -18,18 +18,30 @@ from sklearn.tree import plot_tree
 from sympy.physics.control.control_plots import plt
 
 from germina.aux import fit, fitpredict
+from germina.cols import pathway_lst, bacteria_lst, single_eeg_lst
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.runner import ch
 from germina.sampling import pairwise_sample
 from germina.shaps import SHAPs
 from germina.trees import tree_optimized_dv_pair, tree_optimized_dv_pairdiff
+from sklearn.tree import export_graphviz
+import pydotplus
 
 center, max_trials = None, 10_000_000
-dct = handle_command_line(argv, r2=False, batches=int, cache=False, font=12, alg=str, demo=False, delta=float, noage=False, sched=False, targetvar=str, jobs=int, seed=0, prefix=str, suffix=str, sps=list, nsamp=int, shap=False, tree=False, diff=False)
+dct = handle_command_line(argv, source=str, r2=False, batches=int, cache=False, font=12, alg=str, demo=False, delta=float, noage=False, sched=False, targetvar=str, jobs=int, seed=0, prefix=str, suffix=str, sps=list, nsamp=int, shap=False, tree=False, diff=False)
 print(dct)
-use_r2, batches, use_cache, font, alg, demo, delta, noage, sched, targetvar, jobs, seed, prefix, suffix, sps, nsamp, shap, tree, diff = \
-    dct["r2"], dct["batches"], dct["cache"], dct["font"], dct["alg"], dct["demo"], dct["delta"], dct["noage"], dct["sched"], dct["targetvar"], dct["jobs"], dct["seed"], dct["prefix"], dct["suffix"], dct["sps"], dct["nsamp"], dct["shap"], dct["tree"], dct["diff"]
-
+source, use_r2, batches, use_cache, font, alg, demo, delta, noage, sched, targetvar, jobs, seed, prefix, suffix, sps, nsamp, shap, tree, diff = \
+    dct["source"], dct["r2"], dct["batches"], dct["cache"], dct["font"], dct["alg"], dct["demo"], dct["delta"], dct["noage"], dct["sched"], dct["targetvar"], dct["jobs"], dct["seed"], dct["prefix"], dct["suffix"], dct["sps"], dct["nsamp"], dct["shap"], dct["tree"], dct["diff"]
+if targetvar.endswith("t1"):
+    agevar = "idade_crianca_dias_t1"
+elif targetvar.endswith("t2"):
+    agevar = "idade_crianca_dias_t2"
+elif targetvar.endswith("t3"):
+    agevar = "idade_crianca_dias_t3"
+elif targetvar.endswith("t4"):
+    agevar = "idade_crianca_dias_t4"
+else:
+    raise Exception(f"Unexpected timepoint suffix for target '{targetvar}'.")
 rnd = np.random.default_rng(0)
 batch_size = int(alg.split("-")[1])
 npairs = int(alg.split("-")[2])
@@ -44,18 +56,23 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         sp = int(sp)
         print(f"{sp=} <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
         df = read_csv(f"{prefix}{sp}{suffix}", index_col="id_estudo")
+
+        if source == "bact":
+            predictors = bacteria_lst
+        elif source == "path":
+            predictors = pathway_lst
+        elif source == "seeg":
+            predictors = single_eeg_lst
+        elif source == "deeg":
+            predictors = dyadic_eeg_lst
+        else:
+            raise Exception(f"Unknown {source=}")
+        df = df[predictors + [agevar, targetvar]]
+
         df.sort_values(targetvar, inplace=True, ascending=True, kind="stable")
         if demo:
             take = min(df.shape[0] // 2, 30)
             df = pd.concat([df.iloc[:take], df.iloc[-take:]], axis="rows")
-        if targetvar.endswith("t2"):
-            agevar = "idade_crianca_dias_t2"
-        elif targetvar.endswith("t3"):
-            agevar = "idade_crianca_dias_t3"
-        elif targetvar.endswith("t4"):
-            agevar = "idade_crianca_dias_t4"
-        else:
-            raise Exception(f"Unexpected timepoint suffix for target '{targetvar}'.")
         if noage:
             del df[agevar]
         print(df.shape)
@@ -111,9 +128,15 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             print(best_r2, best_bacc)
             print(" ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^")
             columns = df.columns.tolist()[:-1]
-            plot_tree(best_estimator, filled=True, feature_names=columns, fontsize=font)
-            plt.title(f"{targetvar} species{sp} {alg} {batches=} {noage=:1} {delta=} {use_r2=:1} {diff=:1}")
-            plt.show()
+            arq = f"{targetvar}_species{sp}_{alg}_{batches=}_{noage=:1}_{delta=}_{use_r2=:1}_{diff=:1}"
+
+            # plot_tree(best_estimator, filled=True, feature_names=columns, fontsize=font)
+            # plt.title(arq)
+            # plt.show()
+
+            dot_data = export_graphviz(best_estimator, feature_names=columns, out_file=None, filled=True, rounded=True)
+            pydot_graph = pydotplus.graph_from_dot_data(dot_data)
+            pydot_graph.write_pdf(f"tree/tree___{arq}.pdf")
             continue
 
         # L2O ##############################################################################################################

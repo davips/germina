@@ -34,6 +34,7 @@ torchvision = "^0.16.2"
 hdict = "^2.240217.0"
 pairwiseprediction = "^0.240311.7"
 optuna = "^3.5.0"
+pydotplus = "^2.0.2"
 
 [tool.poetry.extras]    #[tool.poetry.group.extras.dependencies]
 full = []

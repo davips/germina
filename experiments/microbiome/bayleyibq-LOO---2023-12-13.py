@@ -103,10 +103,13 @@ if __name__ == '__main__':
 
                 print(field, "=================================================================================")
                 d = load_from_csv(d, storages, storage_to_be_updated, path, vif, arq, field, transpose=True, old_indexname=oldidx, verbose=False)
-                d = load_from_csv(d, storages, storage_to_be_updated, path, False, "workshop111223", "osf0", False, verbose=False)
+                d = load_from_csv(d, storages, storage_to_be_updated, path, False, "nathalia140324", "osf0", False, verbose=False)
                 for target_var in d.target_vars.split(","):
                     cols = [target_var]
-                    if target_var.endswith("t2"):
+                    if target_var.endswith("t1"):
+                        tt = 1
+                        cols.append("idade_crianca_dias_t1")
+                    elif target_var.endswith("t2"):
                         tt = 2
                         cols.append("idade_crianca_dias_t2")
                     elif target_var.endswith("t3"):
@@ -158,8 +161,8 @@ if __name__ == '__main__':
                         d = ch(d, storages, storage_to_be_updated)
                         d[o].to_csv(f"/home/davi/git/germina/results/{o}_{target_var}.csv")
                         continue
-                    if dct["datasetr_fromtsv"]:
-                        df1 = read_csv("data/full/T1_especies_original.tsv", sep=" ")
+                    if dct["datasetr_fromcsv"]:
+                        df1 = read_csv("data/full/T1_especies_original.csv", sep=",")
                         df1.set_index("id_estudo", inplace=True)
 
                         df1 = df1.join(d.Xor[f"idade_crianca_dias_t{tt}"], how="inner")
@@ -167,7 +170,7 @@ if __name__ == '__main__':
                         o = f"datasetr_fromtsv_species1"
                         df1.to_csv(f"/home/davi/git/germina/results/{o}_{target_var}.csv")
 
-                        df2 = read_csv("data/full/T2_especies_original.tsv", sep=" ")
+                        df2 = read_csv("data/full/T2_especies_original.csv", sep=",")
                         df2.set_index("id_estudo", inplace=True)
                         df2 = df2.join(d.Xor[f"idade_crianca_dias_t{tt}"], how="inner")
                         df2 = df2.join(d.yor, how="inner")

@@ -3008,6 +3008,19 @@ files = [
 ]
 
 [[package]]
+name = "pydotplus"
+version = "2.0.2"
+description = "Python interface to Graphviz's Dot language"
+optional = false
+python-versions = "*"
+files = [
+    {file = "pydotplus-2.0.2.tar.gz", hash = "sha256:91e85e9ee9b85d2391ead7d635e3d9c7f5f44fd60a60e59b13e2403fa66505c4"},
+]
+
+[package.dependencies]
+pyparsing = ">=2.0.1"
+
+[[package]]
 name = "pygments"
 version = "2.17.2"
 description = "Pygments is a syntax highlighting package written in Python."
@@ -4346,4 +4359,4 @@ full = []
 [metadata]
 lock-version = "2.0"
 python-versions = "3.11.2"
-content-hash = "778b47b20bc11cb21dec89d2a12e3d2f43df7476466c1923328ac48eeed629ea"
+content-hash = "9d0964e789b2b69d62e53de7de28ef580d365a64caa647bfce9f8c0e399ff2f5"
