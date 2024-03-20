@@ -260,16 +260,3 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                 p = ttest_1samp(scores, popmean=0, alternative="greater")[1]
                 print(f"  {measure}={p:4.3f}", end="")
         print("\n")
-
-"""
-# filtered species
-p=0;s="sched";t=1200;a=lgbm;pre="results/datasetr_species";suf="_bayley_8_t2.csv"; ps; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=-1 perms=$p diff $s; ps; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=-1 perms=$p $s; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=-1 perms=$p pct $s; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=-1 perms=$p pct diff $s; # filtered species
-p=0;s="";t=1200;a=lgbm;pre="results/datasetr_species";suf="_bayley_8_t2.csv"; ps; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=1 perms=$p diff $s; ps; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=1 perms=$p $s; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=1 perms=$p pct $s; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=1 perms=$p pct diff $s; # filtered species
-
-# full species
-p=0;s="sched";t=1200;a=lgbm;pre="results/datasetr_fromtsv_species";suf="_bayley_8_t2.csv"; ps; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=-1 perms=$p diff $s; ps; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=-1 perms=$p $s; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=-1 perms=$p pct $s; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=-1 perms=$p pct diff $s; # full species
-p=0;s="";t=1200;a=lgbm;pre="results/datasetr_fromtsv_species";suf="_bayley_8_t2.csv"; ps; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=1 perms=$p diff $s; ps; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=7.5 trees=$t jobs=1 perms=$p $s; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=1 perms=$p pct $s; time poetry run python experiments/microbiome/pairwise.py prefix=$pre sufix=$suf targetvar=bayley_8_t2 alg=$a delta=0.2 trees=$t jobs=1 perms=$p pct diff $s; # full species
-
-# gera EEG CSVs: single=1 dyadic=2
-poetry run python experiments/microbiome/pairwise.py geneeg targetvar=bayley_8_t2
-"""
