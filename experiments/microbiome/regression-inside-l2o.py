@@ -67,8 +67,23 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             for batch in range(batches):
                 start = batch_size * batch
                 end = start + batch_size
-                # noinspection PyTypeChecker
-                d.apply(tree_optimized_dv_pair, df, start=start, end=end, njobs=_._njobs_, verbose=_._verbose_, out="best")
+                if diff:
+                    Xv = df.to_numpy()
+                    Xd = pairwise_diff(Xv, Xv)
+                    idx = df.index.to_numpy().reshape(df.shape[0], -1)
+                    Xd_idxs = pairwise_hstack(idx, idx)
+                    indexed_Xd = np.hstack([Xd, Xd_idxs])
+                    indexed_Xd = indexed_Xd[np.any(indexed_Xd[:, :-2] != 0, axis=1)]  # remove null rows
+                    rnd = np.random.default_rng(seed)
+                    rnd.shuffle(indexed_Xd)
+                    indexed_Xd = indexed_Xd[:npairs]
+                    # noinspection PyTypeChecker
+                    d.apply(tree_optimized_dv_pairdiff, df, indexed_Xd, start=start, end=end, njobs=_._njobs_, verbose=_._verbose_, out="best")
+                    Xtr = DataFrame(Xd[:npairs], columns=df.columns)
+                else:
+                    # noinspection PyTypeChecker
+                    d.apply(tree_optimized_dv_pair, df, start=start, end=end, njobs=_._njobs_, verbose=_._verbose_, out="best")
+                    Xtr = df
                 if use_cache:
                     d = ch(d, storages)
                 r2_params, bacc_params, r2, bacc_ = d.best
@@ -81,10 +96,10 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             # noinspection PyTypeChecker
             if r2:
                 # noinspection PyTypeChecker
-                d.apply(fit, alg, best_r2_params, df, out="tree")
+                d.apply(fit, alg, best_r2_params, Xtr, out="tree")
             else:
                 # noinspection PyTypeChecker
-                d.apply(fit, alg, best_bacc_params, df, out="tree")
+                d.apply(fit, alg, best_bacc_params, Xtr, out="tree")
             if use_cache:
                 d = ch(d, storages)
             best_estimator = d.tree
@@ -97,7 +112,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             print(" ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^")
             columns = df.columns.tolist()[:-1]
             plot_tree(best_estimator, filled=True, feature_names=columns, fontsize=font)
-            plt.title(f"{targetvar} species{sp} {alg} {batches=} {noage=} {delta=} {use_r2=}")
+            plt.title(f"{targetvar} species{sp} {alg} {batches=} {noage=:1} {delta=} {use_r2=:1} {diff=:1}")
             plt.show()
             continue
 
