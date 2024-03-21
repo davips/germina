@@ -254,3 +254,21 @@ def fitshap(algname, params, Xy, seed, njobs, verbose=True, **kwargs):
     for dct in Parallel(n_jobs=njobs)(delayed(job)(idx) for idx in Xy.index):
         lst.append(dct)
     return lst
+
+
+def fitshap2(algname, params, Xy, xa, xb, seed, verbose=True, **kwargs):
+    def job(x):
+        predictparts = dx.Explainer.predict_parts(explainer, new_observation=x, type="shap", random_state=seed, **kwargs)
+        zz = zip(predictparts.result["variable"], predictparts.result["contribution"])
+        return Dict((name_val.split(" = ")[0], (float(name_val.split(" = ")[1:][0]), co)) for name_val, co in zz)
+
+    if verbose:
+        print("\tfitshap2", end="", flush=True)
+    X = Xy.iloc[:, :-1]
+    y = Xy.iloc[:, -1]
+    estimator = fit(algname, params, Xy, verbose=False)
+    explainer = dx.Explainer(model=estimator, data=X, y=y, verbose=False)
+    lst = []
+    for var__val_shap in Parallel(n_jobs=2)(delayed(job)(x) for x in [xa, xb]):
+        lst.append(var__val_shap)
+    return lst

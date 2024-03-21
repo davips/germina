@@ -17,7 +17,7 @@ from sklearn.metrics import average_precision_score, r2_score
 from sklearn.metrics import precision_recall_curve, auc
 from sklearn.tree import export_graphviz
 
-from germina.aux import fit, fitpredict, fitshap
+from germina.aux import fit, fitpredict, fitshap, fitshap2
 from germina.cols import pathway_lst, bacteria_lst, single_eeg_lst
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.runner import ch
@@ -224,10 +224,11 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
 
                 if shap:
                     # noinspection PyTypeChecker
-                    d.apply(fitshap, params=best_params, Xy=Xv_tr, njobs=_._njobs_, out="result_shap")
+                    d.apply(fitshap2, params=best_params, Xy=Xv_tr, xa=babydfa.iloc[:, :-1], xb=babydfb.iloc[:, :-1], out="result_shap")
                     d = ch(d, storages)
                     shp = d.result_shap
-                    shaps.add(babya, babyb, shp)
+                    shaps.add(babya, None, shp[0])
+                    shaps.add(babyb, None, shp[1])
 
                 if sched:
                     continue

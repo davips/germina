@@ -12,7 +12,7 @@ class SHAPs:
         self.shaps = {}
         self.toshaps = {}  # Target-Oriented SHAP values
 
-    def add(self, a: np.ndarray, b: np.ndarray, val_shap: dict):
+    def add(self, a: np.ndarray, b: np.ndarray = None, val_shap: dict = None):
         """
         >>> import numpy as np
         >>> shaps = SHAPs()
@@ -34,7 +34,10 @@ class SHAPs:
                 self.toshaps[k] = []
             self.values[k].append(v)
             self.shaps[k].append(s)
-            self.toshaps[k].append(s if a[0, -1] > b[0, -1] else -s)
+            if b is None:
+                self.toshaps[k].append(s if a[0, -1] >= 0 else -s)
+            else:
+                self.toshaps[k].append(s if a[0, -1] > b[0, -1] else -s)
 
     def relevance(self):
         """
