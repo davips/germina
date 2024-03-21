@@ -43,7 +43,8 @@ else:
 rnd = np.random.default_rng(0)
 batch_size = int(alg.split("-")[1])
 npairs = int(alg.split("-")[2])
-
+if source.endswith("eeg"):
+    sps = [1]
 with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_uri, ondup="skip") as near_storage, sopen(remote_cache_uri, ondup="skip") as remote_storage, sopen(schedule_uri) as db):
     storages = {
         # "remote": remote_storage,
@@ -131,7 +132,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             print(best_r2, best_bacc)
             print(" ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^")
             columns = df.columns.tolist()[:-1]
-            arq = f"{targetvar}_species{sp}_{alg}_{batches=}_{noage=:1}_{delta=}_{use_r2=:1}_{diff=:1}"
+            arq = f"{targetvar}_{sp=}_{alg}_{batches=}_{noage=:1}_{delta=}_{use_r2=:1}_{diff=:1}_{source=}"
 
             # plot_tree(best_estimator, filled=True, feature_names=columns, fontsize=font)
             # plt.title(arq)
@@ -158,7 +159,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             yts_lst, zts_lst = [], []  # binary
             bacc = 0
             shaps = SHAPs()
-            tasks = zip(repeat(f"{until_batch}/{batches}:{targetvar} {noage=:1} {delta=} {use_r2=:1} {seed=} {sp=} {diff=:1}"), repeat(alg), repeat(d.id), pairs)
+            tasks = zip(repeat(f"{until_batch}/{batches}:{targetvar} {noage=:1} {delta=} {use_r2=:1} {seed=} {sp=} {diff=:1} {source=}"), repeat(alg), repeat(d.id), pairs)
             for c, (targetvar0, alg0, did0, (idxa, idxb)) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
                 if not sched:
                     print(f"\r{ansi} {targetvar0, alg0, (idxa, idxb)}: {c:3} {100 * c / len(pairs):4.2f}% {bacc:5.3f}          ", end="", flush=True)
