@@ -4,6 +4,7 @@ from sys import argv
 
 import numpy as np
 import pandas as pd
+import pydotplus
 from argvsucks import handle_command_line
 from hdict import hdict, _
 from pairwiseprediction.combination import pairwise_diff
@@ -14,18 +15,15 @@ from shelchemy import sopen
 from shelchemy.scheduler import Scheduler
 from sklearn.metrics import average_precision_score, r2_score
 from sklearn.metrics import precision_recall_curve, auc
-from sklearn.tree import plot_tree
-from sympy.physics.control.control_plots import plt
+from sklearn.tree import export_graphviz
 
-from germina.aux import fit, fitpredict
+from germina.aux import fit, fitpredict, fitshap
 from germina.cols import pathway_lst, bacteria_lst, single_eeg_lst
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.runner import ch
 from germina.sampling import pairwise_sample
 from germina.shaps import SHAPs
 from germina.trees import tree_optimized_dv_pair, tree_optimized_dv_pairdiff
-from sklearn.tree import export_graphviz
-import pydotplus
 
 center, max_trials = None, 10_000_000
 dct = handle_command_line(argv, source=str, r2=False, batches=int, cache=False, font=12, alg=str, demo=False, delta=float, noage=False, sched=False, targetvar=str, jobs=int, seed=0, prefix=str, suffix=str, sps=list, nsamp=int, shap=False, tree=False, diff=False)
@@ -67,7 +65,12 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             predictors = dyadic_eeg_lst
         else:
             raise Exception(f"Unknown {source=}")
-        df = df[predictors + [agevar, targetvar]]
+        selected = list(sorted(set(predictors).intersection(df.columns))) + [agevar, targetvar]
+        df = df[selected]
+        print("with NaNs", df.shape)
+        df.dropna(axis="rows", inplace=True)
+        print(df.shape)
+        print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
 
         df.sort_values(targetvar, inplace=True, ascending=True, kind="stable")
         if demo:
@@ -210,12 +213,9 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                     Xv_tr = indexed_Xd[allowed, :-2]
                     Xv_tr = DataFrame(Xv_tr, columns=df.columns)
                     Xv_ts = babya - babyb
-                if use_r2:
-                    # noinspection PyTypeChecker
-                    d.apply(fitpredict, params=best_r2_params__dct[(idxa, idxb)], Xwtr=Xv_tr, Xts=Xv_ts[:, :-1], out="wts")
-                else:
-                    # noinspection PyTypeChecker
-                    d.apply(fitpredict, params=best_bacc_params__dct[(idxa, idxb)], Xwtr=Xv_tr, Xts=Xv_ts[:, :-1], out="wts")
+                best_params = best_r2_params__dct[(idxa, idxb)] if r2 else best_bacc_params__dct[(idxa, idxb)]
+                # noinspection PyTypeChecker
+                d.apply(fitpredict, params=best_params, Xwtr=Xv_tr, Xts=Xv_ts[:, :-1], out="wts")
                 if use_cache:
                     d = ch(d, storages)
                 wts = d.wts
@@ -223,12 +223,11 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                     print(f"\r{ansi} {targetvar0, alg0, (idxa, idxb)}: {c:3} {100 * c / len(pairs):4.2f}% {bacc:5.3f}          ", end="", flush=True)
 
                 if shap:
-                    raise Exception(f"")
                     # noinspection PyTypeChecker
-                    # d.apply(shap_for_pair, d.result_train["best_params"], babya, babyb, Xw_tr, jobs=_._jobs_, out="result_shap")
-                    # d = ch(d, storages)
-                    # shp = d.result_shap
-                    # shaps.add(babya, babyb, shp)
+                    d.apply(fitshap, params=best_params, Xy=Xv_tr, njobs=_._njobs_, out="result_shap")
+                    d = ch(d, storages)
+                    shp = d.result_shap
+                    shaps.add(babya, babyb, shp)
 
                 if sched:
                     continue
@@ -283,5 +282,13 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                       f"{bacc=:4.3f} | {aps=:4.3f} | {auprc=:4.3f} | "
                       f"{r2=:4.3f} {tau=} {pea=:4.3f} | "
                       f"{r2_d=:4.3f} {tau_d=} {pea_d=:4.3f}", flush=True)
+
+            # SHAP summary
+            if shap:
+                print(f"|||||||||||||||||||||||{sum(tot.values())} pairs\t|||||||||||||||||||||||")
+                rel = shaps.relevance()
+                rel = rel[(rel["toshap__p-value"] < 0.1) & (rel["toshap__mean"] > 0.0001)]
+                rel.sort_values("toshap__mean", inplace=True, kind="stable", ascending=False)
+                print(rel)
 
         print("\n")

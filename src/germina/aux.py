@@ -1,6 +1,9 @@
 import warnings
 
+import dalex as dx
 import numpy as np
+from indexed import Dict
+from joblib.parallel import Parallel, delayed
 from lange import ap
 from lightgbm import LGBMClassifier as LGBMc
 from lightgbm import LGBMRegressor as LGBMr
@@ -199,64 +202,6 @@ def trainpredict_optimized(Xwtr, Xwts,
     return {"pred": pred, "prob": prob, "best_params": algo.best_params, "best_score": algo.best_score, "opt_results": algo.opt_results}
 
 
-# def shap_for_pair(best_params, xa, xb, Xw, alg_train, n_estimators_train, pairing_style, proportion, threshold, columns, seed, jobs, **kwargs):
-#     """
-#     Return an indexed dict {variable: (value, SHAP)} for the given pair of instances
-#
-#     >>> import numpy as np
-#     >>> from sklearn.datasets import load_diabetes
-#     >>> from sklearn.ensemble import RandomForestClassifier
-#     >>> a, b = load_diabetes(return_X_y=True)
-#     >>> me = np.mean(b)
-#     >>> # noinspection PyUnresolvedReferences
-#     >>> y = (b > me).astype(int)
-#     >>> c = b.reshape(len(b), 1)
-#     >>> Xw = np.hstack([a, c])
-#     >>> columns = [str(i) for i in range(a.shape[1])]
-#     >>> params = {'criterion': 'gini', 'max_depth': 7, 'max_leaf_nodes': 31, 'min_impurity_decrease': 0.00652999760945243, 'min_samples_leaf': 40, 'min_samples_split': 40}
-#     >>> shap_for_pair("cart-2-2", params, 0, Xw[0,:], Xw[1,:], Xw, "difference", False, 0.2, columns, 0, -1)
-#     """
-#     import dalex as dx
-#     from indexed import Dict
-#     from pandas import DataFrame
-#
-#     # prepare Xtr,ytr and pair
-#     handle_last_as_y = "%" if proportion else True
-#     filter = lambda tmp: (tmp[:, -1] < -threshold) | (tmp[:, -1] >= threshold)
-#     if pairing_style == "difference":
-#         x = pairwise_diff(xa[:, :-1], xb[:, :-1])
-#         pairs = lambda a, b: pairwise_diff(a, b, pct=handle_last_as_y == "%")
-#     elif pairing_style == "concatenation":
-#         x = pairwise_hstack(xa[:, :-1], xb[:, :-1])
-#         pairs = lambda a, b: pairwise_hstack(a, b, handle_last_as_y=handle_last_as_y)
-#     else:
-#         raise Exception(f"Not implemented for {pairing_style=}")
-#     idxs = np.argsort(Xw[:, -1].flatten(), kind="stable").flatten()
-#     Xw = Xw[idxs]
-#     tmp = pairs(Xw, Xw)
-#     pairs_Xy_tr = tmp[filter(tmp)]
-#     Xtr = pairs_Xy_tr[:, :-1]
-#     ytr = (pairs_Xy_tr[:, -1] >= 0).astype(int)
-#     if pairing_style == "concatenation":
-#         f = lambda i: [f"{i}_{col}" for col in columns]
-#         columns = (f("a") + f("b"))
-#     x = DataFrame(x, columns=columns)
-#     Xtr = DataFrame(Xtr, columns=columns)
-#
-#     # fit
-#     print("\tcalculating SHAP", end="", flush=True)
-#     alg, kwargs_ = predictors(alg_train, n_estimators_train, seed, jobs)
-#     estimator = alg(**best_params)
-#     estimator.fit(Xtr, ytr)
-#
-#     # SHAP
-#     explainer = dx.Explainer(model=estimator, data=Xtr, y=ytr, verbose=False)
-#     predictparts = dx.Explainer.predict_parts(explainer, new_observation=x, type="shap", random_state=seed, **kwargs)
-#     zz = zip(predictparts.result["variable"], predictparts.result["contribution"])
-#     var__val_shap = Dict((name_val.split(" = ")[0], (float(name_val.split(" = ")[1:][0]), co)) for name_val, co in zz)
-#     return var__val_shap
-
-
 def get_algclass(name):
     if name.startswith("cartr"):
         return DecisionTreeRegressor
@@ -288,3 +233,24 @@ def fitpredict(algname, params, Xwtr, Xts, verbose=True):
     estimator = fit(algname, params, Xwtr, verbose=False)
     zts = estimator.predict(Xts)
     return zts
+
+
+def fitshap(algname, params, Xy, seed, njobs, verbose=True, **kwargs):
+    def job(idx):
+        Xwtr = Xy.drop([idx], axis="rows")
+        ytr = Xwtr.iloc[:, -1]
+        xy = Xy.loc[idx]
+        x = xy[:-1]
+        estimator = fit(algname, params, Xwtr, verbose=False)
+        explainer = dx.Explainer(model=estimator, data=Xwtr.iloc[:, :-1], y=ytr, verbose=False)
+        predictparts = dx.Explainer.predict_parts(explainer, new_observation=x, type="shap", random_state=seed, **kwargs)
+        zz = zip(predictparts.result["variable"], predictparts.result["contribution"])
+        var__val_shap = Dict((name_val.split(" = ")[0], (float(name_val.split(" = ")[1:][0]), co)) for name_val, co in zz)
+        return var__val_shap
+
+    if verbose:
+        print("\tfitshap", end="", flush=True)
+    lst = []
+    for dct in Parallel(n_jobs=njobs)(delayed(job)(idx) for idx in Xy.index):
+        lst.append(dct)
+    return lst
