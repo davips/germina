@@ -23,6 +23,7 @@ from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, sc
 from germina.runner import ch
 from germina.sampling import pairwise_sample
 from germina.shaps import SHAPs
+from germina.stats import p_value
 from germina.trees import tree_optimized_dv_pair, tree_optimized_dv_pairdiff
 
 center, max_trials = None, 10_000_000
@@ -132,7 +133,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             print(best_r2, best_bacc)
             print(" ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^")
             columns = df.columns.tolist()[:-1]
-            arq = f"{targetvar}_{sp=}_{alg}_{batches=}_{noage=:1}_{delta=}_{use_r2=:1}_{diff=:1}_{source=}"
+            arq = f"{targetvar}_{sp=}_{alg}_{batches=}_{noage=:1}_{delta=}_{use_r2=:1}_{diff=:1}_{source}"
 
             # plot_tree(best_estimator, filled=True, feature_names=columns, fontsize=font)
             # plt.title(arq)
@@ -157,12 +158,12 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             vts_lst, wts_lst = [], []  # continuous
             vts_diff, wts_diff = [], []
             yts_lst, zts_lst = [], []  # binary
-            bacc = 0
+            p = bacc = 0
             shaps = SHAPs()
             tasks = zip(repeat(f"{until_batch}/{batches}:{targetvar} {noage=:1} {delta=} {use_r2=:1} {seed=} {sp=} {diff=:1} {source=}"), repeat(alg), repeat(d.id), pairs)
             for c, (targetvar0, alg0, did0, (idxa, idxb)) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
                 if not sched:
-                    print(f"\r{ansi} {targetvar0, alg0, (idxa, idxb)}: {c:3} {100 * c / len(pairs):4.2f}% {bacc:5.3f}          ", end="", flush=True)
+                    print(f"\r{ansi} {targetvar0, alg0, (idxa, idxb)}: {c:3} {100 * c / len(pairs):4.2f}% {bacc:5.3f} {p:.3f}\t", end="", flush=True)
 
                 # prepare current pair of babies and training set
                 babydfa = df.loc[[idxa], :]
@@ -205,7 +206,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                     best_bacc__dct[(idxa, idxb)] = bacc_
                     best_bacc_params__dct[(idxa, idxb)] = bacc_params
                 if not sched:
-                    print(f"\r{ansi} {targetvar0, alg0, (idxa, idxb)}: {c:3} {100 * c / len(pairs):4.2f}% {bacc:5.3f}          ", end="", flush=True)
+                    print(f"\r{ansi} {targetvar0, alg0, (idxa, idxb)}: {c:3} {100 * c / len(pairs):4.2f}% {bacc:5.3f} {p:.3f}\t", end="", flush=True)
 
                 # fit, predict +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                 # remove rows containing forbidden indexes
@@ -221,7 +222,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                     d = ch(d, storages)
                 wts = d.wts
                 if not sched:
-                    print(f"\r{ansi} {targetvar0, alg0, (idxa, idxb)}: {c:3} {100 * c / len(pairs):4.2f}% {bacc:5.3f}          ", end="", flush=True)
+                    print(f"\r{ansi} {targetvar0, alg0, (idxa, idxb)}: {c:3} {100 * c / len(pairs):4.2f}% {bacc:5.3f} {p:.3f}\t", end="", flush=True)
 
                 if shap:
                     # noinspection PyTypeChecker
@@ -258,6 +259,8 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                     acc0 = hits[0] / tot[0]
                     acc1 = hits[1] / tot[1]
                     bacc = (acc0 + acc1) / 2
+                    p = p_value(bacc, c + 1)
+
                     # print(f"{bacc:3.3f}, {tot}, {hits}")
 
             if sched:
@@ -280,10 +283,16 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                 r2_d = r2_score(vts_diff, wts_diff)
                 tau_d = [round(a, 4) for a in kendalltau(vts_diff, wts_diff)]
                 pea_d = correlation(vts_diff, wts_diff)
-                print(f"\r{sp=} {delta=} {hits=} {tot=} \t{d.hosh.ansi} | "
-                      f"{bacc=:4.3f} | {aps=:4.3f} | {auprc=:4.3f} | "
-                      f"{r2=:4.3f} {tau=} {pea=:4.3f} | "
-                      f"{r2_d=:4.3f} {tau_d=} {pea_d=:4.3f}", flush=True)
+
+                h = str(hits)
+                t = str(tot)
+                ta = str(tau)
+                ta_d = str(tau_d)
+                print()
+                print(f"\r{targetvar} {sp=} d={delta} {h=:18} {t=:18} "  # \t{d.hosh.ansi} | "
+                      f"{bacc=:.2f} {p=} {aps=:.2f} {auprc=:.2f} "
+                      f"{r2=:.2f} {ta=:18} {pea=:.2f} "
+                      f"{r2_d=:.2f} {ta_d=:18} {pea_d=:.2f}", flush=True)
 
             # SHAP summary
             if shap:
