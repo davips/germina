@@ -17,8 +17,8 @@ from sklearn.metrics import average_precision_score, r2_score
 from sklearn.metrics import precision_recall_curve, auc
 from sklearn.tree import export_graphviz
 
-from germina.aux import fit, fitpredict, fitshap, fitshap2
-from germina.cols import pathway_lst, bacteria_lst, single_eeg_lst
+from germina.aux import fit, fitpredict, fitshap2
+from germina.cols import pathway_lst, bacteria_lst, single_eeg_lst, dyadic_eeg_lst
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.runner import ch
 from germina.sampling import pairwise_sample
@@ -26,21 +26,11 @@ from germina.shaps import SHAPs
 from germina.stats import p_value
 from germina.trees import tree_optimized_dv_pair, tree_optimized_dv_pairdiff
 
-center, max_trials = None, 10_000_000
+max_trials = 10_000_000
 dct = handle_command_line(argv, source=str, r2=False, batches=int, cache=False, font=12, alg=str, demo=False, delta=float, noage=False, sched=False, targetvar=str, jobs=int, seed=0, prefix=str, suffix=str, sps=list, nsamp=int, shap=False, tree=False, diff=False)
 print(dct)
 source, use_r2, batches, use_cache, font, alg, demo, delta, noage, sched, targetvar, jobs, seed, prefix, suffix, sps, nsamp, shap, tree, diff = \
     dct["source"], dct["r2"], dct["batches"], dct["cache"], dct["font"], dct["alg"], dct["demo"], dct["delta"], dct["noage"], dct["sched"], dct["targetvar"], dct["jobs"], dct["seed"], dct["prefix"], dct["suffix"], dct["sps"], dct["nsamp"], dct["shap"], dct["tree"], dct["diff"]
-if targetvar.endswith("t1"):
-    agevar = "idade_crianca_dias_t1"
-elif targetvar.endswith("t2"):
-    agevar = "idade_crianca_dias_t2"
-elif targetvar.endswith("t3"):
-    agevar = "idade_crianca_dias_t3"
-elif targetvar.endswith("t4"):
-    agevar = "idade_crianca_dias_t4"
-else:
-    raise Exception(f"Unexpected timepoint suffix for target '{targetvar}'.")
 rnd = np.random.default_rng(0)
 batch_size = int(alg.split("-")[1])
 npairs = int(alg.split("-")[2])
@@ -61,13 +51,45 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             predictors = bacteria_lst
         elif source == "path":
             predictors = pathway_lst
+        elif source == "bcpt":
+            predictors = bacteria_lst + pathway_lst
         elif source == "seeg":
             predictors = single_eeg_lst
         elif source == "deeg":
+            # tanto faz o  target no nome do arquivo para dyadic.
+            df_deeg = read_csv(f"data/dyadic_bayley_8_t2.csv", index_col="id_estudo")
+            selected0 = list(sorted(set(dyadic_eeg_lst).intersection(df_deeg.columns)))
+            df_deeg = df_deeg[selected0]
+            # df_deeg.drop([458, 501, 455, 427], axis="rows", inplace=True)
+            idx = df_deeg.count(axis="rows").sort_values() > 52  # Accept 10% of babies with NaN for a single variable
+            df_deeg = df_deeg.loc[:, idx]
+            df = df.join(df_deeg, how="inner")
             predictors = dyadic_eeg_lst
         else:
             raise Exception(f"Unknown {source=}")
-        selected = list(sorted(set(predictors).intersection(df.columns))) + [agevar, targetvar]
+
+        if targetvar.endswith("t1"):
+            agevar_lst = ["idade_crianca_dias_t1"]
+        elif targetvar.endswith("t2"):
+            agevar_lst = ["idade_crianca_dias_t2"]
+        elif targetvar.endswith("t3"):
+            agevar_lst = ["idade_crianca_dias_t3"]
+        elif targetvar.endswith("t4"):
+            agevar_lst = ["idade_crianca_dias_t4"]
+        elif targetvar.endswith("t42"):
+            agevar_lst = ["idade_crianca_dias_t2", "idade_crianca_dias_t4"]
+            targetvar_start = targetvar[:-2] + targetvar[-1:]
+            targetvar_end = targetvar[:-1]
+            df[targetvar] = df[targetvar_end] - df[targetvar_start]
+        elif targetvar.endswith("t43"):
+            agevar_lst = ["idade_crianca_dias_t3", "idade_crianca_dias_t4"]
+            targetvar_start = targetvar[:-2] + targetvar[-1:]
+            targetvar_end = targetvar[:-1]
+            df[targetvar] = df[targetvar_end] - df[targetvar_start]
+        else:
+            raise Exception(f"Unexpected timepoint suffix for target '{targetvar}'.")
+
+        selected = list(sorted(set(predictors).intersection(df.columns))) + agevar_lst + [targetvar]
         df = df[selected]
         print("with NaNs", df.shape)
         df.dropna(axis="rows", inplace=True)
@@ -79,7 +101,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             take = min(df.shape[0] // 2, 30)
             df = pd.concat([df.iloc[:take], df.iloc[-take:]], axis="rows")
         if noage:
-            del df[agevar]
+            del df[agevar_lst]
         print(df.shape)
         # kfolds, kfolds_full = (df.shape[0] - 2, df.shape[0]) if kfolds0 == 0 else (kfolds0, kfolds0)
         d = hdict(delta=delta, algname=alg, npairs=npairs, trials=max_trials, demo=demo, columns=df.columns.tolist()[:-1], shap=shap, seed=seed, _njobs_=jobs, _verbose_=True)
@@ -282,17 +304,22 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
 
                 r2_d = r2_score(vts_diff, wts_diff)
                 tau_d = [round(a, 4) for a in kendalltau(vts_diff, wts_diff)]
-                pea_d = correlation(vts_diff, wts_diff)
+                # noinspection PyBroadException
+                try:
+                    pea_d = correlation(vts_diff, wts_diff)
+                except Exception as e:
+                    pea_d = -9
 
                 h = str(hits)
                 t = str(tot)
                 ta = str(tau)
                 ta_d = str(tau_d)
                 print()
-                print(f"\r{targetvar} {sp=} d={delta} {h=:18} {t=:18} "  # \t{d.hosh.ansi} | "
-                      f"{bacc=:.2f} {p=} {aps=:.2f} {auprc=:.2f} "
+                print(f"\r{targetvar}\t{source=} {sp=} d={delta} {h=:18} {t=:18}"  # \t{d.hosh.ansi} | "
+                      f"\t{bacc=:.2f} {p=:.3f} {aps=:.2f} {auprc=:.2f} "
                       f"{r2=:.2f} {ta=:18} {pea=:.2f} "
-                      f"{r2_d=:.2f} {ta_d=:18} {pea_d=:.2f}", flush=True)
+                      # f"{r2_d=:.2f} {ta_d=:18} {pea_d=:.2f}"
+                      , flush=True)
 
             # SHAP summary
             if shap:
