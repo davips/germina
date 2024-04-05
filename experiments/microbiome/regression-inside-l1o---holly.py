@@ -8,7 +8,7 @@ import pydotplus
 from argvsucks import handle_command_line
 from hdict import hdict, _
 from numpy import percentile
-from pandas import read_csv
+from pandas import read_csv, DataFrame
 from shelchemy import sopen
 from shelchemy.scheduler import Scheduler
 from sklearn.metrics import roc_curve, roc_auc_score
@@ -104,6 +104,9 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
 
         if tree:  ###############################################################################################################
             best_bacc = -1000
+            if z:
+                ss = StandardScaler()
+                df = DataFrame(ss.fit_transform(df), index=df.index, columns=df.columns)
             # noinspection PyTypeChecker
             d.apply(tree_optimized_dv_pair, df, start=0, end=runs, njobs=_._njobs_, verbose=_._verbose_, out="best")
             Xtr = df

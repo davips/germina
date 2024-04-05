@@ -13,6 +13,7 @@ from pairwiseprediction.optimized import OptimizedPairwiseClassifier
 from scipy.stats import poisson, uniform
 from sklearn.ensemble import ExtraTreesClassifier as ETc
 from sklearn.ensemble import RandomForestClassifier as RFc
+from sklearn.ensemble import RandomForestRegressor as RFr
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
 from sklearn.model_selection import RandomizedSearchCV
@@ -207,7 +208,8 @@ def get_algclass(name):
         return DecisionTreeRegressor
     elif name.startswith("dtr"):
         return DTR
-
+    elif name.startswith("rfr"):
+        return RFr
     raise Exception(f"{name=}")
 
 
@@ -216,6 +218,24 @@ def get_algspace(name):
         return {"criterion": ["absolute_error", "squared_error", "friedman_mse"], "max_depth": poisson(mu=5, loc=2), "min_impurity_decrease": uniform(0, 0.01), "max_leaf_nodes": poisson(mu=20, loc=5), "min_samples_split": ap[20, 30, ..., 100].l, "min_samples_leaf": ap[10, 20, ..., 50].l}
     elif name.startswith("dtr"):
         return {"max_depth": poisson(mu=5, loc=2)}
+    elif name.startswith("rfr"):
+        # `n_estimators` too large affects only processing time:
+        n_estimators = [10, 20, 40, 80, 160, 320, 640]
+
+        # Real hyperparameters
+        max_features = ["log2", "sqrt", None, .05, .1, .2, .4, .8, 1]
+        max_depth = [int(x) for x in np.linspace(10, 110, num=11)]
+        max_depth.append(None)
+        min_samples_split = [2, 4, 8, 16, 32]
+        min_samples_leaf = [1, 2, 4, 8, 16]
+        bootstrap = [True, False]
+        spc = {'n_estimators': n_estimators,
+               'max_features': max_features,
+               'max_depth': max_depth,
+               'min_samples_split': min_samples_split,
+               'min_samples_leaf': min_samples_leaf,
+               'bootstrap': bootstrap}
+        return spc
     raise Exception(f"{name=}")
 
 
