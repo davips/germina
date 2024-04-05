@@ -202,4 +202,102 @@ def tree_optimized_dv_pairdiff(df, indexed_Xd, delta, npairs, trials, start, end
             best_bacc_params = params
     return best_r2_params.copy(), best_bacc_params.copy(), best_r2, best_bacc
 
+
+# TODO: use a getmeasure() function to allow customization of optimization ?
+
+def tree_optimized_dv_single(df, trials, start, end, algname, seed=0, njobs=16, verbose=False):
+    if verbose:
+        print("\tOpt single...", end="", flush=True)
+    search_space = get_algspace(algname)
+    idxs = df.index.tolist()
+
+    def job(params_):
+        vts_lst, wts_lst = [], []  # continuous
+        for idx in idxs:
+            # prepare current pair of babies for testing and build training set
+            babydf = df.loc[[idx], :]
+            baby_v = babydf.iloc[0, -1:].to_numpy()
+            baby = babydf.to_numpy()
+            Xv_tr = df.drop([idx], axis="rows")
+            Xv_ts = baby
+
+            # train/predict with sampled arguments
+            wts = fitpredict(algname, params_, Xv_tr, Xv_ts[:, :-1], verbose=False)
+
+            # accumulate
+            vts_lst.append(baby_v[0])
+            wts_lst.append(wts[0])
+        r2_ = r2_score(vts_lst, wts_lst)
+        return r2_, params_
+
+    sampler = islice(ParameterSampler(search_space, trials, random_state=seed), start, end)
+    best_r2 = -1000
+    best_r2_params = None
+    for r2, params in Parallel(n_jobs=njobs)(delayed(job)(params) for params in sampler):
+        if r2 > best_r2:
+            best_r2 = r2
+            best_r2_params = params
+    return best_r2_params.copy(), best_r2
+
+
+def tree_optimized_dv_pairdiff(df, indexed_Xd, delta, npairs, trials, start, end, algname, seed=0, njobs=16, verbose=False):
+    """
+
+    :param df:
+    :param trials:  number of pairs
+    :param start:
+    :param end:
+    :param algname:
+    :param seed:
+    :param njobs:
+    :param verbose:
+    :return:
+    """
+    if verbose:
+        print("\tOptimizing reg by pair.", end="", flush=True)
+    search_space = get_algspace(algname)
+    pairs = pairwise_sample(df.index.tolist(), npairs, seed)
+
+    def job(params_):
+        vts_lst, wts_lst = [], []  # continuous
+        yts_lst, zts_lst = [], []  # binary
+        for idxa, idxb in pairs:
+            # prepare current pair of babies for testing and build training set
+            babydfa = df.loc[[idxa], :]
+            babydfb = df.loc[[idxb], :]
+            babya = babydfa.to_numpy()
+            babyb = babydfb.to_numpy()
+
+            # remove rows containing forbidden indexes
+            allowed = (indexed_Xd[:, -2] != idxa) & (indexed_Xd[:, -1] != idxb) & (indexed_Xd[:, -2] != idxb) & (indexed_Xd[:, -1] != idxa)
+            Xv_tr = indexed_Xd[allowed, :-2]
+            Xv_tr = DataFrame(Xv_tr, columns=df.columns)
+            Xd_ts = babya - babyb
+
+            # train/predict with sampled arguments
+            ets = fitpredict(algname, params_, Xv_tr, Xd_ts[:, :-1], verbose=False)
+
+            # accumulate
+            d = Xd_ts[0, -1]
+            vts_lst.append(d)
+            wts_lst.append(ets[0])
+            yts_lst.append(d >= delta)
+            zts_lst.append(ets[0] >= delta)
+        r2_ = r2_score(vts_lst, wts_lst)
+        bacc_ = balanced_accuracy_score(yts_lst, zts_lst)
+        return r2_, bacc_, params_
+
+    sampler = islice(ParameterSampler(search_space, trials, random_state=seed), start, end)
+    best_r2 = best_bacc = -1000
+    best_r2_params = best_bacc_params = None
+    # for r2, bacc, params in (job(params) for params in sampler):
+    for r2, bacc, params in Parallel(n_jobs=njobs)(delayed(job)(params) for params in sampler):
+        if r2 > best_r2:
+            best_r2 = r2
+            best_r2_params = params
+        if bacc > best_bacc:
+            best_bacc = bacc
+            best_bacc_params = params
+    return best_r2_params.copy(), best_bacc_params.copy(), best_r2, best_bacc
+
 # TODO: use a getmeasure() function to allow customization of optimization ?
