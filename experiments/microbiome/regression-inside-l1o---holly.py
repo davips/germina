@@ -11,11 +11,11 @@ from numpy import percentile
 from pandas import read_csv, DataFrame
 from shelchemy import sopen
 from shelchemy.scheduler import Scheduler
-from sklearn.metrics import roc_curve, roc_auc_score
+from sklearn.metrics import roc_curve, roc_auc_score, r2_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.tree import export_graphviz
 
-from germina.aux import fit, fitpredict
+from germina.aux import fit, fitpredict, get_algspace
 from germina.cols import pathway_lst, bacteria_lst, single_eeg_lst, dyadic_eeg_lst
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.runner import ch
@@ -107,8 +107,13 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             if z:
                 ss = StandardScaler()
                 df = DataFrame(ss.fit_transform(df), index=df.index, columns=df.columns)
-            # noinspection PyTypeChecker
-            d.apply(tree_optimized_dv_pair, df, start=0, end=runs, njobs=_._njobs_, verbose=_._verbose_, out="best")
+            if runs > 1:
+                # noinspection PyTypeChecker
+                d.apply(tree_optimized_dv_pair, df, start=0, end=runs, njobs=_._njobs_, verbose=_._verbose_, out="best")
+            else:
+                # noinspection PyTypeChecker
+                d.apply(lambda algname: (get_algspace(algname), get_algspace(algname), 1, 1), out="best")
+
             Xtr = df
             if use_cache:
                 d = ch(d, storages)
@@ -166,16 +171,14 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         predicted_label_lst__low_vs_nextnorm = []
 
         expected_label_lst__lownext_vs_norm = []
-        predicted_score_lst__lownext_vs_norm = []
         predicted_label_lst__lownext_vs_norm = []
 
         predicted_label_lst__low_vs_next_vs_norm = []
         expected_label_lst__low_vs_next_vs_norm = []
-        predicted_score_lst__low_vs_next_vs_norm = []
 
         ys = []
 
-        tasks = zip(repeat(f"{targetvar} {noage=:1} {seed=} {sp=} {source=}"), repeat(alg), repeat(d.id), df.index.tolist())
+        tasks = zip(repeat(f"{targetvar} {noage=:1} {seed=} {sp=} {source=} {z=}"), repeat(alg), repeat(d.id), df.index.tolist())
         for c, (targetvar0, alg0, did0, idx) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
             if not sched:
                 print(f"\r{ansi} {targetvar0, alg0, idx}: {c:3} {100 * c / df.shape[0]:4.2f}% {bacc_lownext_vs_norm:5.3f} {p_lownext_vs_norm:.3f}\t", end="", flush=True)
@@ -196,8 +199,12 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             ys.append(Xv_ts[0, -1])
 
             # optimize  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            # noinspection PyTypeChecker
-            d.apply(tree_optimized_dv_pair, Xv_tr, start=0, end=runs, njobs=_._njobs_, verbose=_._verbose_, out="best")
+            if runs > 1:
+                # noinspection PyTypeChecker
+                d.apply(tree_optimized_dv_pair, Xv_tr, start=0, end=runs, njobs=_._njobs_, verbose=_._verbose_, out="best")
+            else:
+                # noinspection PyTypeChecker
+                d.apply(lambda algname: (get_algspace(algname), get_algspace(algname), 1, 1), out="best")
             if use_cache:
                 d = ch(d, storages)
             r2_params, bacc_params, r2, bacc_ = d.best
@@ -276,6 +283,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         print()
         t = tot_low_vs_next_vs_norm
         h = hits_low_vs_next_vs_norm
+        r2 = r2_score(ys, -np.array(predicted_score_lst))
         print(f"\r{targetvar}\t{source=} {sp=} {t=} {h=}"
               f"\n{bacc_low_vs_nextnorm=:.2f} {p_low_vs_nextnorm=:.3f}"
               f"\t{bacc_lownext_vs_norm=:.2f} {p_lownext_vs_norm=:.3f} "
