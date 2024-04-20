@@ -103,11 +103,12 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             df.dropna(axis="columns", inplace=True)
             df[targetvar] = tgt
             df.dropna(axis="rows", inplace=True)
-        else:
+        elif source == "seeg":
             idx = df.count(axis="columns").sort_values() >= 50
             df = df.loc[idx, :]
-        print(df.shape)
-        print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+            df.dropna(axis="columns", inplace=True)
+        else:
+            df.dropna(axis="rows", inplace=True)
 
         df.sort_values(targetvar, inplace=True, ascending=True, kind="stable")
         if demo:
