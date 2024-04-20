@@ -317,10 +317,11 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         t = tot_low_vs_next_vs_norm
         h = hits_low_vs_next_vs_norm
         r2 = r2_score(ys, -np.array(predicted_score_lst))
-        print(f"\r{targetvar}\t{source=} {sp=} {t=} {h=}"
-              f"\n{bacc_low_vs_nextnorm=:.2f} {p_low_vs_nextnorm=:.3f}"
-              f"\t{bacc_lownext_vs_norm=:.2f} {p_lownext_vs_norm=:.3f} "
-              f"{r2=:.2f} ", flush=True)
+        print(
+            f"\r {sp=} {t=} {h=}\n{targetvar}\t{source=}\t"
+            f"{bacc_low_vs_nextnorm=:.2f}\t{p_low_vs_nextnorm=:.3f}\t"
+            f"{bacc_lownext_vs_norm=:.2f} {p_lownext_vs_norm=:.3f}\n"
+            f"{r2=:.2f} ", flush=True)
 
         #     ROC
         if roc:
