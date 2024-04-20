@@ -100,10 +100,10 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             tgt = df[targetvar]
             df.dropna(axis="columns", inplace=True)
             df[targetvar] = tgt
+            df.dropna(axis="rows", inplace=True)
         else:
             idx = df.count(axis="columns").sort_values() >= 50
             df = df.loc[idx, :]
-            # df.dropna(axis="rows", inplace=True)
         print(df.shape)
         print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
 
