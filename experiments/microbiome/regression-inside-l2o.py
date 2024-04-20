@@ -102,7 +102,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         if source == "deeg":
             df.dropna(axis="columns", inplace=True)
         elif source == "seeg":
-            idx = df.count(axis="columns").sort_values() >= 50
+            idx = df.count(axis="columns").sort_values() >= 62
             df = df.loc[idx, :]
             df.dropna(axis="columns", inplace=True)
         df[targetvar] = tgt
@@ -326,11 +326,12 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                 ta = str(tau)
                 ta_d = str(tau_d)
                 print()
-                print(f"\r{targetvar}\t{source=} {sp=} d={delta} {h=:18} {t=:18}"  # \t{d.hosh.ansi} | "
-                      f"\t{bacc=:.2f} {p=:.3f} {aps=:.2f} {auprc=:.2f} "
-                      f"{r2=:.2f} {ta=:18} {pea=:.2f} "
-                      # f"{r2_d=:.2f} {ta_d=:18} {pea_d=:.2f}"
-                      , flush=True)
+                print(f"\rbacc {targetvar:15}\t{source:5}\t{bacc:.2f}\t{p:.3f}\t", flush=True)
+                # print(f"\r{targetvar}\t{source=} {sp=} d={delta} {h=:18} {t=:18}"  # \t{d.hosh.ansi} | "
+                #       f"\t{bacc=:.2f} {p=:.3f} {aps=:.2f} {auprc=:.2f} "
+                #       f"{r2=:.2f} {ta=:18} {pea=:.2f} "
+                #       # f"{r2_d=:.2f} {ta_d=:18} {pea_d=:.2f}"
+                #       , flush=True)
 
             # SHAP summary
             if shap:
