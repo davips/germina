@@ -95,13 +95,15 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
 
         if noage:
             df.drop(columns=agevar_lst)
-        # print(df.count(axis="columns").sort_values())
 
-        tgt = df[targetvar]
-        if source != "deeg":
+        if source == "deeg":
+            tgt = df[targetvar]
             df.dropna(axis="columns", inplace=True)
-        df[targetvar] = tgt
-        df.dropna(axis="rows", inplace=True)
+            df[targetvar] = tgt
+        else:
+            idx = df.count(axis="columns").sort_values() >= 50
+            df = df.loc[idx, :]
+            # df.dropna(axis="rows", inplace=True)
         print(df.shape)
         print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
 
