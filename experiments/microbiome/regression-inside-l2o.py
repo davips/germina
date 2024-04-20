@@ -326,7 +326,8 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                 ta = str(tau)
                 ta_d = str(tau_d)
                 print()
-                print(f"\rbacc {targetvar:15}\t{source:5}\t{bacc:.2f}\t{p:.3f}\t", flush=True)
+                dfs = str(df.shape)
+                print(f"\rbacc {dfs:10}\t{targetvar:15}\t{source:5}\t{bacc:.2f}\t{p:.3f}\t", flush=True)
                 # print(f"\r{targetvar}\t{source=} {sp=} d={delta} {h=:18} {t=:18}"  # \t{d.hosh.ansi} | "
                 #       f"\t{bacc=:.2f} {p=:.3f} {aps=:.2f} {auprc=:.2f} "
                 #       f"{r2=:.2f} {ta=:18} {pea=:.2f} "
