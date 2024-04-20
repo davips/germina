@@ -225,9 +225,11 @@ def get_algspace(name):
     elif name.startswith("rfr5000"):
         return {'n_estimators': 5000, "n_jobs": -1}
     elif name.startswith("rfro10"):
-        return {"n_estimators": [10],"criterion": ["absolute_error", "squared_error", "friedman_mse"], "max_depth": poisson(mu=5, loc=2), "min_impurity_decrease": uniform(0, 0.01), "max_leaf_nodes": poisson(mu=20, loc=5), "min_samples_split": ap[20, 30, ..., 100].l, "min_samples_leaf": ap[10, 20, ..., 50].l}
+        return {"n_estimators": [10], "criterion": ["absolute_error", "squared_error", "friedman_mse"], "max_depth": poisson(mu=5, loc=2), "min_impurity_decrease": uniform(0, 0.01), "max_leaf_nodes": poisson(mu=20, loc=5), "min_samples_split": ap[20, 30, ..., 100].l, "min_samples_leaf": ap[10, 20, ..., 50].l}
     elif name.startswith("rfro100"):
-        return {"n_estimators": [100],"criterion": ["absolute_error", "squared_error", "friedman_mse"], "max_depth": poisson(mu=5, loc=2), "min_impurity_decrease": uniform(0, 0.01), "max_leaf_nodes": poisson(mu=20, loc=5), "min_samples_split": ap[20, 30, ..., 100].l, "min_samples_leaf": ap[10, 20, ..., 50].l}
+        return {"n_estimators": [100], "criterion": ["absolute_error", "squared_error", "friedman_mse"], "max_depth": poisson(mu=5, loc=2), "min_impurity_decrease": uniform(0, 0.01), "max_leaf_nodes": poisson(mu=20, loc=5), "min_samples_split": ap[20, 30, ..., 100].l, "min_samples_leaf": ap[10, 20, ..., 50].l}
+    elif name.startswith("rfro500"):
+        return {"n_estimators": [500], "criterion": ["absolute_error", "squared_error", "friedman_mse"], "max_depth": poisson(mu=5, loc=2), "min_impurity_decrease": uniform(0, 0.01), "max_leaf_nodes": poisson(mu=20, loc=5), "min_samples_split": ap[20, 30, ..., 100].l, "min_samples_leaf": ap[10, 20, ..., 50].l}
     raise Exception(f"{name=}")
 
 
@@ -261,11 +263,11 @@ def fitshap(algname, params, Xy, seed, njobs, verbose=True, **kwargs):
         return var__val_shap
 
     if verbose:
-        print("\tfitshap", end="", flush=True)
-    lst = []
-    for dct in Parallel(n_jobs=njobs)(delayed(job)(idx) for idx in Xy.index):
-        lst.append(dct)
-    return lst
+        print("\tfitshap.", end="", flush=True)
+    dcts = {}
+    for i, dct in zip(Xy.index, Parallel(n_jobs=njobs)(delayed(job)(idx) for idx in Xy.index)):
+        dcts[i] = dct
+    return dcts
 
 
 def fitshap2(algname, params, Xy, xa, xb, seed, verbose=True, **kwargs):

@@ -60,8 +60,10 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             df_deeg = read_csv(f"data/dyadic_bayley_8_t2.csv", index_col="id_estudo")
             selected0 = list(sorted(set(dyadic_eeg_lst).intersection(df_deeg.columns)))
             df_deeg = df_deeg[selected0]
-            # df_deeg.drop([458, 501, 455, 427], axis="rows", inplace=True)
-            idx = df_deeg.count(axis="rows").sort_values() > 52  # Accept 10% of babies with NaN for a single variable
+            for ro in [458, 501, 455, 427]:
+                if ro in df_deeg.index:
+                    df_deeg.drop(ro, axis="rows", inplace=True)
+            idx = df_deeg.count(axis="rows").sort_values() / df_deeg.shape[0] > 0.9  # Accept max of 10% of babies with NaN for a single variable
             df_deeg = df_deeg.loc[:, idx]
             df = df.join(df_deeg, how="inner")
             predictors = dyadic_eeg_lst
@@ -92,6 +94,15 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         selected = list(sorted(set(predictors).intersection(df.columns))) + agevar_lst + [targetvar]
         df = df[selected]
         print("with NaNs", df.shape)
+
+        if noage:
+            df.drop(columns=agevar_lst)
+        # print(df.count(axis="columns").sort_values())
+
+        tgt = df[targetvar]
+        if source != "deeg":
+            df.dropna(axis="columns", inplace=True)
+        df[targetvar] = tgt
         df.dropna(axis="rows", inplace=True)
         print(df.shape)
         print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
@@ -100,8 +111,6 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         if demo:
             take = min(df.shape[0] // 2, 30)
             df = pd.concat([df.iloc[:take], df.iloc[-take:]], axis="rows")
-        if noage:
-            del df[agevar_lst]
         print(df.shape)
         # kfolds, kfolds_full = (df.shape[0] - 2, df.shape[0]) if kfolds0 == 0 else (kfolds0, kfolds0)
         d = hdict(delta=delta, algname=alg, npairs=npairs, trials=max_trials, demo=demo, columns=df.columns.tolist()[:-1], shap=shap, seed=seed, _njobs_=jobs, _verbose_=True)

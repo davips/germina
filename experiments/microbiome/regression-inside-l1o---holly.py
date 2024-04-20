@@ -1,4 +1,5 @@
 from itertools import repeat
+from random import shuffle
 from sys import argv
 
 import matplotlib.pyplot as plt
@@ -15,18 +16,19 @@ from sklearn.metrics import roc_curve, roc_auc_score, r2_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.tree import export_graphviz
 
-from germina.aux import fit, fitpredict, get_algspace
+from germina.aux import fit, fitpredict, get_algspace, fitshap2, fitshap
 from germina.cols import pathway_lst, bacteria_lst, single_eeg_lst, dyadic_eeg_lst
 from germina.config import local_cache_uri, remote_cache_uri, near_cache_uri, schedule_uri
 from germina.runner import ch
+from germina.shaps import SHAPs
 from germina.stats import p_value
 from germina.trees import tree_optimized_dv_pair
 
 max_trials = 10_000_000
-dct = handle_command_line(argv, z=False, roc=False, source=str, cache=False, font=12, alg=str, demo=False, noage=False, sched=False, targetvar=str, jobs=int, seed=0, prefix=str, suffix=str, sps=list, shap=False, tree=False)
+dct = handle_command_line(argv, extra=[], z=False, roc=False, source=str, cache=False, font=12, alg=str, demo=False, noage=False, sched=False, targetvar=str, jobs=int, seed=0, prefix=str, suffix=str, sps=list, shap=False, tree=False)
 print(dct)
-z, roc, source, use_cache, font, alg, demo, noage, sched, targetvar, jobs, seed, prefix, suffix, sps, shap, tree = \
-    dct["z"], dct["roc"], dct["source"], dct["cache"], dct["font"], dct["alg"], dct["demo"], dct["noage"], dct["sched"], dct["targetvar"], dct["jobs"], dct["seed"], dct["prefix"], dct["suffix"], dct["sps"], dct["shap"], dct["tree"]
+extra, z, roc, source, use_cache, font, alg, demo, noage, sched, targetvar, jobs, seed, prefix, suffix, sps, shap, tree = \
+    dct["extra"], dct["z"], dct["roc"], dct["source"], dct["cache"], dct["font"], dct["alg"], dct["demo"], dct["noage"], dct["sched"], dct["targetvar"], dct["jobs"], dct["seed"], dct["prefix"], dct["suffix"], dct["sps"], dct["shap"], dct["tree"]
 rnd = np.random.default_rng(0)
 runs = int(alg.split("-")[1])
 npairs = int(alg.split("-")[2])
@@ -56,8 +58,10 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             df_deeg = read_csv(f"data/dyadic_bayley_8_t2.csv", index_col="id_estudo")
             selected0 = list(sorted(set(dyadic_eeg_lst).intersection(df_deeg.columns)))
             df_deeg = df_deeg[selected0]
-            # df_deeg.drop([458, 501, 455, 427], axis="rows", inplace=True)
-            idx = df_deeg.count(axis="rows").sort_values() > 52  # Accept 10% of babies with NaN for a single variable
+            for ro in [458, 501, 455, 427]:
+                if ro in df_deeg.index:
+                    df_deeg.drop(ro, axis="rows", inplace=True)
+            idx = df_deeg.count(axis="rows").sort_values() / df_deeg.shape[0] > 0.9  # Accept max of 10% of babies with NaN for a single variable
             df_deeg = df_deeg.loc[:, idx]
             df = df.join(df_deeg, how="inner")
             predictors = dyadic_eeg_lst
@@ -85,9 +89,18 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         else:
             raise Exception(f"Unexpected timepoint suffix for target '{targetvar}'.")
 
-        selected = list(sorted(set(predictors).intersection(df.columns))) + agevar_lst + [targetvar]
+        selected = list(sorted(set(predictors).intersection(df.columns))) + extra + agevar_lst + [targetvar]
         df = df[selected]
         print("with NaNs", df.shape)
+
+        if noage:
+            df.drop(columns=agevar_lst)
+        # print(df.count(axis="columns").sort_values())
+
+        tgt = df[targetvar]
+        if source != "deeg":
+            df.dropna(axis="columns", inplace=True)
+        df[targetvar] = tgt
         df.dropna(axis="rows", inplace=True)
         print(df.shape)
         print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
@@ -96,14 +109,11 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
         if demo:
             take = min(df.shape[0] // 2, 30)
             df = pd.concat([df.iloc[:take], df.iloc[-take:]], axis="rows")
-        if noage:
-            del df[agevar_lst]
         print(df.shape)
         # kfolds, kfolds_full = (df.shape[0] - 2, df.shape[0]) if kfolds0 == 0 else (kfolds0, kfolds0)
-        d = hdict(algname=alg, npairs=npairs, trials=max_trials, demo=demo, columns=df.columns.tolist()[:-1], shap=shap, seed=seed, _njobs_=jobs, _verbose_=True)
+        d = hdict(targetvar=targetvar, algname=alg, npairs=npairs, trials=max_trials, demo=demo, columns=df.columns.tolist()[:-1], shap=shap, seed=seed, _njobs_=jobs, _verbose_=True)
 
         if tree:  ###############################################################################################################
-            best_bacc = -1000
             if z:
                 ss = StandardScaler()
                 df = DataFrame(ss.fit_transform(df), index=df.index, columns=df.columns)
@@ -117,10 +127,7 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             Xtr = df
             if use_cache:
                 d = ch(d, storages)
-            r2_params, bacc_params, r2, bacc_ = d.best
-            if bacc_ > best_bacc:
-                best_bacc = bacc_
-                best_bacc_params = bacc_params
+            r2_params, best_bacc_params, r2, best_bacc = d.best
             # noinspection PyTypeChecker
             d.apply(fit, alg, best_bacc_params, Xtr, out="tree")
             if use_cache:
@@ -146,7 +153,6 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
 
         # L2O ##############################################################################################################
         ansi = d.hosh.ansi
-        best_bacc, best_bacc_params = -1, None
 
         hits_low_vs_nextnorm = {0: 0, 1: 0}
         hits_lownext_vs_norm = {0: 0, 1: 0}
@@ -178,7 +184,9 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
 
         ys = []
 
-        tasks = zip(repeat(f"{targetvar} {noage=:1} {seed=} {sp=} {source=} {z=}"), repeat(alg), repeat(d.id), df.index.tolist())
+        indexshuf = df.index.tolist()
+        shuffle(indexshuf)
+        tasks = zip(repeat(f"{targetvar} {noage=:1} {seed=} {sp=} {source=} {z=} {shap=}"), repeat(alg), repeat(d.id), indexshuf)
         for c, (targetvar0, alg0, did0, idx) in enumerate((Scheduler(db, timeout=60) << tasks) if sched else tasks):
             if not sched:
                 print(f"\r{ansi} {targetvar0, alg0, idx}: {c:3} {100 * c / df.shape[0]:4.2f}% {bacc_lownext_vs_norm:5.3f} {p_lownext_vs_norm:.3f}\t", end="", flush=True)
@@ -207,22 +215,42 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
                 d.apply(lambda algname: (get_algspace(algname), get_algspace(algname), 1, 1), out="best")
             if use_cache:
                 d = ch(d, storages)
-            r2_params, bacc_params, r2, bacc_ = d.best
-            if bacc_ > best_bacc:
-                best_bacc = bacc_
-                best_bacc_params = bacc_params
+            r2_params, best_bacc_params, r2, best_bacc = d.best
             if not sched:
                 print(f"\r{ansi} {targetvar0, alg0, idx}: {c:3} {100 * c / df.shape[0]:4.2f}% {bacc_lownext_vs_norm:5.3f} {p_lownext_vs_norm:.3f}\t", end="", flush=True)
 
             # fit, predict +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            best_params = best_bacc_params
             # noinspection PyTypeChecker
-            d.apply(fitpredict, params=best_params, Xwtr=Xv_tr, Xts=Xv_ts[:, :-1], out="wts")
+            d.apply(fitpredict, params=best_bacc_params, Xwtr=Xv_tr, Xts=Xv_ts[:, :-1], out="wts")
+            # print(d.hoshes["wts"])
+            # d.show()
             if use_cache:
                 d = ch(d, storages)
             wts = d.wts
             if not sched:
                 print(f"\r{ansi} {targetvar0, alg0, idx}: {c:3} {100 * c / df.shape[0]:4.2f}% {bacc_lownext_vs_norm:5.3f} {p_lownext_vs_norm:.3f}\t", end="", flush=True)
+
+            ################ All SHAP at first iteration
+            if (idx == df.index[0]) and shap:
+                if z:
+                    ss = StandardScaler()
+                    df = DataFrame(ss.fit_transform(df), index=df.index, columns=df.columns)
+                if runs > 1:
+                    # noinspection PyTypeChecker
+                    d.apply(tree_optimized_dv_pair, df, start=0, end=runs, njobs=_._njobs_, verbose=_._verbose_, out="best")
+                else:
+                    # noinspection PyTypeChecker
+                    d.apply(lambda algname: (get_algspace(algname), get_algspace(algname), 1, 1), out="best")
+                if use_cache:
+                    d = ch(d, storages)
+                best_bacc_params = d.best[1]
+                shaps = SHAPs()
+                # noinspection PyTypeChecker
+                d.apply(fitshap, params=best_bacc_params, Xy=df, njobs=_._njobs_, out="result_shap")
+                if use_cache:
+                    d = ch(d, storages)
+                for rowidx, dct in d.result_shap.items():
+                    shaps.add(df.loc[rowidx, :].to_numpy().reshape(1, -1), None, dct)
 
             if sched:
                 continue
@@ -310,5 +338,13 @@ with (sopen(local_cache_uri, ondup="skip") as local_storage, sopen(near_cache_ur
             plt.legend(loc=0)
             plt.savefig(f"results/{filename}.pdf")
             plt.clf()
+
+        # SHAP summary
+        if shap:
+            print(f"|||||||||||||||||||||||{sum(tot.values())} pairs\t|||||||||||||||||||||||")
+            rel = shaps.relevance()
+            rel = rel[(rel["toshap__p-value"] < 0.1) & (rel["toshap__mean"] > 0.0001)]
+            rel.sort_values("toshap__mean", inplace=True, kind="stable", ascending=False)
+            print(rel)
 
         print("\n")

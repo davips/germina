@@ -7,6 +7,8 @@ from scipy.stats import ttest_1samp
 
 @dataclass
 class SHAPs:
+    center: int = 0
+
     def __post_init__(self):
         self.values = {}
         self.shaps = {}
@@ -35,7 +37,7 @@ class SHAPs:
             self.values[k].append(v)
             self.shaps[k].append(s)
             if b is None:
-                self.toshaps[k].append(s if a[0, -1] >= 0 else -s)
+                self.toshaps[k].append(s if a[0, -1] >= self.center else -s)
             else:
                 self.toshaps[k].append(s if a[0, -1] > b[0, -1] else -s)
 
@@ -57,5 +59,5 @@ class SHAPs:
         dct = {"variable": self.values.keys(), "toshap__mean": [], "toshap__p-value": []}
         for k in self.values:
             dct["toshap__mean"].append(np.mean(self.toshaps[k]))
-            dct["toshap__p-value"].append(ttest_1samp(self.toshaps[k], popmean=0, alternative="greater")[1])
+            dct["toshap__p-value"].append(ttest_1samp(self.toshaps[k], popmean=self.center, alternative="greater")[1])
         return DataFrame(dct)
